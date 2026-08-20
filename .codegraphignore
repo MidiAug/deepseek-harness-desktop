@@ -1,0 +1,6 @@
+# Never index local reference clones (desktops + upstream harness).
+reference/
+
+# Local agent / doc trees (also gitignored; keep out of accidental includeIgnored)
+dev/
+.cursor/
