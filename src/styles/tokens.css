@@ -1,0 +1,279 @@
+:root {
+  /* DSH dark 解析值（照搬 design-platform + Menu/Modal/Tooltip primitives） */
+  --color-canvas: rgb(21, 21, 23); /* bluish-950 / bg-base */
+  /* 顶栏：对齐 DSH 主面 #1b1b1c；hover 仍走 --color-nav-* 切换 */
+  --color-titlebar: #1b1b1c;
+  --color-panel: rgb(44, 44, 46); /* bluish-850 / layer-2 */
+  --color-panel-2: rgb(53, 54, 56); /* bluish-800 / layer-3 · menu */
+  --color-panel-hover: rgba(255, 255, 255, 0.08);
+  --color-line: rgba(255, 255, 255, 0.06); /* border-inverted */
+  --color-line-strong: rgba(255, 255, 255, 0.12); /* border-l2 */
+  --color-ink: rgb(249, 250, 251); /* bluish-50 */
+  --color-muted: rgb(173, 178, 184); /* bluish-400 */
+  --color-accent: #679efe;
+  --color-danger: #f25a5a;
+  --color-btn-fill: rgb(53, 54, 56);
+  --color-btn-fill-hover: rgb(67, 69, 74); /* bluish-750 */
+  --color-nav-hover: rgba(255, 255, 255, 0.08);
+  --color-nav-active: rgba(255, 255, 255, 0.14);
+  --color-tooltip-bg: rgb(67, 69, 74); /* bluish-750 · tooltip 双主题深色板 */
+  --color-tooltip-ink: rgb(249, 250, 251);
+  --color-mask: rgba(0, 0, 0, 0.5);
+  --mask-blur: blur(2px);
+  --shadow-lv3:
+    0 0 1px 0 rgba(0, 0, 0, 0.2), 0 0 4px 0 rgba(0, 0, 0, 0.02),
+    0 12px 32px 0 rgba(0, 0, 0, 0.08);
+  --titlebar-h: 35px;
+  --titlebar-compact-left-h: 25px;
+  --titlebar-compact-right-h: 35px;
+  /* DSH scrollbar（elevated / l2） */
+  --dsh-scrollbar-thumb: rgba(255, 255, 255, 0.16);
+  --dsh-scrollbar-thumb-hover: rgba(255, 255, 255, 0.28);
+  --dsh-scrollbar-width: 8px;
+
+  color: var(--color-ink);
+  background: var(--color-canvas);
+  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  overflow: hidden;
+  background: var(--color-canvas);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.icon-btn,
+.win-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--color-muted);
+  width: 2.65rem;
+  min-width: 2.65rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font: inherit;
+  border-radius: 0;
+}
+
+.icon-btn {
+  width: 2.2rem;
+  min-width: 2.2rem;
+  border-radius: 4px;
+  margin: 0.2rem 0.15rem 0.2rem 0;
+  align-self: center;
+  height: 1.7rem;
+}
+
+.icon-btn:hover,
+.win-btn:hover {
+  background: var(--color-nav-hover);
+  color: var(--color-ink);
+}
+
+.win-close:hover {
+  background: #e81123;
+  color: #fff;
+}
+
+/* 从托盘恢复时短暂抑制 :hover，避免关闭钮红态残留 */
+body.suppress-hover .win-btn:hover,
+body.suppress-hover .win-close:hover,
+body.suppress-hover .icon-btn:hover {
+  background: transparent !important;
+  color: var(--color-muted) !important;
+}
+
+.shell-tooltip {
+  position: fixed;
+  z-index: 200;
+  width: max-content;
+  max-width: 50vw;
+  padding: 3px 7px;
+  border-radius: 8px;
+  background: var(--color-tooltip-bg);
+  color: var(--color-tooltip-ink);
+  font-size: 13px;
+  line-height: 20px;
+  white-space: pre-line;
+  overflow-wrap: break-word;
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: shell-tooltip-in 150ms ease;
+}
+
+.shell-tooltip[data-side="top"] {
+  transform: translate(-50%, -100%);
+}
+
+.shell-tooltip[data-side="bottom"] {
+  transform: translateX(-50%);
+}
+
+@keyframes shell-tooltip-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shell-tooltip {
+    animation: none;
+  }
+}
+
+body.suppress-hover .shell-tooltip {
+  display: none;
+}
+
+h1 {
+  margin: 0 0 0.75rem;
+  font-size: 1.55rem;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.lead {
+  margin: 0 0 1.5rem;
+  color: var(--color-muted);
+}
+
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+.error {
+  margin: 0 0 0.75rem;
+  padding: 0.75rem;
+  background: rgba(242, 90, 90, 0.12);
+  color: #ffb4b4;
+  white-space: pre-wrap;
+  font-size: 0.85rem;
+  overflow-x: auto;
+  border-radius: 6px;
+  border: 1px solid rgba(242, 90, 90, 0.35);
+}
+
+.btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--color-line-strong);
+  background: var(--color-btn-fill);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  cursor: pointer;
+  border-radius: 18px;
+}
+
+.btn:hover {
+  background: var(--color-btn-fill-hover);
+}
+
+.btn.ghost {
+  background: transparent;
+}
+
+.btn.ghost:hover {
+  background: var(--color-nav-hover);
+}
+
+.btn.primary {
+  border-color: rgba(103, 158, 254, 0.45);
+  background: rgba(103, 158, 254, 0.22);
+  color: var(--color-ink);
+}
+
+.btn.primary:hover:not(:disabled) {
+  background: rgba(103, 158, 254, 0.32);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.field.check {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.55rem;
+}
+
+.field.check input {
+  margin-top: 0.2rem;
+}
+
+.field.check span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.field.check small {
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  color: var(--color-ink);
+}
+
+.field select,
+.field input[type="text"] {
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--color-line-strong);
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  border-radius: 10px;
+}

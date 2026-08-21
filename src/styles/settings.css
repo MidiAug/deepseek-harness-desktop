@@ -1,0 +1,979 @@
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin: 0;
+  padding: 0;
+}
+
+.settings-section {
+  margin: 0;
+  padding: 0;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.settings-section legend {
+  padding: 0;
+  margin: 0 0 2px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  color: var(--color-muted);
+  letter-spacing: 0.02em;
+}
+
+.drawer-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 18px 14px 8px 24px;
+  margin: 0;
+}
+
+.drawer-head h2 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+  color: var(--color-ink);
+}
+
+.drawer-head .icon-btn {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  margin: 0;
+  border-radius: 8px;
+  color: var(--color-muted);
+}
+
+.drawer-head .icon-btn:hover {
+  background: var(--color-nav-hover);
+  color: var(--color-ink);
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--color-mask);
+  backdrop-filter: var(--mask-blur);
+}
+
+/* 设置：mask 与面板分层（对齐 DSH SettingsRoot overlay） */
+.settings-overlay {
+  background: transparent;
+  backdrop-filter: none;
+  padding: 24px;
+}
+
+.modal-mask {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: var(--color-mask);
+  backdrop-filter: var(--mask-blur);
+  cursor: default;
+}
+
+.modal {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(420px, 100%);
+  padding: 0 0 20px;
+  overflow: hidden;
+  background: var(--color-panel);
+  border: 1px solid var(--color-line);
+  border-radius: 24px;
+  box-shadow: var(--shadow-lv3);
+}
+
+/* 横屏两栏：照搬 DSH SettingsRoot（800 宽 · 左 188 导航 · 固定高度） */
+.modal.settings-modal {
+  flex-direction: row;
+  align-items: stretch;
+  width: min(800px, calc(100vw - 48px));
+  height: min(640px, calc(100vh - 48px));
+  max-height: calc(100vh - 48px);
+  gap: 0;
+  padding: 0;
+  border: none;
+}
+
+.settings-nav {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 188px;
+  padding: 22px 12px 16px;
+  box-sizing: border-box;
+  border-right: 1px solid var(--color-line);
+}
+
+.settings-nav-title {
+  padding: 0 12px;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+  color: var(--color-ink);
+}
+
+.settings-nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-nav-cell {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 9px 16px 9px 12px;
+  box-sizing: border-box;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 400;
+  color: var(--color-ink);
+  text-align: left;
+}
+
+.settings-nav-cell:hover {
+  background: var(--color-nav-hover);
+}
+
+.settings-nav-cell.active {
+  background: var(--color-nav-active);
+}
+
+.settings-nav-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.settings-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.settings-content-head {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  height: 54px;
+  padding: 20px 14px 8px 10px;
+  box-sizing: border-box;
+}
+
+.settings-section-title {
+  margin: 0;
+  padding: 0 0 0 14px;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+  color: var(--color-ink);
+}
+
+.settings-close {
+  appearance: none;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 28px;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--color-ink);
+}
+
+.settings-close:hover {
+  background: var(--color-nav-hover);
+}
+
+.settings-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0 24px 16px;
+  --dsh-scrollbar-thumb: rgba(255, 255, 255, 0.18);
+  --dsh-scrollbar-thumb-hover: rgba(255, 255, 255, 0.32);
+}
+
+.settings-feedback {
+  margin: 12px 0 0 !important;
+}
+
+/* DSH Setting-Cell：title+desc | 控件；底部分割 */
+.settings-cell {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--color-line-strong);
+}
+
+.settings-cell:last-child {
+  border-bottom: none;
+}
+
+.settings-cell.stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.settings-cell.is-disabled {
+  opacity: 0.42;
+  pointer-events: none;
+}
+
+.settings-cell-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding-right: 24px;
+}
+
+.settings-cell.stack .settings-cell-copy {
+  padding-right: 0;
+}
+
+.settings-cell-title {
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 400;
+  color: var(--color-ink);
+}
+
+.settings-cell-desc {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--color-muted);
+}
+
+.settings-cell-control {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.settings-cell.stack .settings-cell-control {
+  justify-content: stretch;
+}
+
+.settings-control {
+  appearance: none;
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  height: 36px;
+  min-width: 180px;
+  max-width: 100%;
+  padding: 0 12px;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 12px;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  box-sizing: border-box;
+}
+
+.settings-cell.stack .settings-control {
+  width: 100%;
+  min-width: 0;
+}
+
+/* 自绘下拉：触发器与菜单同圆角体系 */
+.shell-select {
+  position: relative;
+  min-width: 180px;
+  max-width: 100%;
+}
+
+.shell-select-trigger {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 180px;
+  height: 36px;
+  padding: 0 10px 0 12px;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 12px;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  cursor: pointer;
+  box-sizing: border-box;
+  text-align: left;
+}
+
+.shell-select-trigger:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: var(--color-panel-2);
+}
+
+.shell-select.open .shell-select-trigger {
+  border-color: rgba(103, 158, 254, 0.55);
+  box-shadow: 0 0 0 1px rgba(103, 158, 254, 0.25);
+}
+
+.shell-select-trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.shell-select-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shell-select-chevron {
+  flex: none;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--color-muted);
+  transform: translateY(-1px);
+}
+
+.shell-select.open .shell-select-chevron {
+  transform: translateY(-1px) rotate(180deg);
+}
+
+.shell-select-menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border-radius: 12px;
+  border: 1px solid var(--color-line-strong);
+  background: var(--color-panel-2);
+  box-shadow: var(--shadow-lv3);
+  max-height: 220px;
+  overflow: auto;
+}
+
+.shell-select-menu li {
+  margin: 0;
+  padding: 0;
+}
+
+.shell-select-option {
+  appearance: none;
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 13px;
+  line-height: 20px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.shell-select-option:hover {
+  background: var(--color-nav-hover);
+}
+
+.shell-select-option.on {
+  background: var(--color-nav-active);
+  color: var(--color-ink);
+}
+
+.settings-cell-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 0 4px;
+}
+
+.settings-about {
+  gap: 12px !important;
+}
+
+.settings-about-card {
+  padding: 16px 16px 14px;
+  border-radius: 14px;
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+  border: 1px solid var(--color-line);
+}
+
+.settings-about-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.settings-about-name {
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--color-ink);
+}
+
+.settings-about-tag {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--color-muted);
+}
+
+.settings-about-meta {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-about-meta > div {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 10px;
+  align-items: center;
+}
+
+.settings-about-meta dt {
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--color-muted);
+}
+
+.settings-about-meta dd {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+.settings-about-meta dd.mono {
+  font-family: "SF Mono", "JetBrains Mono", "Fira Code", Consolas, "Segoe UI Mono",
+    monospace;
+  font-size: 12px;
+}
+
+.settings-about-ver {
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 500;
+}
+
+.settings-pill.ok {
+  background: rgba(72, 187, 120, 0.16);
+  color: #7ddea3;
+}
+
+.settings-pill.warn {
+  background: rgba(255, 184, 77, 0.14);
+  color: #ffc96b;
+}
+
+.settings-update-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--color-line);
+  background: var(--color-canvas);
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--color-muted);
+}
+
+.settings-update-banner.has-update {
+  border-color: rgba(103, 158, 254, 0.35);
+  background: rgba(103, 158, 254, 0.08);
+  color: var(--color-ink);
+}
+
+.settings-update-banner-flag {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-accent);
+}
+
+.settings-progress-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(103, 158, 254, 0.28);
+  background: rgba(103, 158, 254, 0.08);
+}
+
+.settings-progress-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.settings-progress-msg {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--color-ink);
+}
+
+.settings-progress-pct {
+  flex: none;
+  font-size: 12px;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-accent);
+}
+
+.settings-progress-bar {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.settings-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #4d82e8, #679efe);
+  transition: width 280ms ease;
+}
+
+.settings-progress-bar.indeterminate .settings-progress-fill {
+  width: 36%;
+  animation: settings-progress-slide 1.2s ease-in-out infinite;
+}
+
+@keyframes settings-progress-slide {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+.settings-log {
+  max-height: 140px;
+  overflow: auto;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--color-line);
+  font-family: "SF Mono", "JetBrains Mono", Consolas, "Segoe UI Mono", monospace;
+  font-size: 11px;
+  line-height: 17px;
+  color: rgba(220, 224, 230, 0.92);
+  scrollbar-width: thin;
+  scrollbar-color: var(--dsh-scrollbar-thumb) transparent;
+}
+
+.settings-log::-webkit-scrollbar {
+  width: var(--dsh-scrollbar-width);
+  height: var(--dsh-scrollbar-width);
+}
+
+.settings-log::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.settings-log::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--dsh-scrollbar-thumb);
+}
+
+.settings-log::-webkit-scrollbar-thumb:hover {
+  background: var(--dsh-scrollbar-thumb-hover);
+}
+
+.settings-log::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.settings-log-line {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.settings-log-line + .settings-log-line {
+  margin-top: 2px;
+}
+
+.settings-update-status {
+  margin: 0 0 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(103, 158, 254, 0.12);
+  border: 1px solid rgba(103, 158, 254, 0.35);
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--color-ink);
+}
+
+.settings-pref-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--color-canvas);
+  border: 1px solid var(--color-line);
+}
+
+.settings-pref-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--color-canvas);
+  border: 1px solid var(--color-line);
+  transition: opacity 0.15s ease;
+}
+
+.settings-pref-block.is-disabled {
+  opacity: 0.42;
+}
+
+.settings-pref-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-pref-title {
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 500;
+  color: var(--color-ink);
+}
+
+.settings-pref-desc {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--color-muted);
+}
+
+.settings-switch {
+  appearance: none;
+  flex: none;
+  position: relative;
+  width: 40px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 12px;
+  background: var(--color-btn-fill);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.settings-switch.on {
+  background: var(--color-accent);
+}
+
+.settings-switch-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.settings-switch.on .settings-switch-knob {
+  transform: translateX(16px);
+}
+
+.settings-style-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.settings-style-card {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 12px;
+  background: var(--color-panel);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  color: var(--color-ink);
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease;
+}
+
+.settings-style-card:hover:not(:disabled) {
+  background: var(--color-btn-fill-hover);
+}
+
+.settings-style-card.on {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px var(--color-accent);
+}
+
+.settings-style-card:disabled {
+  cursor: not-allowed;
+}
+
+.style-preview {
+  display: block;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--color-line);
+  box-sizing: border-box;
+}
+
+.style-preview.black {
+  background: #1b1b1c;
+}
+
+.style-preview.gray {
+  background: var(--color-panel-2);
+}
+
+.style-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.style-name {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+}
+
+.style-hint {
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--color-muted);
+}
+
+.settings-live-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--color-muted);
+}
+
+.appearance-footer {
+  justify-content: flex-end;
+}
+
+/* 暗色细滚动条（照搬 DSH scrollbar.css 思路：WebKit 伪元素路径） */
+.settings-scroll::-webkit-scrollbar {
+  width: var(--dsh-scrollbar-width);
+  height: var(--dsh-scrollbar-width);
+}
+
+.settings-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.settings-scroll::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: var(--dsh-scrollbar-thumb);
+}
+
+.settings-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--dsh-scrollbar-thumb-hover);
+}
+
+.settings-scroll::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  .settings-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--dsh-scrollbar-thumb) transparent;
+  }
+}
+
+.modal.close-ask {
+  width: min(400px, 100%);
+}
+
+.modal > h2 {
+  margin: 0;
+  padding: 22px 24px 0;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+}
+
+.modal > .lead {
+  margin: 0;
+  padding: 0 24px;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--color-ink);
+}
+
+.modal > .about-list,
+.modal > .field {
+  margin: 0;
+  padding: 0 24px;
+}
+
+.modal > .btn {
+  align-self: flex-end;
+  margin: 0 24px;
+}
+
+.modal-footer {
+  flex: none;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 0;
+  padding: 12px 24px 20px;
+  width: auto;
+  border-top: 1px solid var(--color-line);
+  background: var(--color-panel);
+}
+
+.settings-content > .modal-footer {
+  border-top: 1px solid var(--color-line);
+}
+
+/* 设置弹窗无底栏：仅左导航 + 右内容 */
+.settings-modal .settings-content > .modal-footer {
+  display: none;
+}
+
+.close-ask-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 0;
+  padding: 0 24px 4px;
+}
+
+.status.compact {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  background: var(--color-canvas);
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+}
+
+.settings-scroll .status-line {
+  padding: 0;
+  margin: 0 0 4px;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.settings-scroll .status-line:last-child {
+  margin-bottom: 0;
+}
+
+.settings-scroll .error {
+  margin: 12px 0 0;
+}
+
+.about-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--color-muted);
+  font-size: 14px;
+  line-height: 22px;
+}

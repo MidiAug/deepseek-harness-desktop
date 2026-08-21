@@ -13,6 +13,32 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["tray-icon"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# 下载 Node / 健康检查 HTTP
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "blocking", "stream", "socks"] }
+# 解压官方 Node zip
+zip = "2"
+# async command 与轮询
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "fs", "io-util", "sync"] }
+anyhow = "1"
+thiserror = "2"
+# Node 发行包 SHA-256 校验
+sha2 = "0.10"
+hex = "0.4"
+# 解析 ~/.dsh
+dirs = "6"
+futures-util = "0.3"
+
+# Windows：CreateProcessW 隐藏控制台 + 保留进程 HANDLE（R1）
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_Security",
+  "Win32_Storage_FileSystem",
+  "Win32_System_Environment",
+  "Win32_System_Pipes",
+  "Win32_System_Threading",
+  "Win32_UI_WindowsAndMessaging",
+] }

@@ -1,0 +1,278 @@
+.titlebar {
+  flex: none;
+  height: var(--titlebar-h);
+  display: flex;
+  align-items: stretch;
+  gap: 0.15rem;
+  padding: 0 0 0 0.4rem;
+  background: var(--color-titlebar);
+  border-bottom: 1px solid transparent;
+  user-select: none;
+  /* 高于 .menu-dismiss，保证菜单仍可点；dismiss 盖住 iframe */
+  z-index: 40;
+  position: relative;
+}
+
+.titlebar-style-black {
+  background: #1b1b1c;
+  border-bottom-color: transparent;
+}
+
+.titlebar-style-gray {
+  background: var(--color-panel);
+  border-bottom-color: var(--color-line);
+}
+
+/* 简洁：叠层 L 形（左=侧栏宽×25，右=剩余×35）；透明叠层；未盖区穿透点 iframe */
+.titlebar.titlebar-compact {
+  height: var(--titlebar-compact-right-h);
+  background: transparent;
+  border-bottom-color: transparent;
+  padding: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  pointer-events: none;
+}
+
+.titlebar-compact-left {
+  flex: none;
+  width: var(--sidebar-w, 260px);
+  height: var(--titlebar-compact-left-h);
+  background: transparent;
+  pointer-events: auto;
+}
+
+.titlebar-compact-right {
+  flex: 1;
+  min-width: 0;
+  height: var(--titlebar-compact-right-h);
+  background: transparent;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  pointer-events: auto;
+  position: relative;
+}
+
+.titlebar-compact-right-drag {
+  position: absolute;
+  inset: 0;
+  /* 窗控列除外：右侧留给按钮可点 */
+  right: 7.5rem;
+}
+
+.titlebar-compact .titlebar-right-reveal {
+  position: relative;
+  z-index: 1;
+  opacity: 0;
+  /* 仅显现淡入；隐藏瞬时，避免拖窗清 :hover 时先淡出再被 pin 拉回 */
+  transition: none;
+  pointer-events: none;
+  align-self: stretch;
+}
+
+.titlebar-compact .icon-btn,
+.titlebar-compact .win-btn {
+  color: var(--color-muted);
+}
+
+.titlebar-compact .icon-btn:hover,
+.titlebar-compact .win-btn:hover {
+  background: var(--color-nav-hover);
+  color: var(--color-ink);
+}
+
+/* 仅右侧条悬停显窗控 */
+.titlebar-compact-right:hover .titlebar-right-reveal,
+.titlebar-compact-right:focus-within .titlebar-right-reveal {
+  opacity: 1;
+  transition: opacity 0.12s ease;
+  pointer-events: auto;
+}
+
+/*
+ * 拖窗第一性：mousedown 后 OS/WebView 会清掉 :hover。
+ * 必须在按下时采样并冻结显隐，禁止再靠 :hover，也禁止「拖就强制藏」。
+ */
+.titlebar-compact.is-drag-pin-shown .titlebar-right-reveal {
+  opacity: 1 !important;
+  transition: none !important;
+  pointer-events: none !important;
+}
+
+.titlebar-compact.is-drag-pin-hidden .titlebar-right-reveal {
+  opacity: 0 !important;
+  transition: none !important;
+  pointer-events: none !important;
+}
+
+/* 冻结时去掉依赖 :hover 的按钮底色，避免 hover 被清掉时集体「变色」 */
+.titlebar-compact.is-drag-pin-shown .icon-btn,
+.titlebar-compact.is-drag-pin-shown .win-btn,
+.titlebar-compact.is-drag-pin-shown .icon-btn:hover,
+.titlebar-compact.is-drag-pin-shown .win-btn:hover {
+  background: transparent;
+  color: var(--color-muted);
+}
+
+body.suppress-hover .titlebar-compact-right:hover .titlebar-right-reveal {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* 仅简洁：顶栏叠在主区之上（不占 flex 高度） */
+
+.titlebar-left {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+  flex: none;
+  padding-right: 0.25rem;
+}
+
+.titlebar-drag {
+  flex: 1;
+  min-width: 4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+}
+
+.titlebar-status {
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  padding: 0 0.75rem;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.titlebar-product {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+  color: rgba(249, 250, 251, 0.72);
+}
+
+.titlebar-dot {
+  flex: none;
+  font-size: 12px;
+  line-height: 18px;
+  color: rgba(173, 178, 184, 0.35);
+}
+
+.titlebar-conn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-muted);
+}
+
+.titlebar-conn-mark {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(173, 178, 184, 0.55);
+}
+
+.titlebar-conn.is-busy .titlebar-conn-mark {
+  background: var(--color-accent);
+  box-shadow: 0 0 0 2px rgba(103, 158, 254, 0.2);
+}
+
+.titlebar-conn.is-ok {
+  color: rgba(125, 222, 163, 0.9);
+}
+
+.titlebar-conn.is-ok .titlebar-conn-mark {
+  background: #7ddea3;
+}
+
+.titlebar-conn.is-err {
+  color: #f25a5a;
+}
+
+.titlebar-conn.is-err .titlebar-conn-mark {
+  background: #f25a5a;
+}
+
+.titlebar-right {
+  display: flex;
+  align-items: stretch;
+  flex: none;
+}
+
+.menu-wrap {
+  position: relative;
+}
+
+.menu-trigger {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--color-muted);
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.menu-trigger:hover,
+.menu-trigger.open {
+  background: var(--color-nav-hover);
+  color: var(--color-ink);
+}
+
+/* Menu.module.css：pad 4 · r12 · inverted hairline · shadow-lv3 · min 200 */
+.menu-pop {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  box-sizing: border-box;
+  min-width: 200px;
+  max-width: 280px;
+  background: var(--color-panel-2);
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lv3);
+  z-index: 50;
+}
+
+/* 顶栏菜单略收紧：仍接近 Menu_cell，避免三项菜单显得空 */
+.menu-pop button {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 34px;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 13px;
+  line-height: 20px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.menu-pop button:hover {
+  background: var(--color-nav-hover);
+}

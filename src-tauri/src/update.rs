@@ -1,0 +1,129 @@
+//! Harness 更新通道：查 registry latest、强制重装并重启（与 ensure「缺则装」分离）。
+
+use serde::Serialize;
+use tauri::{AppHandle, Runtime};
+
+use crate::install;
+use crate::paths::DSH_PACKAGE;
+use crate::progress::{self, ReadyPayload};
+use crate::runtime;
+use crate::settings::{self, ShellSettings};
+use crate::supervise::{self, HarnessState};
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HarnessUpdateCheck {
+    pub local: Option<String>,
+    pub latest: Option<String>,
+    pub update_available: bool,
+}
+
+fn http_client(settings: &ShellSettings) -> Result<reqwest::Client, String> {
+    let mut builder = reqwest::Client::builder().user_agent("deepseek-harness-desktop/0.1");
+    if let Some(proxy) = settings.resolved_proxy_url() {
+        let proxy = reqwest::Proxy::all(&proxy)
+            .map_err(|e| format!("INSTALL_FAILED: 无效代理 {proxy}: {e}"))?;
+        builder = builder.proxy(proxy);
+    } else {
+        builder = builder.no_proxy();
+    }
+    builder
+        .build()
+        .map_err(|e| format!("INSTALL_FAILED: http client: {e}"))
+}
+
+/// 查询 registry latest，与本地 package.json version 对比。
+pub async fn check_harness_update<R: Runtime>(
+    app: &AppHandle<R>,
+) -> Result<HarnessUpdateCheck, String> {
+    let cfg = settings::load(app);
+    let local = runtime::read_harness_meta(app).version;
+    let registry = cfg.npm_registry().trim_end_matches('/');
+    // `@scope/name` → `@scope%2Fname`
+    let encoded = DSH_PACKAGE.replace('/', "%2F");
+    let url = format!("{registry}/{encoded}/latest");
+
+    progress::emit_progress(app, "check-update", "正在查询 harness 最新版本…", None);
+    progress::append_shell_log(app, &format!("check_harness_update GET {url}"));
+
+    let client = http_client(&cfg)?;
+    let resp = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("INSTALL_FAILED: 查询 registry: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(format!(
+            "INSTALL_FAILED: registry HTTP {} — {url}",
+            resp.status()
+        ));
+    }
+    let text = resp
+        .text()
+        .await
+        .map_err(|e| format!("INSTALL_FAILED: registry body: {e}"))?;
+    let body: serde_json::Value = serde_json::from_str(&text)
+        .map_err(|e| format!("INSTALL_FAILED: 解析 registry JSON: {e}"))?;
+    let latest = body
+        .get("version")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    let update_available = match (&local, &latest) {
+        (Some(l), Some(r)) => l != r,
+        (None, Some(_)) => true,
+        _ => false,
+    };
+
+    progress::append_shell_log(
+        app,
+        &format!(
+            "check_harness_update local={:?} latest={:?} update_available={update_available}",
+            local, latest
+        ),
+    );
+
+    Ok(HarnessUpdateCheck {
+        local,
+        latest,
+        update_available,
+    })
+}
+
+/// 停进程 → 强制 npm install @latest → 再 spawn。
+pub async fn apply_harness_update<R: Runtime>(
+    app: &AppHandle<R>,
+    state: &HarnessState,
+) -> Result<ReadyPayload, String> {
+    progress::emit_progress(
+        app,
+        "update-dsh",
+        "准备更新：等待获取更新锁…",
+        Some(5),
+    );
+    let _guard = state.boot_lock.lock().await;
+
+    progress::emit_progress(app, "update-dsh", "正在停止 harness…", Some(10));
+    supervise::stop_and_clear_pid(app, state);
+
+    // Windows 上刚杀进程时 DLL/文件句柄可能尚未释放，稍等再装。
+    progress::emit_progress(
+        app,
+        "update-dsh",
+        "等待进程释放文件锁…",
+        Some(20),
+    );
+    tokio::time::sleep(std::time::Duration::from_millis(1200)).await;
+
+    install::force_install_dsh(app).await?;
+
+    progress::emit_progress(app, "update-dsh", "正在重新启动 harness…", Some(92));
+    let (port, url) = supervise::spawn_and_wait_healthy(app, state).await?;
+    progress::emit_progress(
+        app,
+        "update-dsh",
+        &format!("更新完成 · 端口 {port}"),
+        Some(100),
+    );
+    Ok(ReadyPayload { url, port })
+}

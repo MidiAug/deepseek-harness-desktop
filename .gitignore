@@ -26,6 +26,7 @@ pnpm-debug.log*
 
 # Local-only trees (do not upload)
 .cursor/
+.claude/
 reference/
 dev/
 
