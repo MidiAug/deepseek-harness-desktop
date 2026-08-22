@@ -77,3 +77,27 @@ export function hideToTray(): Promise<void> {
 export function quitApp(): Promise<void> {
   return invoke("quit_app");
 }
+
+export function stopHarness(): Promise<void> {
+  return invoke("stop_harness");
+}
+
+export function openLoopbackUrl(url: string): Promise<void> {
+  return invoke("open_loopback_url", { url });
+}
+
+export type CliLinkStatus = {
+  enabled: boolean;
+  shimExists: boolean;
+  pathRegistered: boolean;
+  binDir: string;
+  shimPath: string;
+};
+
+export function getCliLinkStatus(): Promise<CliLinkStatus> {
+  return invoke<CliLinkStatus>("get_cli_link_status");
+}
+
+export function setCliLinkEnabled(enabled: boolean): Promise<CliLinkStatus> {
+  return invoke<CliLinkStatus>("set_cli_link_enabled", { enabled });
+}

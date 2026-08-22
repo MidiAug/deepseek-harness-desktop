@@ -30,6 +30,8 @@ hex = "0.4"
 # 解析 ~/.dsh
 dirs = "6"
 futures-util = "0.3"
+tauri-plugin-updater = "2.10.1"
+tauri-plugin-process = "2.3.1"
 
 # Windows：CreateProcessW 隐藏控制台 + 保留进程 HANDLE（R1）
 [target.'cfg(windows)'.dependencies]

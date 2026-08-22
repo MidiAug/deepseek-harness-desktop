@@ -41,7 +41,7 @@ pub enum TitlebarStyle {
     Transparent,
 }
 
-/// 运行时必需：镜像 / 代理 / DSH_HOME / 关闭行为
+/// 运行时必需：镜像 / 代理 / DSH_HOME / 关闭行为 / 端口 / CLI
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeSettings {
@@ -54,6 +54,11 @@ pub struct RuntimeSettings {
     pub close_to_tray: bool,
     #[serde(default)]
     pub close_pref_set: bool,
+    /// 0 = 使用壳默认（debug 3081 / release 3080）；占用则顺延
+    #[serde(default)]
+    pub preferred_port: u16,
+    #[serde(default)]
+    pub cli_link_enabled: bool,
 }
 
 /// 纯壳 UI chrome
@@ -80,6 +85,10 @@ pub struct ShellSettings {
     #[serde(default)]
     pub close_pref_set: bool,
     #[serde(default)]
+    pub preferred_port: u16,
+    #[serde(default)]
+    pub cli_link_enabled: bool,
+    #[serde(default)]
     pub titlebar_style: TitlebarStyle,
     #[serde(default)]
     pub titlebar_compact: bool,
@@ -98,6 +107,8 @@ impl Default for RuntimeSettings {
             dsh_home_override: String::new(),
             close_to_tray: true,
             close_pref_set: false,
+            preferred_port: 0,
+            cli_link_enabled: false,
         }
     }
 }
@@ -126,6 +137,8 @@ impl ShellSettings {
             dsh_home_override: runtime.dsh_home_override,
             close_to_tray: runtime.close_to_tray,
             close_pref_set: runtime.close_pref_set,
+            preferred_port: runtime.preferred_port,
+            cli_link_enabled: runtime.cli_link_enabled,
             titlebar_style: ui.titlebar_style,
             titlebar_compact: ui.titlebar_compact,
         }
@@ -139,6 +152,8 @@ impl ShellSettings {
             dsh_home_override: self.dsh_home_override.clone(),
             close_to_tray: self.close_to_tray,
             close_pref_set: self.close_pref_set,
+            preferred_port: self.preferred_port,
+            cli_link_enabled: self.cli_link_enabled,
         }
     }
 
@@ -530,6 +545,8 @@ mod tests {
             dsh_home_override: String::new(),
             close_to_tray: true,
             close_pref_set: false,
+            preferred_port: 0,
+            cli_link_enabled: false,
         };
         let json = serde_json::to_string(&r).unwrap();
         assert!(!json.contains("titlebar"));

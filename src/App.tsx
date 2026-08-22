@@ -9,9 +9,11 @@ import {
 } from "./components/SettingsModal";
 import { ShellProgressBubble } from "./components/ShellProgressBubble";
 import { ShellTitleBar } from "./components/ShellTitleBar";
+import { ShellUpdateBanner } from "./components/ShellUpdateBanner";
 import {
   shellApi,
   useChrome,
+  useHostLifecycle,
   useShellProgressBubble,
   useShellSession,
   useSidebarLayout,
@@ -31,6 +33,7 @@ function suppressHoverResidue() {
 
 export default function App() {
   const session = useShellSession();
+  const { syncSessionPhase } = useHostLifecycle();
   const { sidebarWidthPx } = useSidebarLayout(session.iframeKey);
   const { bubbleVisible, bubbleLeaving } = useShellProgressBubble(
     session.wantBubble,
@@ -51,6 +54,10 @@ export default function App() {
     setSettingsOpen(false);
     setSettingsSection(undefined);
   }, []);
+
+  useEffect(() => {
+    syncSessionPhase(session.phase);
+  }, [session.phase, syncSessionPhase]);
 
   useEffect(() => {
     let unAsk: (() => void) | undefined;
@@ -87,11 +94,35 @@ export default function App() {
         sidebarWidthPx={sidebarWidthPx}
         onOpenSettings={() => openSettings()}
         onRestart={session.restart}
+        onStop={() => void session.stop()}
         onOpenDshHome={() => {
           void shellApi.openKnownPath("dshHome").catch((e) => console.error(e));
         }}
+        onOpenLogs={() => {
+          void shellApi.openKnownPath("logs").catch((e) => console.error(e));
+        }}
+        onHideToTray={() => {
+          void shellApi.hideToTray().catch((e) => console.error(e));
+        }}
         onAbout={() => openSettings("about")}
+        onCopyVersion={() => {
+          void (async () => {
+            try {
+              const st = await shellApi.getRuntimeStatus();
+              const text = [
+                `shell ${st.shellVersion ?? "?"}`,
+                `harness ${st.harnessVersion ?? "?"}`,
+                `digest ${st.harnessDigest ?? "?"}`,
+              ].join(" · ");
+              await navigator.clipboard.writeText(text);
+            } catch (e) {
+              console.error(e);
+            }
+          })();
+        }}
       />
+
+      <ShellUpdateBanner />
 
       <div className="shell-body">
         {session.showBootPanel && (
@@ -132,9 +163,7 @@ export default function App() {
         onClose={closeSettings}
         initialSection={settingsSection}
         onHarnessReady={session.markReady}
-        hostLifecycleBusy={
-          session.phase === "installing" || session.phase === "spawning"
-        }
+        onStopHarness={() => void session.stop()}
       />
       <CloseAskDialog open={closeAskOpen} onClose={() => setCloseAskOpen(false)} />
     </div>

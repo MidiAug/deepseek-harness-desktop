@@ -10,6 +10,7 @@ import type {
   TitleConn,
 } from "./ipc-types";
 import type { ReadyPayload } from "./ipc-types";
+import { stopHarness } from "./shellApi";
 
 function withCacheBust(url: string): string {
   const sep = url.includes("?") ? "&" : "?";
@@ -64,6 +65,19 @@ export function useShellSession() {
     setBootKey((k) => k + 1);
   }, []);
 
+  /** 停止托管进程，回到失败/可重试态 */
+  const stop = useCallback(async () => {
+    try {
+      await stopHarness();
+    } catch (e) {
+      console.error(e);
+    }
+    setPhase("failed");
+    setServiceUrl(null);
+    setBootStealth(false);
+    setBootMsg("已停止 harness");
+  }, []);
+
   const titleConn: TitleConn =
     phase === "ready" ? "connected" : phase === "failed" ? "error" : "preparing";
 
@@ -105,6 +119,7 @@ export function useShellSession() {
     markIframeConnected,
     markIframeError,
     restart,
+    stop,
     titleConn,
     showBootPanel,
     showIframe,

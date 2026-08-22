@@ -7,6 +7,7 @@
 | [getting-started.md](getting-started.md) | 安装、首跑、进入官方 UI |
 | [configuration.md](configuration.md) | 代理、镜像、BYO `dsh`、数据目录 |
 | [troubleshooting.md](troubleshooting.md) | 常见失败与处理 |
+| [releases.md](releases.md) | 壳发行签名与自更新 |
 
 ## 本应用是什么
 

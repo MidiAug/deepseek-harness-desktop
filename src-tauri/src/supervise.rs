@@ -105,7 +105,12 @@ pub async fn spawn_and_wait_healthy<R: Runtime>(
 
     #[cfg(windows)]
     {
-        let preferred = paths::default_port();
+        let cfg = settings::load(app);
+        let preferred = if cfg.preferred_port >= 1024 {
+            cfg.preferred_port
+        } else {
+            paths::default_port()
+        };
         let port = find_available_port(preferred)?;
         if port != preferred {
             progress::emit_progress(
@@ -126,7 +131,6 @@ pub async fn spawn_and_wait_healthy<R: Runtime>(
             return Err(format!("HARNESS_NOT_FOUND: {}", entry.display()));
         }
         let harness = paths::harness_dir(app)?;
-        let cfg = settings::load(app);
         let dsh_home = paths::dsh_home(app, Some(cfg.dsh_home_override.as_str()));
         fs::create_dir_all(&dsh_home).map_err(|e| format!("SPAWN_FAILED: mkdir DSH_HOME: {e}"))?;
 

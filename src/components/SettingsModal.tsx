@@ -4,7 +4,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { listen } from "@tauri-apps/api/event";
 import {
   normalizeShellSettings,
   runtimeFromSettings,
@@ -16,11 +15,13 @@ import {
 import {
   shellApi,
   useChrome,
+  useHostLifecycle,
+  useShellUpdate,
   type HarnessUpdateCheck,
-  type ProgressPayload,
   type ReadyPayload,
   type RuntimeStatus,
 } from "../shell";
+import type { CliLinkStatus } from "../shell/shellApi";
 import { ShellTooltip } from "./ShellTooltip";
 import { SettingsPrefRow } from "./SettingsPrefRow";
 import { ShellSelect } from "./ShellSelect";
@@ -29,6 +30,7 @@ export type SettingsSection =
   | "network"
   | "window"
   | "appearance"
+  | "runtime"
   | "data"
   | "about";
 
@@ -36,6 +38,7 @@ const SECTIONS: { id: SettingsSection; label: string }[] = [
   { id: "network", label: "网络" },
   { id: "window", label: "窗口" },
   { id: "appearance", label: "外观" },
+  { id: "runtime", label: "运行时" },
   { id: "data", label: "数据与诊断" },
   { id: "about", label: "关于" },
 ];
@@ -56,8 +59,6 @@ const PROXY_OPTIONS = [
   { value: "custom", label: "自定义 URL" },
 ];
 
-const LOG_CAP = 200;
-
 type Props = {
   open: boolean;
   onClose: () => void;
@@ -65,8 +66,8 @@ type Props = {
   initialSection?: SettingsSection;
   /** harness 更新/重启成功后回灌会话 iframe */
   onHarnessReady?: (payload: ReadyPayload) => void;
-  /** 冷启动安装 / 拉起中：关于区隐藏更新类操作 */
-  hostLifecycleBusy?: boolean;
+  /** 停止托管进程 */
+  onStopHarness?: () => void;
 };
 
 /** 居中两栏设置：几何对齐 DSH SettingsRoot；全部即时落盘。 */
@@ -75,26 +76,23 @@ export function SettingsModal({
   onClose,
   initialSection,
   onHarnessReady,
-  hostLifecycleBusy = false,
+  onStopHarness,
 }: Props) {
   const { setChrome, patchChrome } = useChrome();
+  const life = useHostLifecycle();
+  const shellUpd = useShellUpdate();
   const [settings, setSettings] = useState<ShellSettings>(
     normalizeShellSettings(null),
   );
   const [runtime, setRuntime] = useState<RuntimeStatus | null>(null);
+  const [cliStatus, setCliStatus] = useState<CliLinkStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hint, setHint] = useState<string | null>(null);
   const [section, setSection] = useState<SettingsSection>("network");
   const [updateCheck, setUpdateCheck] = useState<HarnessUpdateCheck | null>(
     null,
   );
-  /** 本页发起的检查 / 更新 / 重启 */
-  const [opsBusy, setOpsBusy] = useState(false);
-  /** 收到 install-progress（含首跑安装镜像进关于区） */
-  const [hostProgressBusy, setHostProgressBusy] = useState(false);
-  const [progressMsg, setProgressMsg] = useState<string | null>(null);
-  const [progressPct, setProgressPct] = useState<number | null>(null);
-  const [logLines, setLogLines] = useState<string[]>([]);
+  const [portDraft, setPortDraft] = useState("");
   const logEndRef = useRef<HTMLDivElement>(null);
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
@@ -107,35 +105,20 @@ export function SettingsModal({
       .catch(() => undefined);
   }, []);
 
-  const pushLog = useCallback((line: string) => {
-    const t = line.trim();
-    if (!t) return;
-    setLogLines((prev) => {
-      const next =
-        prev.length >= LOG_CAP
-          ? prev.slice(prev.length - LOG_CAP + 1)
-          : [...prev];
-      next.push(t);
-      return next;
-    });
-  }, []);
-
   useEffect(() => {
     if (!open) return;
     setError(null);
     setHint(null);
     setUpdateCheck(null);
-    setOpsBusy(false);
-    setHostProgressBusy(hostLifecycleBusy);
-    setProgressMsg(null);
-    setProgressPct(null);
-    setLogLines([]);
     setSection(initialSection ?? "network");
     void shellApi
       .getShellSettings()
       .then((s) => {
         const next = normalizeShellSettings(s);
         setSettings(next);
+        setPortDraft(
+          next.preferredPort > 0 ? String(next.preferredPort) : "",
+        );
         setChrome({
           titlebarStyle: next.titlebarStyle,
           titlebarCompact: next.titlebarCompact,
@@ -143,13 +126,8 @@ export function SettingsModal({
       })
       .catch((e) => setError(String(e)));
     refreshRuntime();
-  }, [open, initialSection, setChrome, refreshRuntime, hostLifecycleBusy]);
-
-  useEffect(() => {
-    if (!open) return;
-    if (hostLifecycleBusy) setHostProgressBusy(true);
-    else if (!opsBusy) setHostProgressBusy(false);
-  }, [open, hostLifecycleBusy, opsBusy]);
+    void shellApi.getCliLinkStatus().then(setCliStatus).catch(() => undefined);
+  }, [open, initialSection, setChrome, refreshRuntime]);
 
   useEffect(() => {
     if (!open) return;
@@ -161,34 +139,9 @@ export function SettingsModal({
   }, [open, onClose]);
 
   useEffect(() => {
-    if (!open) return;
-    let un: (() => void) | undefined;
-    void listen<ProgressPayload>("install-progress", (ev) => {
-      const { stage, message, percent } = ev.payload;
-      setHostProgressBusy(true);
-      pushLog(message);
-      if (stage === "npm-log") {
-        setProgressMsg(
-          message.length > 120 ? `${message.slice(0, 119)}…` : message,
-        );
-        setProgressPct((p) => (p != null && p >= 75 ? p : 75));
-        return;
-      }
-      setProgressMsg(message);
-      if (percent != null) {
-        setProgressPct(percent);
-        if (percent >= 100) setHostProgressBusy(false);
-      }
-    }).then((fn) => {
-      un = fn;
-    });
-    return () => un?.();
-  }, [open, pushLog]);
-
-  useEffect(() => {
-    if (logLines.length === 0) return;
+    if (life.logLines.length === 0) return;
     logEndRef.current?.scrollIntoView({ block: "end" });
-  }, [logLines]);
+  }, [life.logLines]);
 
   useEffect(() => {
     return () => {
@@ -200,22 +153,6 @@ export function SettingsModal({
 
   function flashHint(msg: string) {
     setHint(msg);
-  }
-
-  function beginBusy(initial: string) {
-    setOpsBusy(true);
-    setProgressMsg(initial);
-    setProgressPct(null);
-    setLogLines([initial]);
-  }
-
-  function endBusy(clearProgress: boolean) {
-    setOpsBusy(false);
-    if (clearProgress) {
-      setProgressMsg(null);
-      setProgressPct(null);
-      setLogLines([]);
-    }
   }
 
   function persistRuntime(next: ShellSettings, softHint?: string) {
@@ -263,7 +200,7 @@ export function SettingsModal({
   async function onCheckUpdate() {
     setError(null);
     setHint(null);
-    beginBusy("正在检查更新…");
+    life.beginOps("正在检查更新…");
     try {
       const r = await shellApi.checkHarnessUpdate();
       setUpdateCheck(r);
@@ -277,37 +214,39 @@ export function SettingsModal({
     } catch (e) {
       setError(typeof e === "string" ? e : String(e));
     } finally {
-      endBusy(true);
+      life.endOps({
+        clearProgress: true,
+      });
     }
   }
 
   async function onApplyUpdate() {
     setError(null);
     setHint(null);
-    beginBusy("已开始更新：停止进程 → 安装 → 重启（可能需数分钟）…");
-    setProgressPct(5);
+    life.beginOps("已开始更新：停止进程 → 安装 → 重启（可能需数分钟）…");
     try {
       const payload = await shellApi.applyHarnessUpdate();
       setUpdateCheck(null);
       refreshRuntime();
       onHarnessReady?.(payload);
       flashHint("harness 已更新并重启。");
-      setProgressPct(100);
-      setProgressMsg("更新完成");
+      life.seedBoot({
+        message: "更新完成",
+        stageId: "start",
+        percent: 100,
+      });
     } catch (e) {
       setError(typeof e === "string" ? e : String(e));
       refreshRuntime();
-      setProgressMsg(null);
-      setProgressPct(null);
     } finally {
-      setOpsBusy(false);
+      life.endOps();
     }
   }
 
   async function onApplyNetworkRestart() {
     setError(null);
     setHint(null);
-    beginBusy("正在按当前网络设置重启 harness…");
+    life.beginOps("正在按当前网络设置重启 harness…");
     try {
       const payload = await shellApi.restartHarness();
       refreshRuntime();
@@ -316,18 +255,18 @@ export function SettingsModal({
     } catch (e) {
       setError(typeof e === "string" ? e : String(e));
     } finally {
-      endBusy(true);
+      life.endOps({
+        clearProgress: true,
+      });
     }
   }
 
   const compactOn = settings.titlebarCompact;
-  /** 首跑安装 / 拉起 / 本页操作：关于区不提供更新类按钮 */
-  const lifecycleLocked =
-    hostLifecycleBusy || hostProgressBusy || opsBusy;
-  const showProgress =
-    lifecycleLocked || progressMsg != null || logLines.length > 0;
+  const locked = life.locked;
+  // 仅 busy 或确有日志行；勿用 idle 残留 message（clear 后曾误出「正在准备」条）
+  const showProgress = locked || life.logLines.length > 0;
   const barIndeterminate =
-    lifecycleLocked && (progressPct == null || progressPct === 75);
+    locked && (life.percent == null || life.percent === 75);
 
   return (
     <div className="modal-backdrop settings-overlay" role="presentation">
@@ -550,6 +489,138 @@ export function SettingsModal({
               </div>
             )}
 
+            {section === "runtime" && (
+              <div className="settings-section">
+                <SettingsPrefRow
+                  title="首选端口"
+                  description="0 或留空 = 壳默认（开发 3081 / 发行 3080）；被占用时自动顺延。改后需重启 harness。"
+                  layout="stack"
+                >
+                  <input
+                    className="settings-control"
+                    type="number"
+                    min={0}
+                    max={65535}
+                    placeholder="默认"
+                    value={portDraft}
+                    onChange={(ev) => {
+                      setPortDraft(ev.target.value);
+                      const n = Number(ev.target.value);
+                      const preferredPort =
+                        ev.target.value.trim() === "" || !Number.isFinite(n)
+                          ? 0
+                          : Math.max(0, Math.min(65535, Math.floor(n)));
+                      patchRuntime(
+                        { preferredPort },
+                        {
+                          softHint:
+                            "首选端口已保存；请在下方重启 harness 后生效。",
+                        },
+                      );
+                    }}
+                  />
+                </SettingsPrefRow>
+                <SettingsPrefRow title="当前端口" description="实际监听端口（可能因占用顺延）">
+                  <span className="mono">{runtime?.port ?? "—"}</span>
+                </SettingsPrefRow>
+                <div className="settings-cell-actions">
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={!runtime?.port}
+                    onClick={() => {
+                      const url = `http://127.0.0.1:${runtime?.port}`;
+                      void navigator.clipboard.writeText(url).then(
+                        () => flashHint("已复制服务 URL。"),
+                        () => setError("复制失败"),
+                      );
+                    }}
+                  >
+                    复制服务 URL
+                  </button>
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={!runtime?.port}
+                    onClick={() => {
+                      const url = `http://127.0.0.1:${runtime?.port}`;
+                      void shellApi
+                        .openLoopbackUrl(url)
+                        .then(() => flashHint("已在浏览器打开。"))
+                        .catch((e) => setError(String(e)));
+                    }}
+                  >
+                    浏览器打开
+                  </button>
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    disabled={locked}
+                    onClick={() => {
+                      onStopHarness?.();
+                      flashHint("已请求停止 harness。");
+                      refreshRuntime();
+                    }}
+                  >
+                    停止 harness
+                  </button>
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={locked}
+                    onClick={() => void onApplyNetworkRestart()}
+                  >
+                    重启 harness
+                  </button>
+                </div>
+
+                <SettingsPrefRow
+                  title="命令行 dsh"
+                  description="在 AppData/bin 写入 dsh.cmd 并加入用户 PATH（不修改 .bashrc/.zshrc）。新开终端生效。"
+                >
+                  <button
+                    type="button"
+                    className={`settings-switch${settings.cliLinkEnabled ? " on" : ""}`}
+                    role="switch"
+                    aria-checked={settings.cliLinkEnabled}
+                    aria-label="命令行 dsh"
+                    disabled={locked}
+                    onClick={() => {
+                      const next = !settings.cliLinkEnabled;
+                      setSettings((s) => ({ ...s, cliLinkEnabled: next }));
+                      void shellApi
+                        .setCliLinkEnabled(next)
+                        .then((st) => {
+                          setCliStatus(st);
+                          flashHint(
+                            next
+                              ? "已启用 CLI；请新开终端验证 dsh。"
+                              : "已关闭 CLI 并移出用户 PATH。",
+                          );
+                        })
+                        .catch((e) => {
+                          setError(String(e));
+                          setSettings((s) => ({
+                            ...s,
+                            cliLinkEnabled: !next,
+                          }));
+                        });
+                    }}
+                  >
+                    <span className="settings-switch-knob" />
+                  </button>
+                </SettingsPrefRow>
+                {cliStatus && (
+                  <p className="settings-live-hint">
+                    shim {cliStatus.shimExists ? "已写入" : "未写入"}
+                    {" · "}
+                    PATH {cliStatus.pathRegistered ? "已注册" : "未注册"}
+                    {cliStatus.binDir ? ` · ${cliStatus.binDir}` : ""}
+                  </p>
+                )}
+              </div>
+            )}
+
             {section === "data" && (
               <div className="settings-section">
                 <SettingsPrefRow
@@ -602,11 +673,11 @@ export function SettingsModal({
                       <dd>
                         <span className="settings-about-ver">
                           {runtime?.harnessVersion ??
-                            (lifecycleLocked ? "安装中…" : "未安装")}
+                            (locked ? "安装中…" : "未安装")}
                         </span>
                         {runtime?.harnessReady ? (
                           <span className="settings-pill ok">就绪</span>
-                        ) : lifecycleLocked ? (
+                        ) : locked ? (
                           <span className="settings-pill warn">进行中</span>
                         ) : null}
                       </dd>
@@ -632,7 +703,7 @@ export function SettingsModal({
                   </dl>
                 </div>
 
-                {updateCheck && !lifecycleLocked && (
+                {updateCheck && !locked && (
                   <div
                     className={`settings-update-banner${updateCheck.updateAvailable ? " has-update" : ""}`}
                   >
@@ -656,12 +727,12 @@ export function SettingsModal({
                   >
                     <div className="settings-progress-head">
                       <span className="settings-progress-msg">
-                        {progressMsg ??
-                          (lifecycleLocked ? "处理中…" : "最近进度")}
+                        {life.message ||
+                          (locked ? "处理中…" : "最近进度")}
                       </span>
-                      {progressPct != null && !barIndeterminate && (
+                      {life.percent != null && !barIndeterminate && (
                         <span className="settings-progress-pct">
-                          {progressPct}%
+                          {life.percent}%
                         </span>
                       )}
                     </div>
@@ -671,7 +742,9 @@ export function SettingsModal({
                       aria-valuemin={0}
                       aria-valuemax={100}
                       aria-valuenow={
-                        barIndeterminate ? undefined : (progressPct ?? undefined)
+                        barIndeterminate
+                          ? undefined
+                          : (life.percent ?? undefined)
                       }
                     >
                       <div
@@ -679,13 +752,13 @@ export function SettingsModal({
                         style={
                           barIndeterminate
                             ? undefined
-                            : { width: `${progressPct ?? 0}%` }
+                            : { width: `${life.percent ?? 0}%` }
                         }
                       />
                     </div>
-                    {logLines.length > 0 && (
+                    {life.logLines.length > 0 && (
                       <div className="settings-log" aria-label="更新日志">
-                        {logLines.map((line, i) => (
+                        {life.logLines.map((line, i) => (
                           <div
                             key={`${i}-${line.slice(0, 24)}`}
                             className="settings-log-line"
@@ -699,7 +772,7 @@ export function SettingsModal({
                   </div>
                 )}
 
-                {!lifecycleLocked && (
+                {!locked && (
                   <div className="settings-cell-actions">
                     <button
                       type="button"
@@ -728,8 +801,37 @@ export function SettingsModal({
                 )}
 
                 <p className="settings-live-hint">
-                  壳自身更新通道尚未启用。详细进度写入 AppData/logs/shell.log。
+                  {shellUpd.phase === "downloaded"
+                    ? `壳 ${shellUpd.version ?? ""} 已下载，可立即重启安装。`
+                    : shellUpd.phase === "downloading"
+                      ? `正在下载壳更新${shellUpd.percent != null ? ` ${shellUpd.percent}%` : "…"}`
+                      : shellUpd.phase === "unsupported"
+                        ? "壳更新：开发态或未配置发行端点时不可用；发行构建将自动检查（启动后 / 每 6 小时），下完再提示安装。"
+                        : "壳更新：启动后与每 6 小时自动检查；有新版本后台下载，确认后重启安装。详细进度写入 AppData/logs/shell.log。"}
                 </p>
+                <div className="settings-cell-actions">
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    disabled={
+                      shellUpd.phase === "checking" ||
+                      shellUpd.phase === "downloading" ||
+                      shellUpd.phase === "installing"
+                    }
+                    onClick={() => void shellUpd.checkNow(true)}
+                  >
+                    检查壳更新
+                  </button>
+                  {shellUpd.phase === "downloaded" && (
+                    <button
+                      type="button"
+                      className="btn primary"
+                      onClick={() => void shellUpd.installAndRelaunch()}
+                    >
+                      立即重启安装壳
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 

@@ -11,6 +11,9 @@ export type ShellSettings = {
   dshHomeOverride: string;
   closeToTray: boolean;
   closePrefSet: boolean;
+  /** 0 = 壳默认端口；占用则顺延 */
+  preferredPort: number;
+  cliLinkEnabled: boolean;
   titlebarStyle: TitlebarStyle;
   titlebarCompact: boolean;
 };
@@ -29,6 +32,8 @@ export type RuntimeSettings = Pick<
   | "dshHomeOverride"
   | "closeToTray"
   | "closePrefSet"
+  | "preferredPort"
+  | "cliLinkEnabled"
 >;
 
 /** UI chrome（ui.json） */
@@ -42,6 +47,8 @@ export function runtimeFromSettings(s: ShellSettings): RuntimeSettings {
     dshHomeOverride: s.dshHomeOverride,
     closeToTray: s.closeToTray,
     closePrefSet: s.closePrefSet,
+    preferredPort: s.preferredPort,
+    cliLinkEnabled: s.cliLinkEnabled,
   };
 }
 
@@ -59,6 +66,8 @@ export const defaultShellSettings: ShellSettings = {
   dshHomeOverride: "",
   closeToTray: true,
   closePrefSet: false,
+  preferredPort: 0,
+  cliLinkEnabled: false,
   titlebarStyle: "black",
   titlebarCompact: false,
 };
@@ -78,11 +87,14 @@ export function chromeFromSettings(s: ShellSettings): ChromePrefs {
 export function normalizeShellSettings(
   s: Partial<ShellSettings> | null | undefined,
 ): ShellSettings {
+  const port = Number(s?.preferredPort ?? 0);
   return {
     ...defaultShellSettings,
     ...s,
     closeToTray: s?.closeToTray ?? true,
     closePrefSet: s?.closePrefSet ?? false,
+    preferredPort: Number.isFinite(port) && port >= 0 ? Math.floor(port) : 0,
+    cliLinkEnabled: s?.cliLinkEnabled ?? false,
     titlebarStyle: normalizeTitlebarStyle(s?.titlebarStyle),
     titlebarCompact: s?.titlebarCompact ?? false,
   };

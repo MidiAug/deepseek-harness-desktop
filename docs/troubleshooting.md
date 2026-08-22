@@ -43,7 +43,7 @@
 - 「更新并重启」会停托管进程、移除旧包、强制 `npm install @deepseek-ai/dsh@latest` 再拉起；**可能需数分钟**  
 - 关于页会显示**进度条**与**滚动过程日志**（npm 输出按行流式刷新；约 12s 无输出会有心跳提示）  
 - 完整记录仍写入 `%APPDATA%\com.deepseek.harness.desktop\logs\shell.log`（与 `harness.log` 分开）  
-- 壳自身安装包更新通道尚未启用；请从发行页获取新版  
+- 壳更新：发行构建会自动检查；开发态请用发行包或见 [releases.md](releases.md)  
 
 ## 代理下插件安装失败
 

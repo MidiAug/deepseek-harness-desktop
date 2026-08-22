@@ -124,6 +124,9 @@ body.suppress-hover .titlebar-compact-right:hover .titlebar-right-reveal {
 /* 仅简洁：顶栏叠在主区之上（不占 flex 高度） */
 
 .titlebar-left {
+  position: relative;
+  /* 高于同栈内 .menu-dismiss(35)，否则 dismiss 盖住其它触发器，悬停无法切换 */
+  z-index: 45;
   display: flex;
   align-items: center;
   gap: 0.1rem;

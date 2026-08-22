@@ -19,11 +19,15 @@ type Props = {
   sidebarWidthPx: number;
   onOpenSettings: () => void;
   onRestart: () => void;
+  onStop: () => void;
   onOpenDshHome: () => void;
+  onOpenLogs: () => void;
+  onHideToTray: () => void;
   onAbout: () => void;
+  onCopyVersion: () => void;
 };
 
-type MenuId = "app" | "view" | "help" | null;
+type MenuId = "app" | "help" | null;
 
 export function ShellTitleBar({
   port,
@@ -32,8 +36,12 @@ export function ShellTitleBar({
   sidebarWidthPx,
   onOpenSettings,
   onRestart,
+  onStop,
   onOpenDshHome,
+  onOpenLogs,
+  onHideToTray,
   onAbout,
+  onCopyVersion,
 }: Props) {
   const [menu, setMenu] = useState<MenuId>(null);
   const [maximized, setMaximized] = useState(false);
@@ -319,6 +327,17 @@ export function ShellTitleBar({
                   type="button"
                   onClick={() => {
                     setMenu(null);
+                    onStop();
+                  }}
+                >
+                  停止 harness
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenu(null);
                     onOpenDshHome();
                   }}
                 >
@@ -330,35 +349,32 @@ export function ShellTitleBar({
                   type="button"
                   onClick={() => {
                     setMenu(null);
-                    void shellApi.quitApp();
+                    onOpenLogs();
                   }}
                 >
-                  退出
+                  打开日志目录
                 </button>
               </li>
-            </ul>
-          )}
-        </div>
-        <div className="menu-wrap">
-          <button
-            type="button"
-            className={`menu-trigger${menu === "view" ? " open" : ""}`}
-            onClick={() => toggle("view")}
-            onMouseEnter={() => onMenuEnter("view")}
-          >
-            视图
-          </button>
-          {menu === "view" && (
-            <ul className="menu-pop" role="menu">
               <li>
                 <button
                   type="button"
                   onClick={() => {
                     setMenu(null);
-                    onOpenSettings();
+                    onHideToTray();
                   }}
                 >
-                  壳设置
+                  隐藏到托盘
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenu(null);
+                    void shellApi.quitApp();
+                  }}
+                >
+                  退出
                 </button>
               </li>
             </ul>
@@ -384,6 +400,28 @@ export function ShellTitleBar({
                   }}
                 >
                   关于
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenu(null);
+                    onOpenLogs();
+                  }}
+                >
+                  打开日志目录
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenu(null);
+                    onCopyVersion();
+                  }}
+                >
+                  复制版本信息
                 </button>
               </li>
             </ul>

@@ -11,6 +11,7 @@ mod sidebar_probe;
 mod supervise;
 mod tray;
 mod update;
+mod cli_link;
 
 use error::HostError;
 use progress::ReadyPayload;
@@ -34,6 +35,16 @@ async fn restart_harness(
     runtime::restart_harness(&app, &state).await
 }
 
+#[tauri::command]
+fn stop_harness(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, HarnessState>,
+) -> Result<(), String> {
+    supervise::stop_and_clear_pid(&app, &state);
+    progress::append_shell_log(&app, "[ops] stop_harness");
+    Ok(())
+}
+
 /// 仅允许打开壳已知目录，禁止任意路径。
 #[tauri::command]
 fn open_known_path(app: tauri::AppHandle, which: String) -> Result<(), String> {
@@ -42,7 +53,7 @@ fn open_known_path(app: tauri::AppHandle, which: String) -> Result<(), String> {
         "dshHome" => paths::dsh_home(&app, Some(cfg.dsh_home_override.as_str())),
         "appData" => paths::base_dir(&app)?,
         "logs" => {
-            let p = paths::harness_log_file(&app)?;
+            let p = paths::shell_log_file(&app)?;
             p.parent()
                 .map(|x| x.to_path_buf())
                 .unwrap_or(p)
@@ -65,6 +76,30 @@ fn open_known_path(app: tauri::AppHandle, which: String) -> Result<(), String> {
     {
         let _ = path;
         Err(HostError::OpenPath("仅 Windows 支持".into()).into())
+    }
+}
+
+/// 仅允许本机 loopback http URL（服务地址外开）。
+#[tauri::command]
+fn open_loopback_url(url: String) -> Result<(), String> {
+    let trimmed = url.trim();
+    let ok = (trimmed.starts_with("http://127.0.0.1:")
+        || trimmed.starts_with("http://localhost:"))
+        && !trimmed.contains([' ', '\n', '\r', '\t']);
+    if !ok {
+        return Err("仅允许打开 http://127.0.0.1 或 localhost".into());
+    }
+    #[cfg(windows)]
+    {
+        std::process::Command::new("cmd")
+            .args(["/C", "start", "", trimmed])
+            .spawn()
+            .map_err(|e| format!("open url: {e}"))?;
+        Ok(())
+    }
+    #[cfg(not(windows))]
+    {
+        Err("仅 Windows 支持".into())
     }
 }
 
@@ -156,14 +191,39 @@ fn hide_to_tray(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn get_cli_link_status(app: tauri::AppHandle) -> Result<cli_link::CliLinkStatus, String> {
+    Ok(cli_link::status(&app))
+}
+
+#[tauri::command]
+fn set_cli_link_enabled(
+    app: tauri::AppHandle,
+    enabled: bool,
+) -> Result<cli_link::CliLinkStatus, String> {
+    let mut cfg = settings::load(&app);
+    cfg.cli_link_enabled = enabled;
+    settings::save(&app, &cfg)?;
+    if enabled {
+        cli_link::ensure(&app)?;
+    } else {
+        cli_link::remove(&app)?;
+    }
+    Ok(cli_link::status(&app))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .manage(HarnessState::default())
         .invoke_handler(tauri::generate_handler![
             ensure_and_start,
             restart_harness,
+            stop_harness,
             open_known_path,
+            open_loopback_url,
             get_runtime_status,
             get_shell_settings,
             save_shell_settings,
@@ -172,6 +232,8 @@ pub fn run() {
             check_harness_update,
             apply_harness_update,
             read_shell_log,
+            get_cli_link_status,
+            set_cli_link_enabled,
             quit_app,
             hide_to_tray
         ])

@@ -107,8 +107,9 @@
   flex-direction: row;
   align-items: stretch;
   width: min(800px, calc(100vw - 48px));
-  height: min(640px, calc(100vh - 48px));
-  max-height: calc(100vh - 48px);
+  /* 随窗高收缩，上下各留约 48px，避免贴满窗口 */
+  height: min(640px, calc(100vh - 96px));
+  max-height: calc(100vh - 96px);
   gap: 0;
   padding: 0;
   border: none;

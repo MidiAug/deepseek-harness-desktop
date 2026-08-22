@@ -1,53 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { listen } from "@tauri-apps/api/event";
 import {
+  BOOT_STAGES,
   shellApi,
-  type ProgressPayload,
+  stageIndex,
+  useHostLifecycle,
   type ReadyPayload,
   type StartCommand,
 } from "../shell";
-
-type Phase = "boot" | "working" | "ready" | "error";
-
-const STAGES = [
-  { id: "detect", label: "检测" },
-  { id: "download-node", label: "下载 Node" },
-  { id: "verify-node", label: "校验" },
-  { id: "extract-node", label: "解压" },
-  { id: "install-dsh", label: "安装 harness" },
-  { id: "start", label: "启动" },
-] as const;
-
-const LIVE_CAP = 60;
-
-function mapStage(stage: string | null): string | null {
-  if (!stage) return null;
-  if (stage === "npm-log") return "install-dsh";
-  if (stage.startsWith("update-dsh") || stage === "install-dsh") return "install-dsh";
-  if (stage.startsWith("download-node")) return "download-node";
-  if (stage.startsWith("verify-node")) return "verify-node";
-  if (stage.startsWith("extract-node")) return "extract-node";
-  if (stage === "check-update") return "detect";
-  if (stage.startsWith("start")) return "start";
-  if (stage.startsWith("detect")) return "detect";
-  const hit = STAGES.find((s) => stage.startsWith(s.id) || s.id.startsWith(stage));
-  return hit?.id ?? null;
-}
-
-function stageIndex(stage: string | null): number {
-  const mapped = mapStage(stage);
-  if (!mapped) return 0;
-  const i = STAGES.findIndex((s) => s.id === mapped);
-  return i >= 0 ? i : 0;
-}
-
-function isLogOnly(stage: string): boolean {
-  return stage === "npm-log";
-}
-
-function isHeartbeat(message: string): boolean {
-  return message.startsWith("…") || message.startsWith("...");
-}
 
 type Props = {
   startCommand: StartCommand;
@@ -59,6 +18,9 @@ type Props = {
   onStatusMessage?: (message: string) => void;
 };
 
+/**
+ * 冷启动 UI：进度/日志订阅 HostLifecycle；本地只保留错误与 stealth。
+ */
 export function BootPanel({
   startCommand,
   onReady,
@@ -68,95 +30,73 @@ export function BootPanel({
   onStealthChange,
   onStatusMessage,
 }: Props) {
-  const [phase, setPhase] = useState<Phase>("boot");
-  const [message, setMessage] = useState("正在准备…");
-  const [percent, setPercent] = useState<number | null>(null);
-  const [stage, setStage] = useState<string | null>(null);
+  const life = useHostLifecycle();
+  const [failed, setFailed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fastPath, setFastPath] = useState(false);
   const [runtimeKnown, setRuntimeKnown] = useState(false);
   const [repairing, setRepairing] = useState(false);
   const [logOpen, setLogOpen] = useState(true);
-  const [liveLines, setLiveLines] = useState<string[]>([]);
+  const [done, setDone] = useState(false);
   const logBodyRef = useRef<HTMLDivElement>(null);
   const startedRef = useRef(false);
   const onStealthChangeRef = useRef(onStealthChange);
   const onStatusMessageRef = useRef(onStatusMessage);
   const onBootWorkingRef = useRef(onBootWorking);
+  const seedBootRef = useRef(life.seedBoot);
   onStealthChangeRef.current = onStealthChange;
   onStatusMessageRef.current = onStatusMessage;
   onBootWorkingRef.current = onBootWorking;
+  seedBootRef.current = life.seedBoot;
 
-  const setStatus = useCallback((msg: string) => {
-    setMessage(msg);
-    onStatusMessageRef.current?.(msg);
-  }, []);
-
-  const pushLive = useCallback((line: string) => {
-    const t = line.trim();
-    if (!t) return;
-    setLiveLines((prev) => {
-      if (prev[prev.length - 1] === t) return prev;
-      const next =
-        prev.length >= LIVE_CAP ? prev.slice(prev.length - LIVE_CAP + 1) : [...prev];
-      next.push(t);
-      return next;
+  const setStatus = useCallback((msg: string, stageId?: Parameters<typeof life.seedBoot>[0]["stageId"], percent?: number | null) => {
+    seedBootRef.current({
+      message: msg,
+      stageId,
+      percent,
     });
+    onStatusMessageRef.current?.(msg);
   }, []);
 
   const start = useCallback(
     async (cmd: StartCommand) => {
-      setPhase("working");
+      setFailed(false);
       setError(null);
-      setLiveLines([]);
-      setStatus(
+      setDone(false);
+      const msg =
         cmd === "restart_harness"
           ? "正在重启官方 UI…"
-          : "正在确保 Node / harness 并启动…",
-      );
-      setStage("detect");
-      setPercent(2);
+          : "正在确保 Node / harness 并启动…";
+      seedBootRef.current({
+        message: msg,
+        stageId: "detect",
+        percent: 2,
+        clearLog: true,
+      });
+      onStatusMessageRef.current?.(msg);
       try {
         const ready = await shellApi.startHarness(cmd);
-        setPhase("ready");
-        setStage("start");
-        setStatus(`服务已就绪 · :${ready.port}`);
-        setPercent(100);
+        seedBootRef.current({
+          message: `服务已就绪 · :${ready.port}`,
+          stageId: "start",
+          percent: 100,
+        });
+        onStatusMessageRef.current?.(`服务已就绪 · :${ready.port}`);
+        setDone(true);
         onReady(ready);
       } catch (e) {
-        setPhase("error");
+        setFailed(true);
         setError(typeof e === "string" ? e : String(e));
-        setStatus("启动失败");
+        seedBootRef.current({ message: "启动失败", stageId: "start" });
+        onStatusMessageRef.current?.("启动失败");
         startedRef.current = false;
         onError();
       }
     },
-    [onReady, onError, setStatus],
+    [onReady, onError],
   );
 
   useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    void listen<ProgressPayload>("install-progress", (ev) => {
-      const { stage: rawStage, message: msg, percent: pct } = ev.payload;
-      pushLive(msg);
-      if (isLogOnly(rawStage)) {
-        setStage("install-dsh");
-        setStatus(msg.length > 120 ? `${msg.slice(0, 119)}…` : msg);
-        setPercent((p) => (p != null && p >= 75 ? p : 75));
-        return;
-      }
-      const mapped = mapStage(rawStage);
-      if (mapped) setStage(mapped);
-      setStatus(msg);
-      if (pct != null) {
-        setPercent(pct);
-      } else if (mapped === "install-dsh" || isHeartbeat(msg)) {
-        setPercent((p) => (p != null && p >= 75 ? p : 75));
-      }
-    }).then((fn) => {
-      unlisten = fn;
-    });
-
     void (async () => {
       let coldInstall = true;
       try {
@@ -167,11 +107,9 @@ export function BootPanel({
         setRepairing(partial && !ready);
         coldInstall = !ready;
         if (ready) {
-          setStatus("正在拉起服务…");
-          setStage("start");
+          setStatus("正在拉起服务…", "start");
         } else if (partial) {
-          setStatus("检测到不完整 harness，准备修复安装…");
-          setStage("install-dsh");
+          setStatus("检测到不完整 harness，准备修复安装…", "install-dsh");
         }
       } catch {
         setFastPath(false);
@@ -185,31 +123,27 @@ export function BootPanel({
         void start(startCommand);
       }
     })();
-
-    return () => {
-      unlisten?.();
-    };
-  }, [start, startCommand, pushLive, setStatus]);
+  }, [start, startCommand, setStatus]);
 
   useEffect(() => {
     if (!logOpen) return;
     const el = logBodyRef.current;
     if (!el) return;
-    // 等布局后再滚：scrollIntoView 常差一截；直接 scrollTop 更准
     const id = window.requestAnimationFrame(() => {
       el.scrollTop = el.scrollHeight;
     });
     return () => window.cancelAnimationFrame(id);
-  }, [liveLines, logOpen]);
+  }, [life.logLines, logOpen]);
 
-  const stealth = !runtimeKnown || (fastPath && phase !== "error");
+  const stealth = !runtimeKnown || (fastPath && !failed);
+  const working = !failed && !done;
 
   useEffect(() => {
-    onStealthChangeRef.current?.(stealth && phase !== "ready");
+    onStealthChangeRef.current?.(stealth && !done);
     return () => onStealthChangeRef.current?.(false);
-  }, [stealth, phase]);
+  }, [stealth, done]);
 
-  if (phase === "ready") {
+  if (done) {
     return null;
   }
 
@@ -217,10 +151,11 @@ export function BootPanel({
     return null;
   }
 
-  const activeIdx = stageIndex(stage);
-  const activeLabel = STAGES[activeIdx]?.label ?? "准备";
+  const { message, percent, stageId, logLines } = life;
+  const activeIdx = stageIndex(stageId);
+  const activeLabel = BOOT_STAGES[activeIdx]?.label ?? "准备";
   const barIndeterminate =
-    phase === "working" &&
+    working &&
     (percent == null || percent === 75 || /npm install|修复安装/.test(message));
 
   return (
@@ -233,7 +168,7 @@ export function BootPanel({
               <h1 className="boot-title">
                 {repairing ? "修复安装" : "首次准备"}
               </h1>
-              {phase === "working" && (
+              {working && (
                 <span className="boot-hero-meta">
                   {barIndeterminate
                     ? "进行中"
@@ -250,9 +185,9 @@ export function BootPanel({
             </p>
           </header>
 
-          {phase !== "error" && (
+          {!failed && (
             <ol className="boot-steps" aria-label="准备步骤">
-              {STAGES.map((s, i) => {
+              {BOOT_STAGES.map((s, i) => {
                 const state =
                   i < activeIdx ? "done" : i === activeIdx ? "active" : "todo";
                 return (
@@ -273,11 +208,11 @@ export function BootPanel({
             <div className="boot-status-head">
               <span className="boot-status-stage">{activeLabel}</span>
               <span className="boot-status-hint">
-                {phase === "error" ? "失败" : "实时状态"}
+                {failed ? "失败" : "实时状态"}
               </span>
             </div>
             <p className="boot-status-line">{message}</p>
-            {phase === "working" && (
+            {working && (
               <div
                 className={`boot-bar${barIndeterminate ? " indeterminate" : ""}`}
                 role="progressbar"
@@ -298,7 +233,7 @@ export function BootPanel({
               </div>
             )}
             {error && <pre className="boot-error">{error}</pre>}
-            {phase === "error" && (
+            {failed && (
               <p className="boot-actions">
                 <button
                   type="button"
@@ -331,7 +266,7 @@ export function BootPanel({
             >
               <span className="boot-log-title">过程日志</span>
               <span className="boot-log-meta">
-                {liveLines.length} 行 · {logOpen ? "收起" : "展开"}
+                {logLines.length} 行 · {logOpen ? "收起" : "展开"}
               </span>
             </button>
             {logOpen && (
@@ -340,10 +275,10 @@ export function BootPanel({
                 className="boot-log-body"
                 aria-label="过程日志"
               >
-                {liveLines.length === 0 ? (
+                {logLines.length === 0 ? (
                   <div className="boot-log-empty">等待进度…</div>
                 ) : (
-                  liveLines.map((line, i) => (
+                  logLines.map((line, i) => (
                     <div
                       key={`${i}-${line.slice(0, 20)}`}
                       className="boot-log-line"
