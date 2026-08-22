@@ -3,6 +3,7 @@
   "identifier": "default",
   "description": "Capability for the main window",
   "windows": ["main"],
+  "webviews": ["main", "platform-content"],
   "permissions": [
     "core:default",
     "core:window:allow-close",
@@ -13,6 +14,7 @@
     "core:window:allow-is-maximized",
     "core:window:allow-start-dragging",
     "core:window:allow-set-focus",
+    "core:window:allow-set-theme",
     "core:window:allow-hide",
     "core:window:allow-show",
     "core:window:allow-unminimize",

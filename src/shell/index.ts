@@ -14,6 +14,7 @@ export * as shellApi from "./api/shellApi";
 export { useShellSession } from "./hooks/useShellSession";
 export { useSidebarLayout, SIDEBAR_FALLBACK_PX } from "./hooks/useSidebarLayout";
 export { useShellProgressBubble } from "./hooks/useShellProgressBubble";
+export { usePlatformWebview } from "./hooks/usePlatformWebview";
 export { ChromeProvider, useChrome } from "./contexts/ChromeProvider";
 export {
   HostLifecycleProvider,

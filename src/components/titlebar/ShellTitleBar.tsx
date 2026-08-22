@@ -1,5 +1,5 @@
 /**
- * 顶栏路由：平台内嵌 / classic / compact。
+ * 顶栏路由：平台子 WebView / classic / compact。
  */
 
 import { useEffect, useState } from "react";

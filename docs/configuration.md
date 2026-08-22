@@ -50,7 +50,7 @@
 | 项 | 说明 |
 |----|------|
 | 版本三元组 | 壳版本 · harness 版本 · digest（package.json SHA-256 前 16 hex） |
-| 打开 DeepSeek API 平台 | 主窗口内嵌 `https://platform.deepseek.com`（帮助菜单同入口；顶栏「返回」回官方 UI）。若站点禁止嵌套则可能空白，请用系统浏览器。 |
+| 打开 DeepSeek API 平台 | 主窗口顶栏下子 WebView 打开 `https://platform.deepseek.com`（帮助菜单同入口；顶栏「返回」回官方 UI）。站点禁止 iframe 嵌套，故不用 iframe。 |
 | 检查 harness 更新 | 按当前镜像/代理查询 npm registry `latest` |
 | 更新并重启 | 强制重装 `@deepseek-ai/dsh@latest` 并重启托管进程 |
 | 壳更新 | 启动后与每 6 小时自动检查；后台下载后提示「立即重启安装」。详见 [releases.md](releases.md) |

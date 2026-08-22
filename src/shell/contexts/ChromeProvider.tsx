@@ -12,6 +12,7 @@ import {
   type ReactNode,
 } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   chromeFromSettings,
   type ChromePrefs,
@@ -78,6 +79,9 @@ export function ChromeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     applyDomTheme(resolvedTheme);
+    void getCurrentWindow()
+      .setTheme(resolvedTheme)
+      .catch(() => undefined);
   }, [resolvedTheme]);
 
   useEffect(() => {

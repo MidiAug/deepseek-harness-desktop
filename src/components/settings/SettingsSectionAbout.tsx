@@ -110,7 +110,7 @@ export function SettingsSectionAbout({
         </button>
       </div>
       <p className="settings-live-hint">
-        在主窗口内嵌打开 platform.deepseek.com；顶栏可返回官方 UI。若页面空白，可能是站点禁止嵌套，请改用系统浏览器访问。
+        在主窗口顶栏下以子 WebView 打开 platform.deepseek.com；顶栏可返回官方 UI。
       </p>
 
       {updateCheck && !locked && (

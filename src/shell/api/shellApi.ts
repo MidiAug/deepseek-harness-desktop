@@ -100,6 +100,21 @@ export function openPlatformWindow(): Promise<void> {
   return invoke("open_platform_window");
 }
 
+export type PlatformWebviewBounds = {
+  /** shell-body 顶边距（逻辑 px） */
+  top: number;
+  /** 壳解析主题，与设置 → 外观一致 */
+  theme: "light" | "dark";
+};
+
+export function showPlatformWebview(bounds: PlatformWebviewBounds): Promise<void> {
+  return invoke("show_platform_webview", { bounds });
+}
+
+export function hidePlatformWebview(): Promise<void> {
+  return invoke("hide_platform_webview");
+}
+
 /** DSH `settings.yaml` → ui-theme.preference：light | dark | system */
 export function getDshThemePreference(): Promise<string> {
   return invoke<string>("get_dsh_theme_preference");

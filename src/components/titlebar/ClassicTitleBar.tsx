@@ -245,10 +245,10 @@ export function ClassicTitleBar({
         data-tauri-drag-region
         onDoubleClick={() => void onWin("maximize")}
       >
-        <span className="titlebar-status" data-tauri-drag-region>
-          <span className="titlebar-product" data-tauri-drag-region>
-            DeepSeek Harness
-          </span>
+        <span className="titlebar-product" data-tauri-drag-region>
+          DeepSeek Harness
+        </span>
+        <span className="titlebar-trail" data-tauri-drag-region>
           <span className="titlebar-dot" aria-hidden data-tauri-drag-region>
             ·
           </span>

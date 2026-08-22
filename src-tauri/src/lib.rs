@@ -108,10 +108,28 @@ fn open_loopback_url(url: String) -> Result<(), String> {
     }
 }
 
-/// 打开或聚焦内置 DeepSeek API 平台子窗口。
+/// 打开 API 平台（切换顶栏；子 WebView 由前端量 shell-body 后 show）。
 #[tauri::command]
 fn open_platform_window(app: tauri::AppHandle) -> Result<(), String> {
     platform_window::open_or_focus(&app)
+}
+
+#[tauri::command]
+async fn show_platform_webview(
+    app: tauri::AppHandle,
+    bounds: platform_window::PlatformWebviewBounds,
+) -> Result<(), String> {
+    // Windows：同步 command 内 add_child 会死锁主线程，须 async 在工作线程调。
+    tauri::async_runtime::spawn_blocking(move || platform_window::show_webview(&app, bounds))
+        .await
+        .map_err(|e| format!("platform show join: {e}"))?
+}
+
+#[tauri::command]
+async fn hide_platform_webview(app: tauri::AppHandle) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || platform_window::hide_webview(&app))
+        .await
+        .map_err(|e| format!("platform hide join: {e}"))?
 }
 
 #[tauri::command]
@@ -284,6 +302,8 @@ pub fn run() {
             open_known_path,
             open_loopback_url,
             open_platform_window,
+            show_platform_webview,
+            hide_platform_webview,
             get_runtime_status,
             get_shell_settings,
             get_dsh_theme_preference,

@@ -27,6 +27,7 @@ import { SettingsSectionAppearance } from "./SettingsSectionAppearance";
 import { SettingsSectionRuntime } from "./SettingsSectionRuntime";
 import { SettingsSectionData } from "./SettingsSectionData";
 import { SettingsSectionAbout } from "./SettingsSectionAbout";
+import { settingsNavIcon } from "./settingsNavIcon";
 
 export type { SettingsSection } from "./settingsTypes";
 
@@ -292,6 +293,7 @@ export function SettingsModal({
                   setError(null);
                 }}
               >
+                {settingsNavIcon(s.id)}
                 <span className="settings-nav-label">{s.label}</span>
               </button>
             ))}

@@ -11,6 +11,7 @@ import {
 } from "react";
 import { flushSync } from "react-dom";
 import { ShellTooltip } from "../chrome/ShellTooltip";
+import { IconDownloadOutline16 } from "../chrome/DshIcons";
 import { WindowControls } from "./WindowControls";
 import type { WinAction } from "./titlebarTypes";
 
@@ -43,7 +44,6 @@ export function CompactTitleBar({
     if (dragPin == null) return;
     function endDrag() {
       setDragPin(null);
-      // 松手后若指针已不在热区，同步清掉；仍在则靠 :hover / 下次 leave
       const right = barRef.current?.querySelector(".titlebar-compact-right");
       if (
         !(right instanceof HTMLElement) ||
@@ -52,10 +52,22 @@ export function CompactTitleBar({
         rightHotRef.current = false;
       }
     }
-    window.addEventListener("mouseup", endDrag);
+    /** OS 拖窗常吞 mouseup；用 buttons===0 的 move 兜底 */
+    function onMove(e: MouseEvent | PointerEvent) {
+      if (e.buttons === 0) endDrag();
+    }
+    window.addEventListener("mouseup", endDrag, true);
+    window.addEventListener("pointerup", endDrag, true);
+    window.addEventListener("pointercancel", endDrag, true);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("pointermove", onMove);
     window.addEventListener("blur", endDrag);
     return () => {
-      window.removeEventListener("mouseup", endDrag);
+      window.removeEventListener("mouseup", endDrag, true);
+      window.removeEventListener("pointerup", endDrag, true);
+      window.removeEventListener("pointercancel", endDrag, true);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("pointermove", onMove);
       window.removeEventListener("blur", endDrag);
     };
   }, [dragPin]);
@@ -138,7 +150,7 @@ export function CompactTitleBar({
                 aria-label="下载 Session log"
                 onClick={onSessionLog}
               >
-                <DownloadIcon />
+                <IconDownloadOutline16 size={12} />
               </button>
             </ShellTooltip>
           )}
@@ -150,32 +162,5 @@ export function CompactTitleBar({
         </div>
       </div>
     </header>
-  );
-}
-
-function DownloadIcon() {
-  // 对齐官方托盘下载：箭头入槽，线宽略粗
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M12 4v11"
-        stroke="currentColor"
-        strokeWidth="2.25"
-        strokeLinecap="round"
-      />
-      <path
-        d="M8 11l4 4 4-4"
-        stroke="currentColor"
-        strokeWidth="2.25"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M5 18h14"
-        stroke="currentColor"
-        strokeWidth="2.25"
-        strokeLinecap="round"
-      />
-    </svg>
   );
 }

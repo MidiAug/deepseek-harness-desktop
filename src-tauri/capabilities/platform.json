@@ -1,8 +1,9 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "platform-window",
-  "description": "Capability for the DeepSeek platform child webview (minimal)",
-  "windows": ["platform"],
+  "description": "Capability for the DeepSeek platform child webview on main window",
+  "windows": ["main"],
+  "webviews": ["platform-content"],
   "permissions": [
     "core:default",
     "core:window:allow-close",

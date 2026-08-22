@@ -113,6 +113,9 @@
   gap: 0;
   padding: 0;
   border: none;
+  /* 仅说明文字可复制；导航/标题/控件标签避免误拖选 */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .settings-nav {
@@ -166,6 +169,10 @@
 
 .settings-nav-cell.active {
   background: var(--color-nav-active);
+}
+
+.settings-nav-icon {
+  flex: none;
 }
 
 .settings-nav-label {
@@ -290,6 +297,8 @@
   font-size: 12px;
   line-height: 18px;
   color: var(--color-muted);
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .settings-cell-control {
@@ -318,6 +327,8 @@
   background: var(--color-canvas);
   color: var(--color-ink);
   box-sizing: border-box;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .settings-cell.stack .settings-control {

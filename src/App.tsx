@@ -12,10 +12,10 @@ import { ShellTitleBar } from "./components/titlebar/ShellTitleBar";
 import type { ShellBodyView } from "./components/titlebar/titlebarTypes";
 import { ShellUpdateBanner } from "./components/chrome/ShellUpdateBanner";
 import {
-  PLATFORM_URL,
   shellApi,
   useChrome,
   useHostLifecycle,
+  usePlatformWebview,
   useShellProgressBubble,
   useShellSession,
   useSidebarLayout,
@@ -79,8 +79,12 @@ export default function App() {
   const { bubbleVisible, bubbleLeaving } = useShellProgressBubble(
     session.wantBubble,
   );
-  const { chrome } = useChrome();
+  const { chrome, resolvedTheme } = useChrome();
   const harnessFrameRef = useRef<HTMLIFrameElement | null>(null);
+  const [shellBodyEl, setShellBodyEl] = useState<HTMLDivElement | null>(null);
+  const shellBodyRef = useCallback((node: HTMLDivElement | null) => {
+    setShellBodyEl(node);
+  }, []);
 
   const [bodyView, setBodyView] = useState<ShellBodyView>("harness");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -164,8 +168,12 @@ export default function App() {
 
   const shellOverlay = chrome.titlebarCompact && bodyView === "harness";
   const showHarness =
-    bodyView === "harness" && session.showIframe && !!session.serviceUrl;
-  const showPlatform = bodyView === "platform";
+    session.showIframe && !!session.serviceUrl;
+  const harnessVisible = bodyView === "harness";
+  const platformWebviewActive =
+    bodyView === "platform" && !settingsOpen && !closeAskOpen;
+
+  usePlatformWebview(platformWebviewActive, shellBodyEl, resolvedTheme);
 
   return (
     <div className={`shell${shellOverlay ? " titlebar-overlay" : ""}`}>
@@ -210,7 +218,7 @@ export default function App() {
 
       <ShellUpdateBanner />
 
-      <div className="shell-body">
+      <div className="shell-body" ref={shellBodyRef}>
         {bodyView === "harness" && session.showBootPanel && (
           <BootPanel
             key={session.bootKey}
@@ -231,6 +239,7 @@ export default function App() {
             className="harness-frame"
             title="DeepSeek Harness"
             src={session.serviceUrl!}
+            hidden={!harnessVisible}
             allow="clipboard-read; clipboard-write"
             onLoad={() => {
               session.markIframeConnected();
@@ -242,15 +251,6 @@ export default function App() {
               );
             }}
             onError={session.markIframeError}
-          />
-        )}
-
-        {showPlatform && (
-          <iframe
-            className="harness-frame"
-            title="DeepSeek开放平台"
-            src={PLATFORM_URL}
-            allow="clipboard-read; clipboard-write"
           />
         )}
 
