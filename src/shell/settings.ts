@@ -2,7 +2,9 @@
 
 export type MirrorKind = "domestic" | "official";
 export type ProxyMode = "off" | "system" | "custom";
-export type TitlebarStyle = "black" | "gray";
+/** 与 DSH 相同：浅色 / 深色 / 跟随系统（真源 settings.yaml） */
+export type ShellTheme = "light" | "dark" | "system";
+export type ResolvedTheme = "light" | "dark";
 
 export type ShellSettings = {
   mirror: MirrorKind;
@@ -11,25 +13,22 @@ export type ShellSettings = {
   dshHomeOverride: string;
   closeToTray: boolean;
   closePrefSet: boolean;
-  /** 0 = 壳默认端口；占用则顺延 */
   preferredPort: number;
   cliLinkEnabled: boolean;
-  titlebarStyle: TitlebarStyle;
+  /** 自 DSH yaml 注入，不落 ui.json */
+  shellTheme: ShellTheme;
   titlebarCompact: boolean;
-  /** 减少误选界面文字（默认关） */
   selectionHygiene: boolean;
-  /** 简洁模式：隐藏官方 Session log，顶栏代理下载（默认开） */
   sessionLogInTitlebar: boolean;
 };
 
 export type ChromePrefs = {
-  titlebarStyle: TitlebarStyle;
+  shellTheme: ShellTheme;
   titlebarCompact: boolean;
   selectionHygiene: boolean;
   sessionLogInTitlebar: boolean;
 };
 
-/** 运行时域（settings.json） */
 export type RuntimeSettings = Pick<
   ShellSettings,
   | "mirror"
@@ -42,13 +41,10 @@ export type RuntimeSettings = Pick<
   | "cliLinkEnabled"
 >;
 
-/** UI chrome（ui.json） */
+/** ui.json（不含主题） */
 export type UiSettings = Pick<
   ShellSettings,
-  | "titlebarStyle"
-  | "titlebarCompact"
-  | "selectionHygiene"
-  | "sessionLogInTitlebar"
+  "titlebarCompact" | "selectionHygiene" | "sessionLogInTitlebar"
 >;
 
 export function runtimeFromSettings(s: ShellSettings): RuntimeSettings {
@@ -66,7 +62,6 @@ export function runtimeFromSettings(s: ShellSettings): RuntimeSettings {
 
 export function uiFromSettings(s: ShellSettings): UiSettings {
   return {
-    titlebarStyle: normalizeTitlebarStyle(s.titlebarStyle),
     titlebarCompact: s.titlebarCompact ?? false,
     selectionHygiene: s.selectionHygiene ?? false,
     sessionLogInTitlebar: s.sessionLogInTitlebar ?? true,
@@ -82,20 +77,22 @@ export const defaultShellSettings: ShellSettings = {
   closePrefSet: false,
   preferredPort: 0,
   cliLinkEnabled: false,
-  titlebarStyle: "black",
+  shellTheme: "system",
   titlebarCompact: false,
   selectionHygiene: false,
   sessionLogInTitlebar: true,
 };
 
-/** 旧版曾有 transparent；并入 black */
-function normalizeTitlebarStyle(v: unknown): TitlebarStyle {
-  return v === "gray" ? "gray" : "black";
+export function normalizeShellTheme(v: unknown): ShellTheme {
+  if (v === "light" || v === "dark" || v === "system") return v;
+  if (v === "follow") return "system";
+  if (v === "black" || v === "gray" || v === "transparent") return "dark";
+  return "system";
 }
 
 export function chromeFromSettings(s: ShellSettings): ChromePrefs {
   return {
-    titlebarStyle: normalizeTitlebarStyle(s.titlebarStyle),
+    shellTheme: normalizeShellTheme(s.shellTheme),
     titlebarCompact: s.titlebarCompact ?? false,
     selectionHygiene: s.selectionHygiene ?? false,
     sessionLogInTitlebar: s.sessionLogInTitlebar ?? true,
@@ -113,7 +110,7 @@ export function normalizeShellSettings(
     closePrefSet: s?.closePrefSet ?? false,
     preferredPort: Number.isFinite(port) && port >= 0 ? Math.floor(port) : 0,
     cliLinkEnabled: s?.cliLinkEnabled ?? false,
-    titlebarStyle: normalizeTitlebarStyle(s?.titlebarStyle),
+    shellTheme: normalizeShellTheme(s?.shellTheme),
     titlebarCompact: s?.titlebarCompact ?? false,
     selectionHygiene: s?.selectionHygiene ?? false,
     sessionLogInTitlebar: s?.sessionLogInTitlebar ?? true,

@@ -3,7 +3,6 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import type { ChromePrefs } from "../../shell/settings";
 import { shellApi, type TitleConn } from "../../shell";
 import { WindowControls } from "./WindowControls";
 import type { WinAction } from "./titlebarTypes";
@@ -13,7 +12,6 @@ type MenuId = "app" | "help" | null;
 type Props = {
   port: number | null;
   conn: TitleConn;
-  chrome: ChromePrefs;
   maximized: boolean;
   onOpenSettings: () => void;
   onRestart: () => void;
@@ -30,7 +28,6 @@ type Props = {
 export function ClassicTitleBar({
   port,
   conn,
-  chrome,
   maximized,
   onOpenSettings,
   onRestart,
@@ -86,10 +83,7 @@ export function ClassicTitleBar({
     if (menu != null) setMenu(id);
   }
 
-  const barClass = [
-    "titlebar",
-    `titlebar-style-${chrome.titlebarStyle}`,
-  ].join(" ");
+  const barClass = "titlebar";
 
   return (
     <header className={barClass} ref={barRef}>

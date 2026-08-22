@@ -30,15 +30,15 @@ pub enum ProxyMode {
     Custom,
 }
 
-/// 顶栏底色：黑（#1b1b1c）/ 灰（旧 panel）
-/// `Transparent` 仅兼容旧 settings.json，load 时并入 Black
+/// 壳主题：与 DSH 相同 — 浅色 / 深色 / 跟随系统（真源 `settings.yaml`）
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-pub enum TitlebarStyle {
+pub enum ShellTheme {
+    Light,
+    Dark,
     #[default]
-    Black,
-    Gray,
-    Transparent,
+    #[serde(alias = "follow")]
+    System,
 }
 
 /// 运行时必需：镜像 / 代理 / DSH_HOME / 关闭行为 / 端口 / CLI
@@ -61,15 +61,13 @@ pub struct RuntimeSettings {
     pub cli_link_enabled: bool,
 }
 
-/// 纯壳 UI chrome
+/// 纯壳 UI chrome（主题不在此：真源 DSH settings.yaml）
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UiSettings {
     #[serde(default)]
-    pub titlebar_style: TitlebarStyle,
-    #[serde(default)]
     pub titlebar_compact: bool,
-    /// 官方 UI 侧栏/品牌/模式与输入区工具下拉禁拖选（注入；默认关）
+    /// 减少误选 chrome 文字（注入；默认关；宁缺毋滥）
     #[serde(default)]
     pub selection_hygiene: bool,
     /// 简洁模式：藏官方 Session log，改由顶栏下载 icon 代理点击
@@ -94,8 +92,9 @@ pub struct ShellSettings {
     pub preferred_port: u16,
     #[serde(default)]
     pub cli_link_enabled: bool,
+    /// 自 DSH settings.yaml 注入，不写 ui.json
     #[serde(default)]
-    pub titlebar_style: TitlebarStyle,
+    pub shell_theme: ShellTheme,
     #[serde(default)]
     pub titlebar_compact: bool,
     #[serde(default)]
@@ -126,7 +125,6 @@ impl Default for RuntimeSettings {
 impl Default for UiSettings {
     fn default() -> Self {
         Self {
-            titlebar_style: TitlebarStyle::Black,
             titlebar_compact: false,
             selection_hygiene: false,
             session_log_in_titlebar: true,
@@ -151,7 +149,7 @@ impl ShellSettings {
             close_pref_set: runtime.close_pref_set,
             preferred_port: runtime.preferred_port,
             cli_link_enabled: runtime.cli_link_enabled,
-            titlebar_style: ui.titlebar_style,
+            shell_theme: ShellTheme::System,
             titlebar_compact: ui.titlebar_compact,
             selection_hygiene: ui.selection_hygiene,
             session_log_in_titlebar: ui.session_log_in_titlebar,
@@ -173,7 +171,6 @@ impl ShellSettings {
 
     pub fn ui(&self) -> UiSettings {
         UiSettings {
-            titlebar_style: self.titlebar_style,
             titlebar_compact: self.titlebar_compact,
             selection_hygiene: self.selection_hygiene,
             session_log_in_titlebar: self.session_log_in_titlebar,
@@ -197,29 +194,33 @@ fn write_json(path: &PathBuf, value: &impl Serialize) -> Result<(), String> {
     fs::write(path, text).map_err(|e| format!("write {}: {e}", path.display()))
 }
 
-fn normalize_ui(mut ui: UiSettings) -> UiSettings {
-    if ui.titlebar_style == TitlebarStyle::Transparent {
-        ui.titlebar_style = TitlebarStyle::Black;
-    }
+fn normalize_ui(ui: UiSettings) -> UiSettings {
     ui
 }
 
 /// 从旧单文件 Value 抽出 UI；有字段则返回 Some。
 fn legacy_ui_from_value(v: &Value) -> Option<UiSettings> {
-    let has_style = v.get("titlebarStyle").is_some();
     let has_compact = v.get("titlebarCompact").is_some();
-    if !has_style && !has_compact {
+    let has_hygiene = v.get("selectionHygiene").is_some();
+    let has_session = v.get("sessionLogInTitlebar").is_some();
+    let has_style = v.get("titlebarStyle").is_some();
+    if !has_compact && !has_hygiene && !has_session && !has_style {
         return None;
     }
     let mut ui = UiSettings::default();
-    if let Some(s) = v.get("titlebarStyle") {
-        if let Ok(style) = serde_json::from_value::<TitlebarStyle>(s.clone()) {
-            ui.titlebar_style = style;
-        }
-    }
     if let Some(c) = v.get("titlebarCompact") {
         if let Some(b) = c.as_bool() {
             ui.titlebar_compact = b;
+        }
+    }
+    if let Some(c) = v.get("selectionHygiene") {
+        if let Some(b) = c.as_bool() {
+            ui.selection_hygiene = b;
+        }
+    }
+    if let Some(c) = v.get("sessionLogInTitlebar") {
+        if let Some(b) = c.as_bool() {
+            ui.session_log_in_titlebar = b;
         }
     }
     Some(normalize_ui(ui))
@@ -266,7 +267,19 @@ pub fn load<R: Runtime>(app: &AppHandle<R>) -> ShellSettings {
         let _ = write_json(&ui_file, &ui);
     }
 
-    ShellSettings::from_parts(runtime, ui)
+    let mut shell = ShellSettings::from_parts(runtime, ui);
+    shell.shell_theme = theme_from_dsh_pref(&crate::dsh_theme::preference_from_home(
+        &paths::dsh_home(app, Some(shell.dsh_home_override.as_str())),
+    ));
+    shell
+}
+
+fn theme_from_dsh_pref(pref: &str) -> ShellTheme {
+    match pref {
+        "light" => ShellTheme::Light,
+        "dark" => ShellTheme::Dark,
+        _ => ShellTheme::System,
+    }
 }
 
 pub fn save<R: Runtime>(app: &AppHandle<R>, settings: &ShellSettings) -> Result<(), String> {
@@ -575,20 +588,20 @@ mod tests {
         )
         .unwrap();
         let ui = legacy_ui_from_value(&v).unwrap();
-        assert_eq!(ui.titlebar_style, TitlebarStyle::Gray);
         assert!(ui.titlebar_compact);
     }
 
     #[test]
     fn split_roundtrip_parts() {
         let s = ShellSettings {
-            titlebar_style: TitlebarStyle::Gray,
+            shell_theme: ShellTheme::Light,
             titlebar_compact: true,
             proxy_url: "http://x".into(),
             ..Default::default()
         };
         let again = ShellSettings::from_parts(s.runtime(), s.ui());
-        assert_eq!(again.titlebar_style, TitlebarStyle::Gray);
+        // from_parts 不带 yaml 主题，默认 System；ui 往返不含 theme
+        assert_eq!(again.shell_theme, ShellTheme::System);
         assert!(again.titlebar_compact);
         assert_eq!(again.proxy_url, "http://x");
     }
@@ -596,11 +609,18 @@ mod tests {
     #[test]
     fn session_log_in_titlebar_defaults_true() {
         assert!(UiSettings::default().session_log_in_titlebar);
-        let missing: UiSettings = serde_json::from_str(r#"{"titlebarStyle":"black"}"#).unwrap();
+        let missing: UiSettings = serde_json::from_str(r#"{}"#).unwrap();
         assert!(missing.session_log_in_titlebar);
         let off: UiSettings =
-            serde_json::from_str(r#"{"titlebarStyle":"black","sessionLogInTitlebar":false}"#)
-                .unwrap();
+            serde_json::from_str(r#"{"sessionLogInTitlebar":false}"#).unwrap();
         assert!(!off.session_log_in_titlebar);
+    }
+
+    #[test]
+    fn shell_theme_follow_alias_is_system() {
+        let t: ShellTheme = serde_json::from_str(r#""follow""#).unwrap();
+        assert_eq!(t, ShellTheme::System);
+        let t2: ShellTheme = serde_json::from_str(r#""system""#).unwrap();
+        assert_eq!(t2, ShellTheme::System);
     }
 }

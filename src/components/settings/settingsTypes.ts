@@ -1,5 +1,3 @@
-import type { TitlebarStyle } from "../../shell/settings";
-
 export type SettingsSection =
   | "network"
   | "window"
@@ -16,12 +14,6 @@ export const SECTIONS: { id: SettingsSection; label: string }[] = [
   { id: "data", label: "数据与诊断" },
   { id: "about", label: "关于" },
 ];
-
-export const STYLE_OPTIONS: { id: TitlebarStyle; label: string; hint: string }[] =
-  [
-    { id: "black", label: "黑色", hint: "#1b1b1c" },
-    { id: "gray", label: "灰色", hint: "旧顶栏" },
-  ];
 
 export const MIRROR_OPTIONS = [
   { value: "domestic", label: "国内（npmmirror）" },

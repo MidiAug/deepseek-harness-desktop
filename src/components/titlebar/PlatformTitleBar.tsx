@@ -3,11 +3,9 @@
  */
 
 import { WindowControls } from "./WindowControls";
-import type { ChromePrefs } from "../../shell/settings";
 import type { WinAction } from "./titlebarTypes";
 
 type Props = {
-  chrome: ChromePrefs;
   maximized: boolean;
   onBack: () => void;
   onOpenSettings: () => void;
@@ -15,19 +13,13 @@ type Props = {
 };
 
 export function PlatformTitleBar({
-  chrome,
   maximized,
   onBack,
   onOpenSettings,
   onWin,
 }: Props) {
-  const barClass = [
-    "titlebar",
-    `titlebar-style-${chrome.titlebarStyle}`,
-  ].join(" ");
-
   return (
-    <header className={barClass}>
+    <header className="titlebar">
       <div className="titlebar-left">
         <button
           type="button"

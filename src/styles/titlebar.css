@@ -6,21 +6,11 @@
   gap: 0.15rem;
   padding: 0 0 0 0.4rem;
   background: var(--color-titlebar);
-  border-bottom: 1px solid transparent;
+  border-bottom: 1px solid var(--color-line);
   user-select: none;
   /* 高于 .menu-dismiss，保证菜单仍可点；dismiss 盖住 iframe */
   z-index: 40;
   position: relative;
-}
-
-.titlebar-style-black {
-  background: #1b1b1c;
-  border-bottom-color: transparent;
-}
-
-.titlebar-style-gray {
-  background: var(--color-panel);
-  border-bottom-color: var(--color-line);
 }
 
 /* 简洁：叠层 L 形（左=侧栏宽×25，右=剩余×35）；透明叠层；未盖区穿透点 iframe */

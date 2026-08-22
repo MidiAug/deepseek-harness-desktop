@@ -1,5 +1,5 @@
 /**
- * 壳 chrome 单源：顶栏外观不经 App ↔ Settings 双通道同步。
+ * 壳 chrome：主题真源 = DSH settings.yaml；文件 watch 推送；ui.json 只管简洁/洁净等。
  */
 
 import {
@@ -11,17 +11,20 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { listen } from "@tauri-apps/api/event";
 import {
   chromeFromSettings,
   type ChromePrefs,
+  type ResolvedTheme,
   type ShellSettings,
+  type ShellTheme,
 } from "../settings";
 import * as shellApi from "../api/shellApi";
 
 type ChromePatch = Partial<
   Pick<
     ShellSettings,
-    | "titlebarStyle"
+    | "shellTheme"
     | "titlebarCompact"
     | "selectionHygiene"
     | "sessionLogInTitlebar"
@@ -30,24 +33,60 @@ type ChromePatch = Partial<
 
 type ChromeContextValue = {
   chrome: ChromePrefs;
-  /** 仅更新内存（打开设置时对齐磁盘） */
+  resolvedTheme: ResolvedTheme;
   setChrome: (chrome: ChromePrefs) => void;
-  /** 外观即时落盘（只写 ui.json） */
   patchChrome: (patch: ChromePatch) => void;
-  /** 整份设置对齐后刷新 chrome 内存 */
   applyFromSettings: (s: ShellSettings) => void;
   refreshFromDisk: () => void;
 };
 
 const ChromeContext = createContext<ChromeContextValue | null>(null);
 
+function osPrefersDark(): boolean {
+  return window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ?? true;
+}
+
+function resolveTheme(theme: ShellTheme, osDark: boolean): ResolvedTheme {
+  if (theme === "light") return "light";
+  if (theme === "dark") return "dark";
+  return osDark ? "dark" : "light";
+}
+
+function applyDomTheme(theme: ResolvedTheme) {
+  document.documentElement.setAttribute("data-shell-theme", theme);
+}
+
+function prefToTheme(p: string): ShellTheme {
+  if (p === "light" || p === "dark" || p === "system") return p;
+  if (p === "follow") return "system";
+  return "system";
+}
+
 export function ChromeProvider({ children }: { children: ReactNode }) {
   const [chrome, setChrome] = useState<ChromePrefs>({
-    titlebarStyle: "black",
+    shellTheme: "system",
     titlebarCompact: false,
     selectionHygiene: false,
     sessionLogInTitlebar: true,
   });
+  const [osDark, setOsDark] = useState(() => osPrefersDark());
+
+  const resolvedTheme = useMemo(
+    () => resolveTheme(chrome.shellTheme, osDark),
+    [chrome.shellTheme, osDark],
+  );
+
+  useEffect(() => {
+    applyDomTheme(resolvedTheme);
+  }, [resolvedTheme]);
+
+  useEffect(() => {
+    const mq = window.matchMedia?.("(prefers-color-scheme: dark)");
+    if (!mq) return;
+    const onOs = () => setOsDark(mq.matches);
+    mq.addEventListener?.("change", onOs);
+    return () => mq.removeEventListener?.("change", onOs);
+  }, []);
 
   const refreshFromDisk = useCallback(() => {
     void shellApi
@@ -60,6 +99,20 @@ export function ChromeProvider({ children }: { children: ReactNode }) {
     refreshFromDisk();
   }, [refreshFromDisk]);
 
+  // DSH yaml 变更（官方 UI 或壳写入）→ 事件，无轮询
+  useEffect(() => {
+    let un: (() => void) | undefined;
+    void listen<string>("dsh-theme-changed", (ev) => {
+      const next = prefToTheme(ev.payload);
+      setChrome((prev) =>
+        prev.shellTheme === next ? prev : { ...prev, shellTheme: next },
+      );
+    }).then((fn) => {
+      un = fn;
+    });
+    return () => un?.();
+  }, []);
+
   const applyFromSettings = useCallback((s: ShellSettings) => {
     setChrome(chromeFromSettings(s));
   }, []);
@@ -67,13 +120,29 @@ export function ChromeProvider({ children }: { children: ReactNode }) {
   const patchChrome = useCallback((patch: ChromePatch) => {
     setChrome((prev) => {
       const next: ChromePrefs = {
-        titlebarStyle: patch.titlebarStyle ?? prev.titlebarStyle,
+        shellTheme: patch.shellTheme ?? prev.shellTheme,
         titlebarCompact: patch.titlebarCompact ?? prev.titlebarCompact,
         selectionHygiene: patch.selectionHygiene ?? prev.selectionHygiene,
         sessionLogInTitlebar:
           patch.sessionLogInTitlebar ?? prev.sessionLogInTitlebar,
       };
-      void shellApi.saveUiSettings(next).catch((e) => console.error(e));
+      if (patch.shellTheme != null) {
+        void shellApi
+          .setDshThemePreference(patch.shellTheme)
+          .catch((e) => console.error(e));
+      }
+      const uiOnly = {
+        titlebarCompact: next.titlebarCompact,
+        selectionHygiene: next.selectionHygiene,
+        sessionLogInTitlebar: next.sessionLogInTitlebar,
+      };
+      if (
+        patch.titlebarCompact != null ||
+        patch.selectionHygiene != null ||
+        patch.sessionLogInTitlebar != null
+      ) {
+        void shellApi.saveUiSettings(uiOnly).catch((e) => console.error(e));
+      }
       return next;
     });
   }, []);
@@ -81,12 +150,13 @@ export function ChromeProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       chrome,
+      resolvedTheme,
       setChrome,
       patchChrome,
       applyFromSettings,
       refreshFromDisk,
     }),
-    [chrome, patchChrome, applyFromSettings, refreshFromDisk],
+    [chrome, resolvedTheme, patchChrome, applyFromSettings, refreshFromDisk],
   );
 
   return (

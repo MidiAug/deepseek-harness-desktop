@@ -74,7 +74,6 @@ export function ShellTitleBar({
   if (bodyView === "platform") {
     return (
       <PlatformTitleBar
-        chrome={chrome}
         maximized={maximized}
         onBack={onBackFromPlatform}
         onOpenSettings={onOpenSettings}
@@ -100,7 +99,6 @@ export function ShellTitleBar({
     <ClassicTitleBar
       port={port}
       conn={conn}
-      chrome={chrome}
       maximized={maximized}
       onOpenSettings={onOpenSettings}
       onRestart={onRestart}

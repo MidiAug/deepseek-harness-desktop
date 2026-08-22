@@ -1,6 +1,7 @@
-//! Harness iframe（loopback）选择洁净：侧栏/品牌/模式与输入区工具下拉不可拖选；
-//! 输入框与对话正文可复制。默认关；postMessage：`selection-hygiene`。
-//! best-effort；上游 DOM 大改可能失效。
+//! Harness iframe 选择洁净：按 DSH 稳定 `data-slot` / `data-chat-flow-kind` 标 chrome，
+//! 不用文案关键词、不用 CSS-module 哈希类。对话正文与工具行保持可复制。
+//! 知识库：`dev/knowledge-base/05-dsh-dom-iframe-chrome.md`
+//! postMessage：`{ source: "dsh-shell", type: "selection-hygiene", enabled: bool }`
 
 pub const INIT_SCRIPT: &str = r#"
 (function () {
@@ -13,19 +14,32 @@ pub const INIT_SCRIPT: &str = r#"
   }
 
   var STYLE_ID = "dsh-shell-selection-hygiene";
-  var SLOGANS = ["探索未至之境"];
-  // 侧栏标题
-  var SIDE_LABELS = ["工作区"];
-  // 会话顶栏模式、输入区权限等下拉标签（禁拖选，仍可点击）
-  var CHROME_LABELS = [
-    "标准模式",
-    "Workspace Write",
-    "Read Only",
-    "只读",
-    "Workspace Read",
-    "Ask"
-  ];
   var enabled = false;
+
+  // 稳定 DSH slot / flow 选择器（对照 reference deepseek-harness slots.ts）
+  var CHROME_SELECTORS = [
+    '[data-slot="sidebar"], [data-slot="sidebar"] *',
+    '[data-slot="conversation.session.header"], [data-slot="conversation.session.header"] *',
+    '[data-slot^="conversation.hero."], [data-slot^="conversation.hero."] *',
+    '[data-slot="conversation.composer.dock"], [data-slot="conversation.composer.dock"] *',
+    '[data-slot="conversation.input.dock"], [data-slot="conversation.input.dock"] *',
+    '[data-slot="conversation.input.left"], [data-slot="conversation.input.left"] *',
+    '[data-slot="conversation.input.model"], [data-slot="conversation.input.model"] *',
+    '[data-slot="conversation.input.plan"], [data-slot="conversation.input.plan"] *',
+    '[data-slot="conversation.input.right"], [data-slot="conversation.input.right"] *',
+    '[data-slot="conversation.input.attachments"], [data-slot="conversation.input.attachments"] *',
+    '[data-slot="conversation.input.overlay"], [data-slot="conversation.input.overlay"] *',
+    '[data-slot="conversation.composer.bar"] button',
+    '[data-slot="conversation.composer.bar"] [role="combobox"]',
+    '[data-slot="conversation.composer.bar"] [role="listbox"]',
+    '[data-slot="conversation.composer.bar"] [role="menu"]',
+    '[data-chat-flow-kind="turn-tail"], [data-chat-flow-kind="turn-tail"] *',
+    '[data-turn-tail], [data-turn-tail] *',
+    '[data-slot="conversation.chat.turnTail"], [data-slot="conversation.chat.turnTail"] *',
+    '[data-slot="conversation.chat.assistant-actions"], [data-slot="conversation.chat.assistant-actions"] *',
+    '[role="tooltip"], [role="tooltip"] *',
+    '[data-dsh-shell-no-select], [data-dsh-shell-no-select] *'
+  ].join(",\n");
 
   function ensureStyle() {
     var style = document.getElementById(STYLE_ID);
@@ -36,9 +50,9 @@ pub const INIT_SCRIPT: &str = r#"
     if (style) return;
     style = document.createElement("style");
     style.id = STYLE_ID;
-    // 仅标记节点；不全局禁 button/a，避免伤聊天 Think/工具行
     style.textContent = [
-      "[data-dsh-shell-no-select], [data-dsh-shell-no-select] * {",
+      CHROME_SELECTORS,
+      "{",
       "  -webkit-user-select: none !important;",
       "  user-select: none !important;",
       "}"
@@ -53,16 +67,6 @@ pub const INIT_SCRIPT: &str = r#"
     }
   }
 
-  function markEl(el, depthMax) {
-    var cur = el;
-    var d = 0;
-    while (cur && d < depthMax) {
-      cur.setAttribute("data-dsh-shell-no-select", "1");
-      cur = cur.parentElement;
-      d++;
-    }
-  }
-
   function isEditableContext(el) {
     if (!el || !el.closest) return false;
     return !!el.closest(
@@ -70,67 +74,27 @@ pub const INIT_SCRIPT: &str = r#"
     );
   }
 
-  function isInLeftChrome(el) {
-    if (!el || !el.getBoundingClientRect) return false;
-    var r = el.getBoundingClientRect();
-    var vw = window.innerWidth || 800;
-    if (r.left < 8 && r.width < Math.min(420, vw * 0.42)) return true;
-    if (el.closest("aside, nav")) return true;
-    return false;
+  // 用户消息行：气泡可拖选，时间/复制等兄弟节点不可（无独立 data-slot）
+  function isMessageBubbleContainer(el) {
+    if (!el || isEditableContext(el)) return false;
+    if (el.querySelector('[data-slot="conversation.message.images"]')) return true;
+    if (el.querySelector("p, pre, blockquote, h1, h2, h3, h4, li, table")) return true;
+    if (el.querySelector("textarea, input, [contenteditable]")) return true;
+    if (el.querySelector("button, [role='button']")) return false;
+    var text = (el.textContent || "").replace(/\s+/g, " ").trim();
+    return text.length > 0;
   }
 
-  function markSidebars() {
-    var cands = document.querySelectorAll(
-      "aside, nav, [class*='sidebar'], [class*='Sidebar'], [class*='side-bar']"
+  function markUserRowChrome() {
+    var rows = document.querySelectorAll(
+      '[data-chat-flow-kind="user"] [data-time-hover-root]'
     );
-    for (var i = 0; i < cands.length; i++) {
-      var el = cands[i];
-      var r = el.getBoundingClientRect();
-      var vw = window.innerWidth || 800;
-      if (r.width < 8) continue;
-      if (r.width > Math.min(480, vw * 0.45)) continue;
-      if (r.left > 24) continue;
-      el.setAttribute("data-dsh-shell-no-select", "1");
-    }
-  }
-
-  function labelMatch(t, list, maxLen) {
-    for (var i = 0; i < list.length; i++) {
-      var L = list[i];
-      if (t === L) return true;
-      if (t.indexOf(L) >= 0 && t.length < maxLen) return true;
-    }
-    return false;
-  }
-
-  function markByLabels() {
-    var walker = document.createTreeWalker(
-      document.body || document.documentElement,
-      NodeFilter.SHOW_TEXT,
-      null
-    );
-    var node;
-    while ((node = walker.nextNode())) {
-      var t = (node.nodeValue || "").replace(/\s+/g, " ").trim();
-      if (!t || t.length > 48) continue;
-      var el = node.parentElement;
-      if (!el || isEditableContext(el)) continue;
-
-      var hitSlogan = labelMatch(t, SLOGANS, 48);
-      var hitSide = labelMatch(t, SIDE_LABELS, 16);
-      var hitChrome = labelMatch(t, CHROME_LABELS, 28);
-
-      if (hitSlogan) {
-        markEl(el, 4);
-        continue;
-      }
-      if (hitSide && isInLeftChrome(el)) {
-        markEl(el, 5);
-        continue;
-      }
-      // 模式 / 输入区工具下拉：点仍可用，拖选禁掉
-      if (hitChrome) {
-        markEl(el, 3);
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      for (var c = 0; c < row.children.length; c++) {
+        var child = row.children[c];
+        if (isMessageBubbleContainer(child)) continue;
+        child.setAttribute("data-dsh-shell-no-select", "1");
       }
     }
   }
@@ -144,10 +108,7 @@ pub const INIT_SCRIPT: &str = r#"
       }
       clearMarks();
       ensureStyle();
-      if (document.body) {
-        markSidebars();
-        markByLabels();
-      }
+      if (document.body) markUserRowChrome();
     } catch (e) {}
   }
 
@@ -166,15 +127,23 @@ pub const INIT_SCRIPT: &str = r#"
 
   function boot() {
     refresh();
-    var obs = new MutationObserver(function () {
+    var obs = new MutationObserver(function (mutations) {
       if (!enabled) return;
+      var needUserChrome = false;
+      for (var i = 0; i < mutations.length; i++) {
+        var m = mutations[i];
+        if (m.type === "childList" && m.addedNodes.length > 0) {
+          needUserChrome = true;
+          break;
+        }
+      }
+      if (needUserChrome) markUserRowChrome();
       if (boot._t) clearTimeout(boot._t);
-      boot._t = setTimeout(refresh, 160);
+      boot._t = setTimeout(refresh, 200);
     });
     obs.observe(document.documentElement, {
       childList: true,
-      subtree: true,
-      characterData: true
+      subtree: true
     });
   }
 

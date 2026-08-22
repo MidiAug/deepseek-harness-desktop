@@ -6,6 +6,7 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
+import { IconCheckOutline16, IconChevronDownOutline14 } from "./DshIcons";
 
 export type ShellSelectOption = {
   value: string;
@@ -21,7 +22,7 @@ type Props = {
   className?: string;
 };
 
-/** 自绘下拉：弹出层圆角/选中态与壳设置控件一致（避开系统原生方框菜单）。 */
+/** 自绘下拉：对齐 DSH PermissionRow / ModelSelect（胶囊触发器 + 勾选菜单）。 */
 export function ShellSelect({
   value,
   options,
@@ -82,7 +83,7 @@ export function ShellSelect({
       >
         <span className="shell-select-value">{selected?.label ?? value}</span>
         <span className="shell-select-chevron" aria-hidden>
-          ▾
+          <IconChevronDownOutline14 />
         </span>
       </button>
       {open && (
@@ -90,7 +91,9 @@ export function ShellSelect({
           id={listId}
           className="shell-select-menu"
           role="listbox"
-          aria-activedescendant={selected ? `${listId}-${selected.value}` : undefined}
+          aria-activedescendant={
+            selected ? `${listId}-${selected.value}` : undefined
+          }
         >
           {options.map((opt) => {
             const isOn = opt.value === value;
@@ -107,7 +110,14 @@ export function ShellSelect({
                     close();
                   }}
                 >
-                  {opt.label}
+                  <span className="shell-select-option-label">{opt.label}</span>
+                  {isOn ? (
+                    <span className="shell-select-check" aria-hidden>
+                      <IconCheckOutline16 />
+                    </span>
+                  ) : (
+                    <span className="shell-select-check spacer" aria-hidden />
+                  )}
                 </button>
               </li>
             );

@@ -49,7 +49,7 @@ export function SettingsModal({
   onHarnessReady,
   onStopHarness,
 }: Props) {
-  const { setChrome, patchChrome } = useChrome();
+  const { setChrome, patchChrome, chrome } = useChrome();
   const life = useHostLifecycle();
   const shellUpd = useShellUpdate();
   const [settings, setSettings] = useState<ShellSettings>(
@@ -91,7 +91,7 @@ export function SettingsModal({
           next.preferredPort > 0 ? String(next.preferredPort) : "",
         );
         setChrome({
-          titlebarStyle: next.titlebarStyle,
+          shellTheme: next.shellTheme,
           titlebarCompact: next.titlebarCompact,
           selectionHygiene: next.selectionHygiene,
           sessionLogInTitlebar: next.sessionLogInTitlebar,
@@ -101,6 +101,16 @@ export function SettingsModal({
     refreshRuntime();
     void shellApi.getCliLinkStatus().then(setCliStatus).catch(() => undefined);
   }, [open, initialSection, setChrome, refreshRuntime]);
+
+  // 官方 UI / yaml watch 改主题时，设置弹窗内选项跟着变
+  useEffect(() => {
+    if (!open) return;
+    setSettings((s) =>
+      s.shellTheme === chrome.shellTheme
+        ? s
+        : { ...s, shellTheme: chrome.shellTheme },
+    );
+  }, [chrome.shellTheme, open]);
 
   useEffect(() => {
     if (!open) return;
@@ -167,7 +177,7 @@ export function SettingsModal({
     patch: Partial<
       Pick<
         ShellSettings,
-        | "titlebarStyle"
+        | "shellTheme"
         | "titlebarCompact"
         | "selectionHygiene"
         | "sessionLogInTitlebar"

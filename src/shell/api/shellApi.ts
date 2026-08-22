@@ -100,6 +100,16 @@ export function openPlatformWindow(): Promise<void> {
   return invoke("open_platform_window");
 }
 
+/** DSH `settings.yaml` → ui-theme.preference：light | dark | system */
+export function getDshThemePreference(): Promise<string> {
+  return invoke<string>("get_dsh_theme_preference");
+}
+
+/** 写入 DSH 主题（与官方外观三项相同），并通知壳换肤 */
+export function setDshThemePreference(preference: string): Promise<void> {
+  return invoke("set_dsh_theme_preference", { preference });
+}
+
 export { PLATFORM_URL } from "../settings";
 
 

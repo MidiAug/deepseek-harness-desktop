@@ -11,6 +11,7 @@ mod runtime_lock;
 mod settings;
 mod selection_hygiene;
 mod session_log_proxy;
+mod dsh_theme;
 mod sidebar_probe;
 mod supervise;
 mod tray;
@@ -146,6 +147,16 @@ fn get_runtime_status(
 }
 
 #[tauri::command]
+fn get_dsh_theme_preference(app: tauri::AppHandle) -> String {
+    dsh_theme::preference_for_app(&app)
+}
+
+#[tauri::command]
+fn set_dsh_theme_preference(app: tauri::AppHandle, preference: String) -> Result<(), String> {
+    dsh_theme::set_preference_for_app(&app, &preference)
+}
+
+#[tauri::command]
 fn get_shell_settings(app: tauri::AppHandle) -> ShellSettings {
     settings::load(&app)
 }
@@ -275,6 +286,8 @@ pub fn run() {
             open_platform_window,
             get_runtime_status,
             get_shell_settings,
+            get_dsh_theme_preference,
+            set_dsh_theme_preference,
             save_shell_settings,
             save_runtime_settings,
             save_ui_settings,
@@ -321,6 +334,7 @@ pub fn run() {
             if let Err(e) = tray::setup_tray(app.handle()) {
                 eprintln!("tray setup: {e}");
             }
+            dsh_theme::spawn_watch(app.handle());
             Ok(())
         })
         .on_window_event(|window, event| {

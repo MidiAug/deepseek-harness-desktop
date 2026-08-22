@@ -1,6 +1,11 @@
-import type { ShellSettings } from "../../shell/settings";
+import type { ComponentType } from "react";
+import type { ShellSettings, ShellTheme } from "../../shell/settings";
+import {
+  IconDarkOutline16,
+  IconFollowsystemOutline16,
+  IconLightOutline16,
+} from "../chrome/DshIcons";
 import { SettingsPrefRow } from "./SettingsPrefRow";
-import { STYLE_OPTIONS } from "./settingsTypes";
 
 type Props = {
   settings: ShellSettings;
@@ -9,7 +14,7 @@ type Props = {
     patch: Partial<
       Pick<
         ShellSettings,
-        | "titlebarStyle"
+        | "shellTheme"
         | "titlebarCompact"
         | "selectionHygiene"
         | "sessionLogInTitlebar"
@@ -17,6 +22,17 @@ type Props = {
     >,
   ) => void;
 };
+
+/** 对齐 DSH AppearanceRow：三块 preference cube（图标 + 文案）。 */
+const THEME_CUBES: {
+  id: ShellTheme;
+  label: string;
+  Icon: ComponentType<{ size?: number; className?: string }>;
+}[] = [
+  { id: "light", label: "浅色", Icon: IconLightOutline16 },
+  { id: "dark", label: "深色", Icon: IconDarkOutline16 },
+  { id: "system", label: "跟随系统", Icon: IconFollowsystemOutline16 },
+];
 
 export function SettingsSectionAppearance({
   settings,
@@ -28,6 +44,35 @@ export function SettingsSectionAppearance({
 
   return (
     <div className="settings-section appearance-panel">
+      <SettingsPrefRow
+        title="主题"
+        description="与 DeepSeek Harness 共用同一偏好（~/.dsh/settings.yaml）。任一侧修改，另一侧同步。"
+        layout="stack"
+      >
+        <div
+          className="settings-theme-cubes"
+          role="radiogroup"
+          aria-label="主题"
+        >
+          {THEME_CUBES.map(({ id, label, Icon }) => {
+            const selected = settings.shellTheme === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                className={`settings-theme-cube${selected ? " on" : ""}`}
+                onClick={() => patchAppearance({ shellTheme: id })}
+              >
+                <Icon />
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </SettingsPrefRow>
+
       <SettingsPrefRow
         title="简洁模式"
         description="透明顶栏叠在官方 UI 上（左侧随侧栏、右侧可拖）；窗控悬停显现"
@@ -71,48 +116,8 @@ export function SettingsSectionAppearance({
       </SettingsPrefRow>
 
       <SettingsPrefRow
-        title="顶栏颜色"
-        description={
-          compactOn
-            ? "简洁模式使用透明叠层顶栏，颜色设置不可用"
-            : "选择顶栏底色；改动立即生效"
-        }
-        layout="stack"
-        disabled={compactOn}
-      >
-        <div
-          className="settings-style-grid"
-          role="radiogroup"
-          aria-label="顶栏颜色"
-        >
-          {STYLE_OPTIONS.map((opt) => {
-            const selected = settings.titlebarStyle === opt.id;
-            return (
-              <button
-                key={opt.id}
-                type="button"
-                role="radio"
-                aria-checked={selected}
-                disabled={compactOn}
-                className={`settings-style-card${selected ? " on" : ""} style-${opt.id}`}
-                onClick={() =>
-                  patchAppearance({ titlebarStyle: opt.id })
-                }
-              >
-                <span className={`style-preview ${opt.id}`} />
-                <span className="style-meta">
-                  <span className="style-name">{opt.label}</span>
-                  <span className="style-hint">{opt.hint}</span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </SettingsPrefRow>
-
-      <SettingsPrefRow
         title="减少误选界面文字"
-        description="开启后：侧栏、模式切换、输入区权限下拉等不可拖选；输入框与对话正文仍可复制。默认关闭。"
+        description="拖选或全选对话时，尽量不带上侧栏、时间戳、按钮提示和输入区控件；聊天正文与代码块仍可正常复制。"
       >
         <button
           type="button"
