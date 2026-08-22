@@ -325,13 +325,8 @@ async fn npm_install_dsh<R: Runtime>(app: &AppHandle<R>, force: bool) -> Result<
         ));
     }
 
-    let entry = resolve_dsh_entry(app)?;
-    if !paths::is_file(&entry) {
-        return Err(format!(
-            "INSTALL_FAILED: 安装后未找到入口 {}",
-            entry.display()
-        ));
-    }
+    // 闭包门禁（anywhere #339）：入口 + 声明的 @deepseek-ai/* 依赖目录
+    crate::runtime::assert_harness_closure(app)?;
     emit_progress(
         app,
         "install-dsh",

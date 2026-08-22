@@ -12,6 +12,7 @@ import {
 } from "react";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
+import { prepareShellUpdate } from "./shellApi";
 
 export type ShellUpdatePhase =
   | "idle"
@@ -189,8 +190,11 @@ export function ShellUpdateProvider({ children }: { children: ReactNode }) {
   const installAndRelaunch = useCallback(async () => {
     const update = updateRef.current;
     if (!update || state.phase !== "downloaded") return;
-    apply({ phase: "installing", message: "正在安装壳更新并重启…" });
+    apply({ phase: "installing", message: "正在停止托管进程并安装壳更新…" });
     try {
+      // 先杀树再装，避免 anywhere #469「DSH 未关导致更新失败」
+      await prepareShellUpdate();
+      apply({ phase: "installing", message: "正在安装壳更新并重启…" });
       await update.install();
       await relaunch();
     } catch (e) {

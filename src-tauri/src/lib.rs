@@ -6,6 +6,7 @@ mod paths;
 mod platform;
 mod progress;
 mod runtime;
+mod runtime_lock;
 mod settings;
 mod sidebar_probe;
 mod supervise;
@@ -171,6 +172,32 @@ async fn apply_harness_update(
     update::apply_harness_update(&app, &state).await
 }
 
+/// 壳自更新安装前：跨进程锁 + 杀托管进程树（anywhere #469）。
+#[tauri::command]
+async fn prepare_shell_update(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, HarnessState>,
+) -> Result<(), String> {
+    let _guard = state.boot_lock.lock().await;
+    let _rt_lock = runtime_lock::acquire(&app, runtime_lock::LockPurpose::ShellUpdate)?;
+    progress::append_shell_log(&app, "[ops] prepare_shell_update");
+    progress::emit_progress(&app, "shell-update", "正在停止托管进程以便安装壳更新…", Some(10));
+    supervise::stop_and_clear_pid(&app, &state);
+    tokio::time::sleep(std::time::Duration::from_millis(1200)).await;
+    progress::append_shell_log(&app, "[ops] prepare_shell_update done");
+    Ok(())
+}
+
+/// 重置托管 harness（保留 Node；不碰 `$DSH_HOME`）后重新 ensure。
+#[tauri::command]
+async fn reset_hosted_runtime(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, HarnessState>,
+) -> Result<ReadyPayload, String> {
+    progress::append_shell_log(&app, "[ops] reset_hosted_runtime");
+    runtime::reset_hosted_runtime(&app, &state).await
+}
+
 #[tauri::command]
 fn read_shell_log(app: tauri::AppHandle) -> Result<String, String> {
     supervise::read_log_tail(&app, 8000)
@@ -214,7 +241,19 @@ fn set_cli_link_enabled(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let app = tauri::Builder::default()
+    // 单实例须最先注册，二次启动才能聚焦已有窗
+    let mut builder = tauri::Builder::default();
+    #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(win) = app.get_webview_window("main") {
+                let _ = win.show();
+                let _ = win.unminimize();
+                let _ = win.set_focus();
+            }
+        }));
+    }
+    let app = builder
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .manage(HarnessState::default())
@@ -231,6 +270,8 @@ pub fn run() {
             save_ui_settings,
             check_harness_update,
             apply_harness_update,
+            prepare_shell_update,
+            reset_hosted_runtime,
             read_shell_log,
             get_cli_link_status,
             set_cli_link_enabled,
@@ -239,6 +280,7 @@ pub fn run() {
         ])
         .setup(|app| {
             // 窗口改在 Rust 创建，以便挂 all-frames init（Windows 会注入 iframe）
+            // windows: [] 时不会从 conf 带图标；须显式 .icon，否则 Win 任务栏为空白占位
             let url = if cfg!(debug_assertions) {
                 WebviewUrl::External(
                     "http://localhost:1420"
@@ -248,13 +290,16 @@ pub fn run() {
             } else {
                 WebviewUrl::App("index.html".into())
             };
-            WebviewWindowBuilder::new(app, "main", url)
+            let mut win = WebviewWindowBuilder::new(app, "main", url)
                 .title("deepseek-harness-desktop")
                 .inner_size(1100.0, 720.0)
                 .min_inner_size(800.0, 520.0)
                 .decorations(false)
-                .initialization_script_for_all_frames(sidebar_probe::INIT_SCRIPT)
-                .build()?;
+                .initialization_script_for_all_frames(sidebar_probe::INIT_SCRIPT);
+            if let Some(icon) = app.default_window_icon() {
+                win = win.icon(icon.clone())?;
+            }
+            win.build()?;
 
             supervise::sweep_orphans(app.handle());
             if let Err(e) = tray::setup_tray(app.handle()) {

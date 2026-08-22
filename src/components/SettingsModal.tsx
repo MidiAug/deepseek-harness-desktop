@@ -649,6 +649,39 @@ export function SettingsModal({
                   <PathButton which="appData" label="AppData" />
                   <PathButton which="logs" label="日志" />
                 </div>
+                <SettingsPrefRow
+                  title="重置托管运行时"
+                  description="清除 AppData 下的 harness 并重新安装；保留已下载的 Node；不会删除 DSH_HOME / ~/.dsh 会话与插件"
+                  layout="stack"
+                >
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    disabled={locked}
+                    onClick={() => {
+                      if (
+                        !window.confirm(
+                          "将清除本机托管的 harness 安装并重新下载（保留 Node；不删除 ~/.dsh）。继续？",
+                        )
+                      ) {
+                        return;
+                      }
+                      setError(null);
+                      void (async () => {
+                        try {
+                          const ready = await shellApi.resetHostedRuntime();
+                          flashHint("托管运行时已重置并重新启动。");
+                          refreshRuntime();
+                          onHarnessReady?.(ready);
+                        } catch (e) {
+                          setError(typeof e === "string" ? e : String(e));
+                        }
+                      })();
+                    }}
+                  >
+                    重置托管运行时
+                  </button>
+                </SettingsPrefRow>
               </div>
             )}
 

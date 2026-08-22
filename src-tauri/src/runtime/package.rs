@@ -1,5 +1,6 @@
 //! 解析托管 `@deepseek-ai/dsh` 入口（固定相对路径 + package.json bin 兜底）。
 //! 版本 / digest 供状态与关于页（R4 → B6）。
+//! 闭包完整性（B13）：npm 后断言入口 + 声明的 `@deepseek-ai/*` 依赖目录。
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -57,6 +58,63 @@ fn dsh_package_json<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
         .join("@deepseek-ai")
         .join("dsh")
         .join("package.json"))
+}
+
+/// npm 安装后闭包门禁：入口文件 + dsh 声明的 `@deepseek-ai/*` 依赖目录须存在。
+pub fn assert_harness_closure<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
+    let entry = resolve_dsh_entry(app)?;
+    if !paths::is_file(&entry) {
+        return Err(format!(
+            "INSTALL_FAILED: 安装后未找到入口 {}",
+            entry.display()
+        ));
+    }
+    let pkg = dsh_package_json(app)?;
+    if !pkg.is_file() {
+        return Err(format!(
+            "INSTALL_FAILED: 缺少 dsh package.json（{}）",
+            pkg.display()
+        ));
+    }
+    let text = fs::read_to_string(&pkg)
+        .map_err(|e| format!("INSTALL_FAILED: 读 dsh package.json: {e}"))?;
+    let json: serde_json::Value = serde_json::from_str(&text)
+        .map_err(|e| format!("INSTALL_FAILED: 解析 dsh package.json: {e}"))?;
+
+    let mut missing: Vec<String> = Vec::new();
+    // 仅硬依赖：optionalDependencies 允许缺席
+    let harness = paths::harness_dir(app)?;
+    let dsh_root = harness
+        .join("node_modules")
+        .join("@deepseek-ai")
+        .join("dsh");
+    if let Some(deps) = json.get("dependencies").and_then(|v| v.as_object()) {
+        for name in deps.keys() {
+            if !name.starts_with("@deepseek-ai/") {
+                continue;
+            }
+            let short = name.trim_start_matches("@deepseek-ai/");
+            let top = harness
+                .join("node_modules")
+                .join("@deepseek-ai")
+                .join(short);
+            let nested = dsh_root
+                .join("node_modules")
+                .join("@deepseek-ai")
+                .join(short);
+            if !top.is_dir() && !nested.is_dir() {
+                missing.push(name.clone());
+            }
+        }
+    }
+    if !missing.is_empty() {
+        missing.sort();
+        return Err(format!(
+            "INSTALL_FAILED: harness 闭包不完整，缺少依赖：{}。请重试安装或「重置托管运行时」。",
+            missing.join(", ")
+        ));
+    }
+    Ok(())
 }
 
 /// 入口文件缺失，但 harness 树里已有依赖痕迹（中断更新/半安装）。

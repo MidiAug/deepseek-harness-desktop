@@ -15,6 +15,7 @@ TAURI_SIGNING_PRIVATE_KEY_PATH=.secrets/updater.key
 
 ## 发布步骤（摘要）
 
+0. **`pnpm check:release`**（B13：updater 配置、capabilities、壳更新杀树路径）
 1. `pnpm tauri build`（会生成 updater artifacts + `.sig`）
 2. 上传安装包与签名到 GitHub Release
 3. 同 Release 放置 `latest.json`（Tauri static JSON 格式），URL 与 `tauri.conf.json` 的 `endpoints` 一致
@@ -32,5 +33,9 @@ TAURI_SIGNING_PRIVATE_KEY_PATH=.secrets/updater.key
 | 启动后 15–30s | 自动 `check`；有更新则 `download` |
 | 每 6 小时 | 同上 |
 | 下载完成 | 顶栏横幅 + 关于区「立即重启安装」 |
-| 用户确认 | `install` + `relaunch`（Windows 会先退出再装） |
+| 用户确认 | **`prepare_shell_update`（停托管进程）** → `install` + `relaunch` |
 | 开发态 | 不自动检查；关于区说明通道仅发行构建可用 |
+
+## 单实例
+
+二次启动聚焦已有主窗（`tauri-plugin-single-instance`），避免双开抢端口 / AppData。

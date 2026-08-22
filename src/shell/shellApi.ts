@@ -62,6 +62,16 @@ export function applyHarnessUpdate(): Promise<ReadyPayload> {
   return invoke<ReadyPayload>("apply_harness_update");
 }
 
+/** 壳自更新安装前：停托管进程（须在 update.install 之前调用）。 */
+export function prepareShellUpdate(): Promise<void> {
+  return invoke("prepare_shell_update");
+}
+
+/** 清除 AppData harness 后重装（保留 Node；不碰 DSH_HOME）。 */
+export function resetHostedRuntime(): Promise<ReadyPayload> {
+  return invoke<ReadyPayload>("reset_hosted_runtime");
+}
+
 export function readShellLog(): Promise<string> {
   return invoke<string>("read_shell_log");
 }

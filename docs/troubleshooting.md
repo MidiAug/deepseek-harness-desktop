@@ -7,10 +7,12 @@
 - 检查网络；公司网或需代理时，先到设置里配好再重试（B3）  
 - **首次安装 / 修复安装**：步骤横排 + 进度条；过程日志可收起  
 - 若提示「不完整 harness」：多为中断的「更新并重启」留下半安装（入口包 `@deepseek-ai/dsh` 缺失）；壳会自动修复重装，属预期而非检测失灵  
-- 强制更新改为先备份旧包再安装，失败尽量回滚；仍失败可清空 `%APPDATA%\com.deepseek.harness.desktop\harness` 后重试  
-- **已有运行时**：应很快看到官方 `HARNESS` 等待页；若只剩顶中气泡不动，看 `%APPDATA%\com.deepseek.harness.desktop\logs\harness.log`  
+- 强制更新改为先备份旧包再安装，失败尽量回滚；仍失败可到首跑失败页或设置「数据与诊断」点 **重置托管运行时**（只清 AppData `harness`，**不删** `~/.dsh`）  
+- 也可手动清空 `%APPDATA%\com.deepseek.harness.desktop\harness` 后重试  
+- **已有运行时**：应很快看到官方 `HARNESS` 等待页；若只剩顶中气泡不动，看 `%APPDATA%\com.deepseek.harness.desktop\logs\harness.log` 或点「打开日志」  
 - 杀软/管控软件是否拦截了 Node 或本机回环端口  
 - 开发态：确认 `%AppData%\npm` 在 PATH 上优先于 DeepSeek Harness 假 `pnpm` shim  
+- 若提示「运行时忙」：另一实例正在更新/安装；关掉多余窗口（壳为单实例，二次启动应聚焦已有窗）  
 
 ## 能开窗但页面空白
 
@@ -28,13 +30,18 @@
 
 - 壳已对 npm 使用 npmmirror + IPv4 优先；若仍失败，检查系统代理 / 防火墙  
 - 关于页更新日志应持续出现 npm 行或「仍在执行」心跳；也可打开 `%APPDATA%\com.deepseek.harness.desktop\logs\shell.log`  
-- 可手动清空 `%APPDATA%\com.deepseek.harness.desktop\harness` 后点「重试」  
+- 可点「重置托管运行时」，或手动清空 `%APPDATA%\com.deepseek.harness.desktop\harness` 后点「重试」  
 
 ## 下载 Node / 安装包失败
 
 - 壳会对下载自动重试最多 **3** 次（退避约 500ms → 1s → 2s）；失败文案以 `INSTALL_FAILED:` 开头  
 - 未完成的文件以 `.partial` 保存，下次可尝试 HTTP Range 续传  
-- 仍失败：检查代理/镜像设置，或删掉 `%APPDATA%\com.deepseek.harness.desktop\runtime` 后重试  
+- 仍失败：检查代理/镜像设置，或删掉 `%APPDATA%\com.deepseek.harness.desktop\runtime` 后重试（仅当 Node 本身损坏；重置托管运行时默认保留 runtime）  
+
+## 壳自更新失败
+
+- 确认安装前托管进程已停（壳会先 `prepare_shell_update`）  
+- 发行构建须签名；见 [releases.md](./releases.md)；发布前跑 `pnpm check:release`  
 
 ## 关于页版本 / digest
 

@@ -10,6 +10,8 @@ pub const DSH_PACKAGE: &str = "@deepseek-ai/dsh";
 /// 相对 harness 根的官方入口；包结构漂移时由 runtime::package 解析兜底。
 pub const DSH_ENTRY_RELATIVE: &str = "node_modules/@deepseek-ai/dsh/lib/bin.js";
 pub const PID_FILE_NAME: &str = ".harness.pid";
+/// 跨进程改盘互斥（壳更新 / harness 更新 / reset / ensure）
+pub const RUNTIME_LOCK_FILE_NAME: &str = ".runtime.lock";
 
 pub fn base_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
     app.path()
@@ -73,6 +75,10 @@ pub fn dsh_home<R: Runtime>(_app: &AppHandle<R>, override_path: Option<&str>) ->
 
 pub fn pid_file<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
     Ok(base_dir(app)?.join(PID_FILE_NAME))
+}
+
+pub fn runtime_lock_file<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
+    Ok(base_dir(app)?.join(RUNTIME_LOCK_FILE_NAME))
 }
 
 pub fn service_url(port: u16) -> String {

@@ -253,6 +253,61 @@ export function BootPanel({
                 >
                   去设置网络
                 </button>
+                <button
+                  type="button"
+                  className="btn ghost"
+                  onClick={() => {
+                    void shellApi.openKnownPath("logs");
+                  }}
+                >
+                  打开日志
+                </button>
+                <button
+                  type="button"
+                  className="btn ghost"
+                  onClick={() => {
+                    if (
+                      !window.confirm(
+                        "将清除本机托管的 harness 安装并重新下载（保留已下载的 Node；不会删除 ~/.dsh 会话与插件）。继续？",
+                      )
+                    ) {
+                      return;
+                    }
+                    startedRef.current = true;
+                    onBootWorkingRef.current?.(true);
+                    setFailed(false);
+                    setError(null);
+                    seedBootRef.current({
+                      message: "正在重置托管运行时…",
+                      stageId: "detect",
+                      percent: 5,
+                      clearLog: true,
+                    });
+                    void (async () => {
+                      try {
+                        const ready = await shellApi.resetHostedRuntime();
+                        seedBootRef.current({
+                          message: `服务已就绪 · :${ready.port}`,
+                          stageId: "start",
+                          percent: 100,
+                        });
+                        setDone(true);
+                        onReady(ready);
+                      } catch (e) {
+                        setFailed(true);
+                        setError(typeof e === "string" ? e : String(e));
+                        seedBootRef.current({
+                          message: "重置失败",
+                          stageId: "start",
+                        });
+                        startedRef.current = false;
+                        onError();
+                      }
+                    })();
+                  }}
+                >
+                  重置托管运行时
+                </button>
               </p>
             )}
           </section>

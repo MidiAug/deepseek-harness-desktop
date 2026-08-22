@@ -7,6 +7,7 @@ use crate::install;
 use crate::paths::DSH_PACKAGE;
 use crate::progress::{self, ReadyPayload};
 use crate::runtime;
+use crate::runtime_lock::{self, LockPurpose};
 use crate::settings::{self, ShellSettings};
 use crate::supervise::{self, HarnessState};
 
@@ -102,6 +103,7 @@ pub async fn apply_harness_update<R: Runtime>(
         Some(5),
     );
     let _guard = state.boot_lock.lock().await;
+    let _rt_lock = runtime_lock::acquire(app, LockPurpose::HarnessUpdate)?;
 
     progress::emit_progress(app, "update-dsh", "正在停止 harness…", Some(10));
     supervise::stop_and_clear_pid(app, state);
