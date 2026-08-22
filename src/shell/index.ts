@@ -13,9 +13,12 @@ export type {
 export * as shellApi from "./api/shellApi";
 export { useShellSession } from "./hooks/useShellSession";
 export { useSidebarLayout, SIDEBAR_FALLBACK_PX } from "./hooks/useSidebarLayout";
+export { useHarnessContextMenu } from "./hooks/useHarnessContextMenu";
 export { useShellProgressBubble } from "./hooks/useShellProgressBubble";
 export { usePlatformWebview } from "./hooks/usePlatformWebview";
 export { ChromeProvider, useChrome } from "./contexts/ChromeProvider";
+export { LocaleProvider, useLocale, useSectionLabels } from "./locale";
+export type { ShellLocale, LocaleKey } from "./locale";
 export {
   HostLifecycleProvider,
   useHostLifecycle,

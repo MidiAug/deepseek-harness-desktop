@@ -1,7 +1,7 @@
 import type { MirrorKind, ProxyMode, ShellSettings } from "../../shell/settings";
+import { useLocale } from "../../shell/locale";
 import { SettingsPrefRow } from "./SettingsPrefRow";
 import { ShellSelect } from "../chrome/ShellSelect";
-import { MIRROR_OPTIONS, PROXY_OPTIONS } from "./settingsTypes";
 
 type Props = {
   settings: ShellSettings;
@@ -12,42 +12,50 @@ type Props = {
 };
 
 export function SettingsSectionNetwork({ settings, patchRuntime }: Props) {
+  const { t } = useLocale();
+
+  const mirrorOptions = [
+    { value: "domestic", label: t("settings.mirror.domestic") },
+    { value: "official", label: t("settings.mirror.official") },
+  ];
+
+  const proxyOptions = [
+    { value: "off", label: t("settings.proxy.off") },
+    { value: "system", label: t("settings.proxy.system") },
+    { value: "custom", label: t("settings.proxy.custom") },
+  ];
+
   return (
     <div className="settings-section">
       <SettingsPrefRow
-        title="镜像"
-        description="影响 Node 下载与 npm registry；下次安装或更新时生效"
+        title={t("settings.mirror.title")}
+        description={t("settings.mirror.description")}
       >
         <ShellSelect
-          aria-label="镜像"
+          aria-label={t("settings.mirror.aria")}
           value={settings.mirror}
-          options={MIRROR_OPTIONS}
+          options={mirrorOptions}
           onChange={(v) =>
             patchRuntime(
               { mirror: v as MirrorKind },
-              {
-                softHint: "镜像已保存；下次安装或更新 harness 时生效。",
-              },
+              { softHint: t("settings.mirror.saved") },
             )
           }
         />
       </SettingsPrefRow>
 
       <SettingsPrefRow
-        title="代理"
-        description="作用于壳下载、npm 与托管 dsh 子进程"
+        title={t("settings.proxy.title")}
+        description={t("settings.proxy.description")}
       >
         <ShellSelect
-          aria-label="代理"
+          aria-label={t("settings.proxy.aria")}
           value={settings.proxyMode}
-          options={PROXY_OPTIONS}
+          options={proxyOptions}
           onChange={(v) =>
             patchRuntime(
               { proxyMode: v as ProxyMode },
-              {
-                softHint:
-                  "代理已保存。运行中进程需在「关于」中重启以立即生效。",
-              },
+              { softHint: t("settings.proxy.saved") },
             )
           }
         />
@@ -55,8 +63,8 @@ export function SettingsSectionNetwork({ settings, patchRuntime }: Props) {
 
       {settings.proxyMode === "custom" && (
         <SettingsPrefRow
-          title="代理 URL"
-          description="例如 http://127.0.0.1:7890 或 socks5://…"
+          title={t("settings.proxyUrl.title")}
+          description={t("settings.proxyUrl.description")}
           layout="stack"
         >
           <input
@@ -69,8 +77,7 @@ export function SettingsSectionNetwork({ settings, patchRuntime }: Props) {
                 { proxyUrl: ev.target.value },
                 {
                   debounceMs: 350,
-                  softHint:
-                    "代理 URL 已保存。运行中进程需重启以立即生效。",
+                  softHint: t("settings.proxyUrl.saved"),
                 },
               )
             }

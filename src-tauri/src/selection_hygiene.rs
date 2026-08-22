@@ -99,6 +99,17 @@ pub const INIT_SCRIPT: &str = r#"
     }
   }
 
+  function markCodeBlockChrome() {
+    var blocks = document.querySelectorAll("[class*='md-code-block']");
+    for (var i = 0; i < blocks.length; i++) {
+      var block = blocks[i];
+      var header = block.firstElementChild;
+      if (header && header.querySelector("button")) {
+        header.setAttribute("data-dsh-shell-no-select", "1");
+      }
+    }
+  }
+
   function refresh() {
     try {
       if (!enabled) {
@@ -108,7 +119,10 @@ pub const INIT_SCRIPT: &str = r#"
       }
       clearMarks();
       ensureStyle();
-      if (document.body) markUserRowChrome();
+      if (document.body) {
+        markUserRowChrome();
+        markCodeBlockChrome();
+      }
     } catch (e) {}
   }
 

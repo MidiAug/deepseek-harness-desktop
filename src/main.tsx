@@ -4,17 +4,20 @@ import App from "./App";
 import {
   ChromeProvider,
   HostLifecycleProvider,
+  LocaleProvider,
   ShellUpdateProvider,
 } from "./shell";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <ChromeProvider>
-      <HostLifecycleProvider>
-        <ShellUpdateProvider>
-          <App />
-        </ShellUpdateProvider>
-      </HostLifecycleProvider>
-    </ChromeProvider>
+    <LocaleProvider>
+      <ChromeProvider>
+        <HostLifecycleProvider>
+          <ShellUpdateProvider>
+            <App />
+          </ShellUpdateProvider>
+        </HostLifecycleProvider>
+      </ChromeProvider>
+    </LocaleProvider>
   </React.StrictMode>,
 );

@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { ShellSettings } from "../../shell/settings";
 import { shellApi, type RuntimeStatus } from "../../shell";
+import { useLocale } from "../../shell/locale";
 import type { CliLinkStatus } from "../../shell/api/shellApi";
 import { SettingsPrefRow } from "./SettingsPrefRow";
 
@@ -40,11 +41,13 @@ export function SettingsSectionRuntime({
   onStopHarness,
   onApplyNetworkRestart,
 }: Props) {
+  const { t } = useLocale();
+
   return (
     <div className="settings-section">
       <SettingsPrefRow
-        title="首选端口"
-        description="0 或留空 = 壳默认（开发 3081 / 发行 3080）；被占用时自动顺延。改后需重启 harness。"
+        title={t("settings.port.title")}
+        description={t("settings.port.description")}
         layout="stack"
       >
         <input
@@ -52,7 +55,7 @@ export function SettingsSectionRuntime({
           type="number"
           min={0}
           max={65535}
-          placeholder="默认"
+          placeholder={t("settings.port.placeholder")}
           value={portDraft}
           onChange={(ev) => {
             setPortDraft(ev.target.value);
@@ -63,15 +66,15 @@ export function SettingsSectionRuntime({
                 : Math.max(0, Math.min(65535, Math.floor(n)));
             patchRuntime(
               { preferredPort },
-              {
-                softHint:
-                  "首选端口已保存；请在下方重启 harness 后生效。",
-              },
+              { softHint: t("settings.port.saved") },
             );
           }}
         />
       </SettingsPrefRow>
-      <SettingsPrefRow title="当前端口" description="实际监听端口（可能因占用顺延）">
+      <SettingsPrefRow
+        title={t("settings.port.current")}
+        description={t("settings.port.currentDesc")}
+      >
         <span className="mono">{runtime?.port ?? "—"}</span>
       </SettingsPrefRow>
       <div className="settings-cell-actions">
@@ -82,12 +85,12 @@ export function SettingsSectionRuntime({
           onClick={() => {
             const url = `http://127.0.0.1:${runtime?.port}`;
             void navigator.clipboard.writeText(url).then(
-              () => flashHint("已复制服务 URL。"),
-              () => setError("复制失败"),
+              () => flashHint(t("settings.port.copied")),
+              () => setError(t("settings.port.copyFail")),
             );
           }}
         >
-          复制服务 URL
+          {t("settings.port.copy")}
         </button>
         <button
           type="button"
@@ -97,11 +100,11 @@ export function SettingsSectionRuntime({
             const url = `http://127.0.0.1:${runtime?.port}`;
             void shellApi
               .openLoopbackUrl(url)
-              .then(() => flashHint("已在浏览器打开。"))
+              .then(() => flashHint(t("settings.port.opened")))
               .catch((e) => setError(String(e)));
           }}
         >
-          浏览器打开
+          {t("settings.port.openBrowser")}
         </button>
         <button
           type="button"
@@ -109,11 +112,11 @@ export function SettingsSectionRuntime({
           disabled={locked}
           onClick={() => {
             onStopHarness?.();
-            flashHint("已请求停止 harness。");
+            flashHint(t("settings.port.stopped"));
             refreshRuntime();
           }}
         >
-          停止 harness
+          {t("settings.port.stop")}
         </button>
         <button
           type="button"
@@ -121,20 +124,20 @@ export function SettingsSectionRuntime({
           disabled={locked}
           onClick={() => void onApplyNetworkRestart()}
         >
-          重启 harness
+          {t("settings.port.restart")}
         </button>
       </div>
 
       <SettingsPrefRow
-        title="命令行 dsh"
-        description="在 AppData/bin 写入 dsh.cmd 并加入用户 PATH（不修改 .bashrc/.zshrc）。新开终端生效。"
+        title={t("settings.cli.title")}
+        description={t("settings.cli.description")}
       >
         <button
           type="button"
           className={`settings-switch${settings.cliLinkEnabled ? " on" : ""}`}
           role="switch"
           aria-checked={settings.cliLinkEnabled}
-          aria-label="命令行 dsh"
+          aria-label={t("settings.cli.aria")}
           disabled={locked}
           onClick={() => {
             const next = !settings.cliLinkEnabled;
@@ -144,9 +147,7 @@ export function SettingsSectionRuntime({
               .then((st) => {
                 setCliStatus(st);
                 flashHint(
-                  next
-                    ? "已启用 CLI；请新开终端验证 dsh。"
-                    : "已关闭 CLI 并移出用户 PATH。",
+                  next ? t("settings.cli.enabled") : t("settings.cli.disabled"),
                 );
               })
               .catch((e) => {
@@ -163,9 +164,15 @@ export function SettingsSectionRuntime({
       </SettingsPrefRow>
       {cliStatus && (
         <p className="settings-live-hint">
-          shim {cliStatus.shimExists ? "已写入" : "未写入"}
+          shim{" "}
+          {cliStatus.shimExists
+            ? t("settings.cli.shimYes")
+            : t("settings.cli.shimNo")}
           {" · "}
-          PATH {cliStatus.pathRegistered ? "已注册" : "未注册"}
+          PATH{" "}
+          {cliStatus.pathRegistered
+            ? t("settings.cli.pathYes")
+            : t("settings.cli.pathNo")}
           {cliStatus.binDir ? ` · ${cliStatus.binDir}` : ""}
         </p>
       )}

@@ -1,18 +1,37 @@
-//! DSH 主题真源：`DSH_HOME/settings.yaml` → `ui-theme.preference`（light|dark|system）。
-//! 壳与官方 UI 共用；写回同一字段；目录 watch 推送变更（无轮询）。
+//! DSH 语言真源：`DSH_HOME/settings.yaml` → `locale.preference`（zh|en）。
+//! 壳与官方 UI 共用；写回同一字段；变更由 `dsh_settings_watch` 推送。
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+
 use tauri::{AppHandle, Emitter, Runtime};
 
 use crate::paths;
 use crate::settings;
 
-pub const CHANGED_EVENT: &str = "dsh-theme-changed";
+pub const CHANGED_EVENT: &str = "dsh-locale-changed";
 
-/// 返回 `light` | `dark` | `system`。
+/// 读 yaml 内显式 `locale.preference`；无文件或无字段时返回 `None`。
+pub fn explicit_preference_from_home(dsh_home: &Path) -> Option<&'static str> {
+    let path = dsh_home.join("settings.yaml");
+    let Ok(text) = fs::read_to_string(&path) else {
+        return None;
+    };
+    parse_locale_preference(&text)
+}
+
+/// IPC：显式偏好或空串（空串表示未设置，由前端做浏览器检测）。
 pub fn preference_for_app<R: Runtime>(app: &AppHandle<R>) -> String {
-    preference_from_home(&dsh_home_for(app))
+    explicit_preference_from_home(&dsh_home_for(app))
+        .map(|s| s.to_string())
+        .unwrap_or_default()
+}
+
+/// watch / 聚合读：无显式偏好时用 `en`（与 DSH FALLBACK 一致；前端首屏会再校正）。
+pub fn resolved_preference_from_home(dsh_home: &Path) -> String {
+    explicit_preference_from_home(dsh_home)
+        .unwrap_or("en")
+        .to_string()
 }
 
 pub fn set_preference_for_app<R: Runtime>(
@@ -21,54 +40,52 @@ pub fn set_preference_for_app<R: Runtime>(
 ) -> Result<(), String> {
     let pref = normalize_pref(preference)?;
     set_preference_in_home(&dsh_home_for(app), pref)?;
-    // 立刻通知前端（不等 watch）
     let _ = app.emit(CHANGED_EVENT, pref);
     Ok(())
 }
 
-fn dsh_home_for<R: Runtime>(app: &AppHandle<R>) -> PathBuf {
+fn dsh_home_for<R: Runtime>(app: &AppHandle<R>) -> std::path::PathBuf {
     let cfg = settings::load(app);
     paths::dsh_home(app, Some(cfg.dsh_home_override.as_str()))
 }
 
-pub fn preference_from_home(dsh_home: &Path) -> String {
-    let path = dsh_home.join("settings.yaml");
-    let Ok(text) = fs::read_to_string(&path) else {
-        return "system".into();
-    };
-    parse_ui_theme_preference(&text)
-        .unwrap_or("system")
-        .to_string()
-}
-
 fn normalize_pref(preference: &str) -> Result<&'static str, String> {
     match preference.trim().to_ascii_lowercase().as_str() {
-        "light" => Ok("light"),
-        "dark" => Ok("dark"),
-        "system" | "follow" => Ok("system"),
-        other => Err(format!("未知主题 preference: {other}")),
+        "zh" | "zh-cn" | "zh-hans" => Ok("zh"),
+        "en" => Ok("en"),
+        other => Err(format!("未知语言 preference: {other}")),
     }
 }
 
-/// 写入或补全 `ui-theme.preference`；尽量保留其它键与格式。
+/// 写入或补全 `locale.preference`；尽量保留其它键与格式。
 pub fn set_preference_in_home(dsh_home: &Path, preference: &str) -> Result<(), String> {
     let pref = normalize_pref(preference)?;
     fs::create_dir_all(dsh_home).map_err(|e| format!("mkdir DSH_HOME: {e}"))?;
     let path = dsh_home.join("settings.yaml");
     let existing = fs::read_to_string(&path).unwrap_or_default();
-    let next = upsert_ui_theme_preference(&existing, pref);
+    let next = upsert_locale_preference(&existing, pref);
     fs::write(&path, next).map_err(|e| format!("write settings.yaml: {e}"))?;
     Ok(())
 }
 
-pub fn upsert_ui_theme_preference(text: &str, pref: &str) -> String {
+pub fn upsert_locale_preference(text: &str, pref: &str) -> String {
+    upsert_yaml_block_preference(text, "locale:", pref)
+}
+
+/// 仅识别 `locale:` 块内的 `preference:`。
+pub fn parse_locale_preference(text: &str) -> Option<&'static str> {
+    parse_yaml_block_preference(text, "locale:")
+}
+
+/// 与主题块相同的 yaml 行扫描逻辑（块名不同）。
+pub fn upsert_yaml_block_preference(text: &str, block_key: &str, pref: &str) -> String {
     let mut in_block = false;
     let mut replaced = false;
     let mut out: Vec<String> = Vec::new();
     for line in text.lines() {
         let raw = line;
         let t = raw.trim();
-        if t.starts_with("ui-theme:") {
+        if t.starts_with(block_key) {
             in_block = true;
             out.push(line.to_string());
             continue;
@@ -101,7 +118,8 @@ pub fn upsert_ui_theme_preference(text: &str, pref: &str) -> String {
         if !out.is_empty() && !out.last().map(|s| s.is_empty()).unwrap_or(true) {
             out.push(String::new());
         }
-        out.push("ui-theme:".into());
+        let block = block_key.trim_end_matches(':');
+        out.push(format!("{block}:"));
         out.push(format!("  preference: {pref}"));
     }
     let mut s = out.join("\n");
@@ -111,8 +129,7 @@ pub fn upsert_ui_theme_preference(text: &str, pref: &str) -> String {
     s
 }
 
-/// 仅识别 `ui-theme:` 块内的 `preference:`。
-pub fn parse_ui_theme_preference(text: &str) -> Option<&'static str> {
+pub fn parse_yaml_block_preference(text: &str, block_key: &str) -> Option<&'static str> {
     let mut in_block = false;
     for line in text.lines() {
         let raw = line;
@@ -120,7 +137,7 @@ pub fn parse_ui_theme_preference(text: &str) -> Option<&'static str> {
         if t.is_empty() || t.starts_with('#') {
             continue;
         }
-        if t.starts_with("ui-theme:") {
+        if t.starts_with(block_key) {
             in_block = true;
             continue;
         }
@@ -136,10 +153,8 @@ pub fn parse_ui_theme_preference(text: &str) -> Option<&'static str> {
                     .trim_matches('\'')
                     .to_ascii_lowercase();
                 return match v.as_str() {
-                    "light" => Some("light"),
-                    "dark" => Some("dark"),
-                    "system" => Some("system"),
-                    "follow" => Some("system"),
+                    "zh" | "zh-cn" | "zh-hans" => Some("zh"),
+                    "en" => Some("en"),
                     _ => None,
                 };
             }
@@ -153,44 +168,31 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parses_system_preference() {
-        let y = "ui-onboarding:\n  x: 1\nui-theme:\n  preference: system\n";
-        assert_eq!(parse_ui_theme_preference(y), Some("system"));
-    }
-
-    #[test]
-    fn parses_light_and_dark() {
+    fn parses_zh_and_en() {
         assert_eq!(
-            parse_ui_theme_preference("ui-theme:\n  preference: light\n"),
-            Some("light")
+            parse_locale_preference("locale:\n  preference: zh\n"),
+            Some("zh")
         );
         assert_eq!(
-            parse_ui_theme_preference("ui-theme:\n  preference: \"dark\"\n"),
-            Some("dark")
+            parse_locale_preference("locale:\n  preference: en\n"),
+            Some("en")
         );
     }
 
     #[test]
-    fn ignores_missing_block() {
-        assert_eq!(
-            parse_ui_theme_preference("agent-presets:\n  default: standard\n"),
-            None
-        );
-    }
-
-    #[test]
-    fn upsert_replaces_existing() {
-        let y = "ui-theme:\n  preference: system\n";
-        let n = upsert_ui_theme_preference(y, "dark");
-        assert!(n.contains("preference: dark"));
-        assert!(!n.contains("preference: system"));
-    }
-
-    #[test]
-    fn upsert_appends_block() {
-        let y = "agent-presets:\n  default: standard\n";
-        let n = upsert_ui_theme_preference(y, "light");
+    fn upsert_locale_appends_block() {
+        let y = "ui-theme:\n  preference: dark\n";
+        let n = upsert_locale_preference(y, "en");
+        assert!(n.contains("locale:"));
+        assert!(n.contains("preference: en"));
         assert!(n.contains("ui-theme:"));
-        assert!(n.contains("preference: light"));
+    }
+
+    #[test]
+    fn upsert_locale_replaces() {
+        let y = "locale:\n  preference: zh\n";
+        let n = upsert_locale_preference(y, "en");
+        assert!(n.contains("preference: en"));
+        assert!(!n.contains("preference: zh"));
     }
 }

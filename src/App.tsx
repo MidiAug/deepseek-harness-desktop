@@ -8,6 +8,7 @@ import {
   type SettingsSection,
 } from "./components/settings/SettingsModal";
 import { ShellProgressBubble } from "./components/chrome/ShellProgressBubble";
+import { ShellContextMenu } from "./components/chrome/ShellContextMenu";
 import { ShellTitleBar } from "./components/titlebar/ShellTitleBar";
 import type { ShellBodyView } from "./components/titlebar/titlebarTypes";
 import { ShellUpdateBanner } from "./components/chrome/ShellUpdateBanner";
@@ -19,6 +20,7 @@ import {
   useShellProgressBubble,
   useShellSession,
   useSidebarLayout,
+  useHarnessContextMenu,
 } from "./shell";
 import "./App.css";
 
@@ -173,6 +175,11 @@ export default function App() {
   const platformWebviewActive =
     bodyView === "platform" && !settingsOpen && !closeAskOpen;
 
+  const contextMenuEnabled =
+    harnessVisible && showHarness && !settingsOpen && !closeAskOpen;
+  const { menu: contextMenu, close: closeContextMenu, selectAction, copyToastMessage, copyToastLeaving, copyToastVisible } =
+    useHarnessContextMenu(harnessFrameRef, contextMenuEnabled, settingsOpen);
+
   usePlatformWebview(platformWebviewActive, shellBodyEl, resolvedTheme);
 
   return (
@@ -260,6 +267,14 @@ export default function App() {
             leaving={bubbleLeaving}
           />
         )}
+
+        {copyToastVisible && copyToastMessage && (
+          <ShellProgressBubble
+            message={copyToastMessage}
+            leaving={copyToastLeaving}
+            showSpinner={false}
+          />
+        )}
       </div>
 
       <SettingsModal
@@ -270,6 +285,11 @@ export default function App() {
         onStopHarness={() => void session.stop()}
       />
       <CloseAskDialog open={closeAskOpen} onClose={() => setCloseAskOpen(false)} />
+      <ShellContextMenu
+        menu={contextMenu}
+        onClose={closeContextMenu}
+        onSelect={selectAction}
+      />
     </div>
   );
 }

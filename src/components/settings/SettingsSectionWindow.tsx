@@ -1,4 +1,5 @@
 import type { ShellSettings } from "../../shell/settings";
+import { useLocale } from "../../shell/locale";
 import { SettingsPrefRow } from "./SettingsPrefRow";
 
 type Props = {
@@ -10,18 +11,20 @@ type Props = {
 };
 
 export function SettingsSectionWindow({ settings, patchRuntime }: Props) {
+  const { t } = useLocale();
+
   return (
     <div className="settings-section">
       <SettingsPrefRow
-        title="关闭窗口时最小化到托盘"
-        description="关闭时会记住此选择；也可用下方按钮下次再询问"
+        title={t("settings.window.title")}
+        description={t("settings.window.description")}
       >
         <button
           type="button"
           className={`settings-switch${settings.closeToTray ? " on" : ""}`}
           role="switch"
           aria-checked={settings.closeToTray}
-          aria-label="关闭窗口时最小化到托盘"
+          aria-label={t("settings.window.aria")}
           onClick={() =>
             patchRuntime({
               closeToTray: !settings.closeToTray,
@@ -38,7 +41,7 @@ export function SettingsSectionWindow({ settings, patchRuntime }: Props) {
           className="btn ghost"
           onClick={() => patchRuntime({ closePrefSet: false })}
         >
-          下次关闭时重新询问
+          {t("settings.window.reask")}
         </button>
       </div>
     </div>

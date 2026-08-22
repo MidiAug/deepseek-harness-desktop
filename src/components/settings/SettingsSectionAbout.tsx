@@ -5,6 +5,7 @@ import {
   type RuntimeStatus,
   type ShellUpdateState,
 } from "../../shell";
+import { useLocale } from "../../shell/locale";
 
 type LifeSlice = {
   message: string;
@@ -47,51 +48,49 @@ export function SettingsSectionAbout({
   onApplyUpdate,
   onApplyNetworkRestart,
 }: Props) {
+  const { t } = useLocale();
+
   return (
     <div className="settings-section settings-about">
       <div className="settings-about-card">
         <div className="settings-about-brand">
-          <span className="settings-about-name">
-            deepseek-harness-desktop
-          </span>
-          <span className="settings-about-tag">
-            DeepSeek Harness 桌面版
-          </span>
+          <span className="settings-about-name">{t("settings.about.name")}</span>
+          <span className="settings-about-tag">{t("settings.about.tag")}</span>
         </div>
         <dl className="settings-about-meta">
           <div>
-            <dt>壳版本</dt>
+            <dt>{t("settings.about.shellVersion")}</dt>
             <dd>{runtime?.shellVersion ?? "—"}</dd>
           </div>
           <div>
-            <dt>harness</dt>
+            <dt>{t("settings.about.harness")}</dt>
             <dd>
               <span className="settings-about-ver">
                 {runtime?.harnessVersion ??
-                  (locked ? "安装中…" : "未安装")}
+                  (locked ? t("settings.about.installing") : t("settings.about.notInstalled"))}
               </span>
               {runtime?.harnessReady ? (
-                <span className="settings-pill ok">就绪</span>
+                <span className="settings-pill ok">{t("settings.about.ready")}</span>
               ) : locked ? (
-                <span className="settings-pill warn">进行中</span>
+                <span className="settings-pill warn">{t("settings.about.installing")}</span>
               ) : null}
             </dd>
           </div>
           <div>
-            <dt>digest</dt>
+            <dt>{t("settings.about.digest")}</dt>
             <dd className="mono">{runtime?.harnessDigest ?? "—"}</dd>
           </div>
           <div>
-            <dt>端口</dt>
+            <dt>{t("settings.about.port")}</dt>
             <dd>{runtime?.port ?? "—"}</dd>
           </div>
           <div>
-            <dt>Node</dt>
+            <dt>{t("settings.about.node")}</dt>
             <dd>
               {runtime?.nodeReady ? (
-                <span className="settings-pill ok">就绪</span>
+                <span className="settings-pill ok">{t("settings.about.ready")}</span>
               ) : (
-                <span className="settings-pill warn">未装</span>
+                <span className="settings-pill warn">{t("settings.about.nodeMissing")}</span>
               )}
             </dd>
           </div>
@@ -106,25 +105,23 @@ export function SettingsSectionAbout({
             void shellApi.openPlatformWindow().catch((e) => console.error(e));
           }}
         >
-          打开 DeepSeek API 平台
+          {t("settings.about.openPlatform")}
         </button>
       </div>
-      <p className="settings-live-hint">
-        在主窗口顶栏下以子 WebView 打开 platform.deepseek.com；顶栏可返回官方 UI。
-      </p>
+      <p className="settings-live-hint">{t("settings.about.platformHint")}</p>
 
       {updateCheck && !locked && (
         <div
           className={`settings-update-banner${updateCheck.updateAvailable ? " has-update" : ""}`}
         >
           <span>
-            本地 {updateCheck.local ?? "（未安装）"}
-            {updateCheck.latest
-              ? ` · registry ${updateCheck.latest}`
-              : ""}
+            {updateCheck.local ?? t("settings.about.notInstalled")}
+            {updateCheck.latest ? ` · registry ${updateCheck.latest}` : ""}
           </span>
           <span className="settings-update-banner-flag">
-            {updateCheck.updateAvailable ? "有可用更新" : "已是最新"}
+            {updateCheck.updateAvailable
+              ? t("settings.about.updateFound")
+              : t("settings.about.upToDate")}
           </span>
         </div>
       )}
@@ -138,12 +135,12 @@ export function SettingsSectionAbout({
           <div className="settings-progress-head">
             <span className="settings-progress-msg">
               {life.message ||
-                (locked ? "处理中…" : "最近进度")}
+                (locked
+                  ? t("settings.about.progress.busy")
+                  : t("settings.about.progress.idle"))}
             </span>
             {life.percent != null && !barIndeterminate && (
-              <span className="settings-progress-pct">
-                {life.percent}%
-              </span>
+              <span className="settings-progress-pct">{life.percent}%</span>
             )}
           </div>
           <div
@@ -152,9 +149,7 @@ export function SettingsSectionAbout({
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={
-              barIndeterminate
-                ? undefined
-                : (life.percent ?? undefined)
+              barIndeterminate ? undefined : (life.percent ?? undefined)
             }
           >
             <div
@@ -167,7 +162,7 @@ export function SettingsSectionAbout({
             />
           </div>
           {life.logLines.length > 0 && (
-            <div className="settings-log" aria-label="更新日志">
+            <div className="settings-log" aria-label="log">
               {life.logLines.map((line, i) => (
                 <div
                   key={`${i}-${line.slice(0, 24)}`}
@@ -184,12 +179,8 @@ export function SettingsSectionAbout({
 
       {!locked && (
         <div className="settings-cell-actions">
-          <button
-            type="button"
-            className="btn"
-            onClick={() => void onCheckUpdate()}
-          >
-            检查 harness 更新
+          <button type="button" className="btn" onClick={() => void onCheckUpdate()}>
+            {t("settings.about.checkUpdate")}
           </button>
           {updateCheck?.updateAvailable && (
             <button
@@ -197,7 +188,7 @@ export function SettingsSectionAbout({
               className="btn primary"
               onClick={() => void onApplyUpdate()}
             >
-              更新并重启
+              {t("settings.about.applyUpdate")}
             </button>
           )}
           <button
@@ -205,19 +196,21 @@ export function SettingsSectionAbout({
             className="btn ghost"
             onClick={() => void onApplyNetworkRestart()}
           >
-            应用网络设置并重启 harness
+            {t("settings.about.applyNetwork")}
           </button>
         </div>
       )}
 
       <p className="settings-live-hint">
         {shellUpd.phase === "downloaded"
-          ? `壳 ${shellUpd.version ?? ""} 已下载，可立即重启安装。`
+          ? t("settings.about.shellUpdate.downloaded", {
+              version: shellUpd.version ?? "",
+            })
           : shellUpd.phase === "downloading"
-            ? `正在下载壳更新${shellUpd.percent != null ? ` ${shellUpd.percent}%` : "…"}`
+            ? `${t("settings.about.shellUpdate.downloading")}${shellUpd.percent != null ? ` ${shellUpd.percent}%` : "…"}`
             : shellUpd.phase === "unsupported"
-              ? "壳更新：开发态或未配置发行端点时不可用；发行构建将自动检查（启动后 / 每 6 小时），下完再提示安装。"
-              : "壳更新：启动后与每 6 小时自动检查；有新版本后台下载，确认后重启安装。详细进度写入 AppData/logs/shell.log。"}
+              ? t("settings.about.shellUpdate.unsupported")
+              : t("settings.about.shellUpdate.idle")}
       </p>
       <div className="settings-cell-actions">
         <button
@@ -230,7 +223,7 @@ export function SettingsSectionAbout({
           }
           onClick={() => void shellUpd.checkNow(true)}
         >
-          检查壳更新
+          {t("settings.about.shellUpdate.check")}
         </button>
         {shellUpd.phase === "downloaded" && (
           <button
@@ -238,7 +231,7 @@ export function SettingsSectionAbout({
             className="btn primary"
             onClick={() => void shellUpd.installAndRelaunch()}
           >
-            立即重启安装壳
+            {t("settings.about.shellUpdate.install")}
           </button>
         )}
       </div>

@@ -9,9 +9,12 @@ mod progress;
 mod runtime;
 mod runtime_lock;
 mod settings;
+mod context_menu;
 mod selection_hygiene;
 mod session_log_proxy;
 mod dsh_theme;
+mod dsh_locale;
+mod dsh_settings_watch;
 mod sidebar_probe;
 mod supervise;
 mod tray;
@@ -175,6 +178,16 @@ fn set_dsh_theme_preference(app: tauri::AppHandle, preference: String) -> Result
 }
 
 #[tauri::command]
+fn get_dsh_locale_preference(app: tauri::AppHandle) -> String {
+    dsh_locale::preference_for_app(&app)
+}
+
+#[tauri::command]
+fn set_dsh_locale_preference(app: tauri::AppHandle, preference: String) -> Result<(), String> {
+    dsh_locale::set_preference_for_app(&app, &preference)
+}
+
+#[tauri::command]
 fn get_shell_settings(app: tauri::AppHandle) -> ShellSettings {
     settings::load(&app)
 }
@@ -308,6 +321,8 @@ pub fn run() {
             get_shell_settings,
             get_dsh_theme_preference,
             set_dsh_theme_preference,
+            get_dsh_locale_preference,
+            set_dsh_locale_preference,
             save_shell_settings,
             save_runtime_settings,
             save_ui_settings,
@@ -334,10 +349,11 @@ pub fn run() {
                 WebviewUrl::App("index.html".into())
             };
             let frame_init = format!(
-                "{}{}{}",
+                "{}{}{}{}",
                 sidebar_probe::INIT_SCRIPT,
                 selection_hygiene::INIT_SCRIPT,
-                session_log_proxy::INIT_SCRIPT
+                session_log_proxy::INIT_SCRIPT,
+                context_menu::INIT_SCRIPT
             );
             let mut win = WebviewWindowBuilder::new(app, "main", url)
                 .title("deepseek-harness-desktop")
@@ -354,7 +370,7 @@ pub fn run() {
             if let Err(e) = tray::setup_tray(app.handle()) {
                 eprintln!("tray setup: {e}");
             }
-            dsh_theme::spawn_watch(app.handle());
+            dsh_settings_watch::spawn_watch(app.handle());
             Ok(())
         })
         .on_window_event(|window, event| {

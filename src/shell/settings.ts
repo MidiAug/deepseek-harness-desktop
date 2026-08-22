@@ -1,9 +1,13 @@
 /** 壳设置前后端共用形状（camelCase 与 Rust serde 对齐）。 */
 
+import { normalizeShellLocale } from "./locale/detect";
+
 export type MirrorKind = "domestic" | "official";
 export type ProxyMode = "off" | "system" | "custom";
 /** 与 DSH 相同：浅色 / 深色 / 跟随系统（真源 settings.yaml） */
 export type ShellTheme = "light" | "dark" | "system";
+/** 与 DSH 相同：zh / en（真源 settings.yaml → locale.preference） */
+export type ShellLocale = "zh" | "en";
 export type ResolvedTheme = "light" | "dark";
 
 export type ShellSettings = {
@@ -17,6 +21,8 @@ export type ShellSettings = {
   cliLinkEnabled: boolean;
   /** 自 DSH yaml 注入，不落 ui.json */
   shellTheme: ShellTheme;
+  /** 自 DSH yaml 注入，不落 ui.json */
+  shellLocale: ShellLocale;
   titlebarCompact: boolean;
   selectionHygiene: boolean;
   sessionLogInTitlebar: boolean;
@@ -78,6 +84,7 @@ export const defaultShellSettings: ShellSettings = {
   preferredPort: 0,
   cliLinkEnabled: false,
   shellTheme: "system",
+  shellLocale: "zh",
   titlebarCompact: false,
   selectionHygiene: false,
   sessionLogInTitlebar: true,
@@ -111,6 +118,7 @@ export function normalizeShellSettings(
     preferredPort: Number.isFinite(port) && port >= 0 ? Math.floor(port) : 0,
     cliLinkEnabled: s?.cliLinkEnabled ?? false,
     shellTheme: normalizeShellTheme(s?.shellTheme),
+    shellLocale: normalizeShellLocale(s?.shellLocale),
     titlebarCompact: s?.titlebarCompact ?? false,
     selectionHygiene: s?.selectionHygiene ?? false,
     sessionLogInTitlebar: s?.sessionLogInTitlebar ?? true,

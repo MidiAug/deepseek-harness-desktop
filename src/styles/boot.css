@@ -1,9 +1,9 @@
 /* 顶中进度气泡：对齐 DSH Toast（r14 / lv3） */
 .shell-progress-bubble {
   position: absolute;
-  top: 16px;
+  top: 30px;
   left: 50%;
-  z-index: 3;
+  z-index: 100;
   display: flex;
   align-items: center;
   gap: 10px;

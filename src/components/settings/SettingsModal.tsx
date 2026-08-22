@@ -20,7 +20,8 @@ import {
 } from "../../shell";
 import type { CliLinkStatus } from "../../shell/api/shellApi";
 import { ShellTooltip } from "../chrome/ShellTooltip";
-import { SECTIONS, type SettingsSection } from "./settingsTypes";
+import { useLocale, useSectionLabels } from "../../shell/locale";
+import type { SettingsSection } from "./settingsTypes";
 import { SettingsSectionNetwork } from "./SettingsSectionNetwork";
 import { SettingsSectionWindow } from "./SettingsSectionWindow";
 import { SettingsSectionAppearance } from "./SettingsSectionAppearance";
@@ -51,6 +52,8 @@ export function SettingsModal({
   onStopHarness,
 }: Props) {
   const { setChrome, patchChrome, chrome } = useChrome();
+  const { t } = useLocale();
+  const sections = useSectionLabels();
   const life = useHostLifecycle();
   const shellUpd = useShellUpdate();
   const [settings, setSettings] = useState<ShellSettings>(
@@ -192,15 +195,15 @@ export function SettingsModal({
   async function onCheckUpdate() {
     setError(null);
     setHint(null);
-    life.beginOps("正在检查更新…");
+    life.beginOps(t("settings.hint.checkingUpdate"));
     try {
       const r = await shellApi.checkHarnessUpdate();
       setUpdateCheck(r);
       if (!r.updateAvailable) {
-        flashHint("已是最新 harness。");
+        flashHint(t("settings.about.upToDate"));
       } else {
         flashHint(
-          `发现新版本 ${r.latest ?? "?"}（当前 ${r.local ?? "未安装"}），可点「更新并重启」。`,
+          `${t("settings.about.updateFound")} ${r.latest ?? "?"} (${r.local ?? "?"})`,
         );
       }
     } catch (e) {
@@ -215,13 +218,13 @@ export function SettingsModal({
   async function onApplyUpdate() {
     setError(null);
     setHint(null);
-    life.beginOps("已开始更新：停止进程 → 安装 → 重启（可能需数分钟）…");
+    life.beginOps(t("settings.about.harnessUpdating"));
     try {
       const payload = await shellApi.applyHarnessUpdate();
       setUpdateCheck(null);
       refreshRuntime();
       onHarnessReady?.(payload);
-      flashHint("harness 已更新并重启。");
+      flashHint(t("settings.about.updated"));
       life.seedBoot({
         message: "更新完成",
         stageId: "start",
@@ -238,12 +241,12 @@ export function SettingsModal({
   async function onApplyNetworkRestart() {
     setError(null);
     setHint(null);
-    life.beginOps("正在按当前网络设置重启 harness…");
+    life.beginOps(t("settings.hint.networkRestart"));
     try {
       const payload = await shellApi.restartHarness();
       refreshRuntime();
       onHarnessReady?.(payload);
-      flashHint("已按当前网络设置重启 harness。");
+      flashHint(t("settings.about.networkRestarted"));
     } catch (e) {
       setError(typeof e === "string" ? e : String(e));
     } finally {
@@ -265,7 +268,7 @@ export function SettingsModal({
       <button
         type="button"
         className="modal-mask"
-        aria-label="关闭设置"
+        aria-label={t("settings.close")}
         tabIndex={-1}
         onClick={onClose}
       />
@@ -276,12 +279,12 @@ export function SettingsModal({
         aria-labelledby="settings-title"
         onClick={(e) => e.stopPropagation()}
       >
-        <nav className="settings-nav" aria-label="设置分区">
+        <nav className="settings-nav" aria-label={t("settings.nav")}>
           <div className="settings-nav-title" id="settings-title">
-            壳设置
+            {t("settings.title")}
           </div>
           <div className="settings-nav-list">
-            {SECTIONS.map((s) => (
+            {sections.map((s) => (
               <button
                 key={s.id}
                 type="button"
@@ -303,13 +306,13 @@ export function SettingsModal({
         <div className="settings-content">
           <div className="settings-content-head">
             <h2 className="settings-section-title">
-              {SECTIONS.find((s) => s.id === section)?.label}
+              {sections.find((s) => s.id === section)?.label}
             </h2>
-            <ShellTooltip label="关闭" delayMs={300}>
+            <ShellTooltip label={t("settings.close")} delayMs={300}>
               <button
                 type="button"
                 className="settings-close"
-                aria-label="关闭"
+                aria-label={t("settings.close")}
                 onClick={onClose}
               >
                 <span aria-hidden>×</span>

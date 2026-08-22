@@ -125,6 +125,15 @@ export function setDshThemePreference(preference: string): Promise<void> {
   return invoke("set_dsh_theme_preference", { preference });
 }
 
+/** DSH `settings.yaml` → locale.preference：zh | en */
+export function getDshLocalePreference(): Promise<string> {
+  return invoke<string>("get_dsh_locale_preference");
+}
+
+export function setDshLocalePreference(preference: string): Promise<void> {
+  return invoke("set_dsh_locale_preference", { preference });
+}
+
 export { PLATFORM_URL } from "../settings";
 
 

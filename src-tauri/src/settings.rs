@@ -41,6 +41,15 @@ pub enum ShellTheme {
     System,
 }
 
+/// 壳语言：与 DSH 相同 — zh / en（真源 `settings.yaml` → `locale.preference`）
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum ShellLocale {
+    #[default]
+    Zh,
+    En,
+}
+
 /// 运行时必需：镜像 / 代理 / DSH_HOME / 关闭行为 / 端口 / CLI
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -95,6 +104,9 @@ pub struct ShellSettings {
     /// 自 DSH settings.yaml 注入，不写 ui.json
     #[serde(default)]
     pub shell_theme: ShellTheme,
+    /// 自 DSH settings.yaml 注入，不写 ui.json
+    #[serde(default)]
+    pub shell_locale: ShellLocale,
     #[serde(default)]
     pub titlebar_compact: bool,
     #[serde(default)]
@@ -150,6 +162,7 @@ impl ShellSettings {
             preferred_port: runtime.preferred_port,
             cli_link_enabled: runtime.cli_link_enabled,
             shell_theme: ShellTheme::System,
+            shell_locale: ShellLocale::Zh,
             titlebar_compact: ui.titlebar_compact,
             selection_hygiene: ui.selection_hygiene,
             session_log_in_titlebar: ui.session_log_in_titlebar,
@@ -271,7 +284,20 @@ pub fn load<R: Runtime>(app: &AppHandle<R>) -> ShellSettings {
     shell.shell_theme = theme_from_dsh_pref(&crate::dsh_theme::preference_from_home(
         &paths::dsh_home(app, Some(shell.dsh_home_override.as_str())),
     ));
+    shell.shell_locale = locale_from_dsh_pref(
+        crate::dsh_locale::explicit_preference_from_home(
+            &paths::dsh_home(app, Some(shell.dsh_home_override.as_str())),
+        ),
+    );
     shell
+}
+
+fn locale_from_dsh_pref(pref: Option<&str>) -> ShellLocale {
+    match pref {
+        Some("en") => ShellLocale::En,
+        Some("zh") => ShellLocale::Zh,
+        Some(_) | None => ShellLocale::Zh,
+    }
 }
 
 fn theme_from_dsh_pref(pref: &str) -> ShellTheme {

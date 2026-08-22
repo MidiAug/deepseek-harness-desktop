@@ -18,7 +18,8 @@
 | 文件 | 内容 |
 |------|------|
 | `settings.json` | 镜像、代理、`DSH_HOME`、关闭行为、首选端口、CLI 开关 |
-| `ui.json` | 主题、简洁模式、Session log 顶栏代理、选择洁净 |
+| `ui.json` | 简洁模式、Session log 顶栏代理、选择洁净 |
+| `~/.dsh/settings.yaml` | 与 DSH 共用：`locale.preference`（zh/en）、`ui-theme.preference`（light/dark/system） |
 
 旧版若只有单文件 `settings.json`（含外观字段），首次加载会拆写到两文件。
 
@@ -33,6 +34,7 @@
 
 | 项 | 说明 |
 |----|------|
+| 语言 | **中文 / English**（与 DeepSeek 设置相同；真源 `~/.dsh/settings.yaml` 的 `locale.preference`）。任一侧修改即同步；壳设置弹窗文案随之切换 |
 | 主题 | **浅色 / 深色 / 跟随系统**（与 DeepSeek 外观相同；真源 `~/.dsh/settings.yaml` 的 `ui-theme.preference`）。任一侧修改即同步。非简洁顶栏：浅→白、深→灰；设置弹窗等换肤 |
 | 简洁模式 | 透明顶栏叠在官方 UI 上：左侧随侧栏宽、高 25px；右侧高 35px；窗控悬停显现 |
 | 隐藏官方 Session log | **简洁模式子项**（默认开）：隐藏右上官方按钮，改用顶栏下载（与原按钮相同） |
