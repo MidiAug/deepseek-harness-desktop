@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { BootPanel } from "./components/boot/BootPanel";
@@ -9,8 +9,10 @@ import {
 } from "./components/settings/SettingsModal";
 import { ShellProgressBubble } from "./components/chrome/ShellProgressBubble";
 import { ShellTitleBar } from "./components/titlebar/ShellTitleBar";
+import type { ShellBodyView } from "./components/titlebar/titlebarTypes";
 import { ShellUpdateBanner } from "./components/chrome/ShellUpdateBanner";
 import {
+  PLATFORM_URL,
   shellApi,
   useChrome,
   useHostLifecycle,
@@ -31,6 +33,45 @@ function suppressHoverResidue() {
   }, 200);
 }
 
+function postSelectionHygiene(
+  frame: HTMLIFrameElement | null,
+  enabled: boolean,
+) {
+  try {
+    frame?.contentWindow?.postMessage(
+      { source: "dsh-shell", type: "selection-hygiene", enabled },
+      "*",
+    );
+  } catch {
+    /* cross-origin 或未就绪 */
+  }
+}
+
+function postSessionLogProxy(
+  frame: HTMLIFrameElement | null,
+  enabled: boolean,
+) {
+  try {
+    frame?.contentWindow?.postMessage(
+      { source: "dsh-shell", type: "session-log-proxy", enabled },
+      "*",
+    );
+  } catch {
+    /* cross-origin 或未就绪 */
+  }
+}
+
+function postSessionLogClick(frame: HTMLIFrameElement | null) {
+  try {
+    frame?.contentWindow?.postMessage(
+      { source: "dsh-shell", type: "session-log-click" },
+      "*",
+    );
+  } catch {
+    /* cross-origin 或未就绪 */
+  }
+}
+
 export default function App() {
   const session = useShellSession();
   const { syncSessionPhase } = useHostLifecycle();
@@ -39,7 +80,9 @@ export default function App() {
     session.wantBubble,
   );
   const { chrome } = useChrome();
+  const harnessFrameRef = useRef<HTMLIFrameElement | null>(null);
 
+  const [bodyView, setBodyView] = useState<ShellBodyView>("harness");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSection, setSettingsSection] = useState<
     SettingsSection | undefined
@@ -55,6 +98,13 @@ export default function App() {
     setSettingsSection(undefined);
   }, []);
 
+  const openPlatform = useCallback(() => {
+    setBodyView("platform");
+  }, []);
+  const backFromPlatform = useCallback(() => {
+    setBodyView("harness");
+  }, []);
+
   useEffect(() => {
     syncSessionPhase(session.phase);
   }, [session.phase, syncSessionPhase]);
@@ -62,11 +112,18 @@ export default function App() {
   useEffect(() => {
     let unAsk: (() => void) | undefined;
     let unFocus: (() => void) | undefined;
+    let unPlatform: (() => void) | undefined;
 
     void listen("shell-ask-close", () => {
       setCloseAskOpen(true);
     }).then((fn) => {
       unAsk = fn;
+    });
+
+    void listen("shell-open-platform", () => {
+      setBodyView("platform");
+    }).then((fn) => {
+      unPlatform = fn;
     });
 
     void getCurrentWindow()
@@ -80,10 +137,35 @@ export default function App() {
     return () => {
       unAsk?.();
       unFocus?.();
+      unPlatform?.();
     };
   }, []);
 
-  const shellOverlay = chrome.titlebarCompact;
+  // 设置变更后同步注入开关
+  useEffect(() => {
+    if (bodyView !== "harness") return;
+    const frame = harnessFrameRef.current;
+    postSelectionHygiene(frame, chrome.selectionHygiene);
+    postSessionLogProxy(
+      frame,
+      chrome.titlebarCompact && chrome.sessionLogInTitlebar,
+    );
+  }, [
+    chrome.selectionHygiene,
+    chrome.titlebarCompact,
+    chrome.sessionLogInTitlebar,
+    bodyView,
+    session.iframeKey,
+  ]);
+
+  const onSessionLog = useCallback(() => {
+    postSessionLogClick(harnessFrameRef.current);
+  }, []);
+
+  const shellOverlay = chrome.titlebarCompact && bodyView === "harness";
+  const showHarness =
+    bodyView === "harness" && session.showIframe && !!session.serviceUrl;
+  const showPlatform = bodyView === "platform";
 
   return (
     <div className={`shell${shellOverlay ? " titlebar-overlay" : ""}`}>
@@ -92,7 +174,10 @@ export default function App() {
         conn={session.titleConn}
         chrome={chrome}
         sidebarWidthPx={sidebarWidthPx}
+        bodyView={bodyView}
+        onBackFromPlatform={backFromPlatform}
         onOpenSettings={() => openSettings()}
+        onSessionLog={onSessionLog}
         onRestart={session.restart}
         onStop={() => void session.stop()}
         onOpenDshHome={() => {
@@ -105,6 +190,7 @@ export default function App() {
           void shellApi.hideToTray().catch((e) => console.error(e));
         }}
         onAbout={() => openSettings("about")}
+        onOpenPlatform={openPlatform}
         onCopyVersion={() => {
           void (async () => {
             try {
@@ -125,7 +211,7 @@ export default function App() {
       <ShellUpdateBanner />
 
       <div className="shell-body">
-        {session.showBootPanel && (
+        {bodyView === "harness" && session.showBootPanel && (
           <BootPanel
             key={session.bootKey}
             startCommand={session.startCommand}
@@ -138,19 +224,37 @@ export default function App() {
           />
         )}
 
-        {session.showIframe && session.serviceUrl && (
+        {showHarness && (
           <iframe
             key={session.iframeKey}
+            ref={harnessFrameRef}
             className="harness-frame"
             title="DeepSeek Harness"
-            src={session.serviceUrl}
+            src={session.serviceUrl!}
             allow="clipboard-read; clipboard-write"
-            onLoad={session.markIframeConnected}
+            onLoad={() => {
+              session.markIframeConnected();
+              const frame = harnessFrameRef.current;
+              postSelectionHygiene(frame, chrome.selectionHygiene);
+              postSessionLogProxy(
+                frame,
+                chrome.titlebarCompact && chrome.sessionLogInTitlebar,
+              );
+            }}
             onError={session.markIframeError}
           />
         )}
 
-        {bubbleVisible && (
+        {showPlatform && (
+          <iframe
+            className="harness-frame"
+            title="DeepSeek开放平台"
+            src={PLATFORM_URL}
+            allow="clipboard-read; clipboard-write"
+          />
+        )}
+
+        {bodyView === "harness" && bubbleVisible && (
           <ShellProgressBubble
             message={session.bubbleMessage}
             leaving={bubbleLeaving}

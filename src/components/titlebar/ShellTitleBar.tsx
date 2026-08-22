@@ -1,21 +1,25 @@
 /**
- * 顶栏路由：classic 菜单态 vs compact 叠层；共享最大化同步与窗控动作。
+ * 顶栏路由：平台内嵌 / classic / compact。
  */
 
 import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ClassicTitleBar } from "./ClassicTitleBar";
 import { CompactTitleBar } from "./CompactTitleBar";
+import { PlatformTitleBar } from "./PlatformTitleBar";
 import type { ShellTitleBarProps, WinAction } from "./titlebarTypes";
 
-export type { ShellTitleBarProps } from "./titlebarTypes";
+export type { ShellTitleBarProps, ShellBodyView } from "./titlebarTypes";
 
 export function ShellTitleBar({
   port,
   conn,
   chrome,
   sidebarWidthPx,
+  bodyView,
+  onBackFromPlatform,
   onOpenSettings,
+  onSessionLog,
   onRestart,
   onStop,
   onOpenDshHome,
@@ -23,6 +27,7 @@ export function ShellTitleBar({
   onHideToTray,
   onAbout,
   onCopyVersion,
+  onOpenPlatform,
 }: ShellTitleBarProps) {
   const [maximized, setMaximized] = useState(false);
   const compact = chrome.titlebarCompact;
@@ -66,11 +71,25 @@ export function ShellTitleBar({
     } else await w.close();
   }
 
+  if (bodyView === "platform") {
+    return (
+      <PlatformTitleBar
+        chrome={chrome}
+        maximized={maximized}
+        onBack={onBackFromPlatform}
+        onOpenSettings={onOpenSettings}
+        onWin={onWin}
+      />
+    );
+  }
+
   if (compact) {
     return (
       <CompactTitleBar
         sidebarWidthPx={sidebarWidthPx}
         maximized={maximized}
+        showSessionLog={chrome.sessionLogInTitlebar}
+        onSessionLog={onSessionLog}
         onOpenSettings={onOpenSettings}
         onWin={onWin}
       />
@@ -91,6 +110,7 @@ export function ShellTitleBar({
       onHideToTray={onHideToTray}
       onAbout={onAbout}
       onCopyVersion={onCopyVersion}
+      onOpenPlatform={onOpenPlatform}
       onWin={onWin}
     />
   );

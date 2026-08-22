@@ -69,6 +69,12 @@ pub struct UiSettings {
     pub titlebar_style: TitlebarStyle,
     #[serde(default)]
     pub titlebar_compact: bool,
+    /// 官方 UI 侧栏/品牌/模式与输入区工具下拉禁拖选（注入；默认关）
+    #[serde(default)]
+    pub selection_hygiene: bool,
+    /// 简洁模式：藏官方 Session log，改由顶栏下载 icon 代理点击
+    #[serde(default = "default_true")]
+    pub session_log_in_titlebar: bool,
 }
 
 /// IPC / 前端聚合视图（camelCase）
@@ -92,6 +98,10 @@ pub struct ShellSettings {
     pub titlebar_style: TitlebarStyle,
     #[serde(default)]
     pub titlebar_compact: bool,
+    #[serde(default)]
+    pub selection_hygiene: bool,
+    #[serde(default = "default_true")]
+    pub session_log_in_titlebar: bool,
 }
 
 fn default_true() -> bool {
@@ -118,6 +128,8 @@ impl Default for UiSettings {
         Self {
             titlebar_style: TitlebarStyle::Black,
             titlebar_compact: false,
+            selection_hygiene: false,
+            session_log_in_titlebar: true,
         }
     }
 }
@@ -141,6 +153,8 @@ impl ShellSettings {
             cli_link_enabled: runtime.cli_link_enabled,
             titlebar_style: ui.titlebar_style,
             titlebar_compact: ui.titlebar_compact,
+            selection_hygiene: ui.selection_hygiene,
+            session_log_in_titlebar: ui.session_log_in_titlebar,
         }
     }
 
@@ -161,6 +175,8 @@ impl ShellSettings {
         UiSettings {
             titlebar_style: self.titlebar_style,
             titlebar_compact: self.titlebar_compact,
+            selection_hygiene: self.selection_hygiene,
+            session_log_in_titlebar: self.session_log_in_titlebar,
         }
     }
 }
@@ -575,5 +591,16 @@ mod tests {
         assert_eq!(again.titlebar_style, TitlebarStyle::Gray);
         assert!(again.titlebar_compact);
         assert_eq!(again.proxy_url, "http://x");
+    }
+
+    #[test]
+    fn session_log_in_titlebar_defaults_true() {
+        assert!(UiSettings::default().session_log_in_titlebar);
+        let missing: UiSettings = serde_json::from_str(r#"{"titlebarStyle":"black"}"#).unwrap();
+        assert!(missing.session_log_in_titlebar);
+        let off: UiSettings =
+            serde_json::from_str(r#"{"titlebarStyle":"black","sessionLogInTitlebar":false}"#)
+                .unwrap();
+        assert!(!off.session_log_in_titlebar);
     }
 }

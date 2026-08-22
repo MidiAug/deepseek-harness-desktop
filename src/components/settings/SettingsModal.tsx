@@ -93,6 +93,8 @@ export function SettingsModal({
         setChrome({
           titlebarStyle: next.titlebarStyle,
           titlebarCompact: next.titlebarCompact,
+          selectionHygiene: next.selectionHygiene,
+          sessionLogInTitlebar: next.sessionLogInTitlebar,
         });
       })
       .catch((e) => setError(String(e)));
@@ -162,7 +164,15 @@ export function SettingsModal({
   }
 
   function patchAppearance(
-    patch: Partial<Pick<ShellSettings, "titlebarStyle" | "titlebarCompact">>,
+    patch: Partial<
+      Pick<
+        ShellSettings,
+        | "titlebarStyle"
+        | "titlebarCompact"
+        | "selectionHygiene"
+        | "sessionLogInTitlebar"
+      >
+    >,
   ) {
     setSettings((s) => ({ ...s, ...patch }));
     patchChrome(patch);

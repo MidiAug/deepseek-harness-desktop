@@ -6,7 +6,15 @@ type Props = {
   settings: ShellSettings;
   compactOn: boolean;
   patchAppearance: (
-    patch: Partial<Pick<ShellSettings, "titlebarStyle" | "titlebarCompact">>,
+    patch: Partial<
+      Pick<
+        ShellSettings,
+        | "titlebarStyle"
+        | "titlebarCompact"
+        | "selectionHygiene"
+        | "sessionLogInTitlebar"
+      >
+    >,
   ) => void;
 };
 
@@ -15,6 +23,9 @@ export function SettingsSectionAppearance({
   compactOn,
   patchAppearance,
 }: Props) {
+  const hygieneOn = settings.selectionHygiene;
+  const sessionLogOn = settings.sessionLogInTitlebar;
+
   return (
     <div className="settings-section appearance-panel">
       <SettingsPrefRow
@@ -29,6 +40,30 @@ export function SettingsSectionAppearance({
           aria-label="简洁模式"
           onClick={() =>
             patchAppearance({ titlebarCompact: !compactOn })
+          }
+        >
+          <span className="settings-switch-knob" />
+        </button>
+      </SettingsPrefRow>
+
+      <SettingsPrefRow
+        title="隐藏官方 Session log"
+        description={
+          compactOn
+            ? "隐藏右上官方按钮，改用顶栏下载（与原按钮相同）"
+            : "仅在简洁模式下生效"
+        }
+        disabled={!compactOn}
+      >
+        <button
+          type="button"
+          className={`settings-switch${sessionLogOn ? " on" : ""}`}
+          role="switch"
+          aria-checked={sessionLogOn}
+          aria-label="隐藏官方 Session log"
+          disabled={!compactOn}
+          onClick={() =>
+            patchAppearance({ sessionLogInTitlebar: !sessionLogOn })
           }
         >
           <span className="settings-switch-knob" />
@@ -73,6 +108,24 @@ export function SettingsSectionAppearance({
             );
           })}
         </div>
+      </SettingsPrefRow>
+
+      <SettingsPrefRow
+        title="减少误选界面文字"
+        description="开启后：侧栏、模式切换、输入区权限下拉等不可拖选；输入框与对话正文仍可复制。默认关闭。"
+      >
+        <button
+          type="button"
+          className={`settings-switch${hygieneOn ? " on" : ""}`}
+          role="switch"
+          aria-checked={hygieneOn}
+          aria-label="减少误选界面文字"
+          onClick={() =>
+            patchAppearance({ selectionHygiene: !hygieneOn })
+          }
+        >
+          <span className="settings-switch-knob" />
+        </button>
       </SettingsPrefRow>
     </div>
   );

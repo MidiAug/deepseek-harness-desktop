@@ -33,3 +33,4 @@ export {
   stageIndex,
   type BootStageId,
 } from "./hostProgressMap";
+export { PLATFORM_URL } from "./settings";

@@ -1,5 +1,6 @@
 import type { RefObject } from "react";
 import {
+  shellApi,
   type HarnessUpdateCheck,
   type RuntimeStatus,
   type ShellUpdateState,
@@ -96,6 +97,21 @@ export function SettingsSectionAbout({
           </div>
         </dl>
       </div>
+
+      <div className="settings-cell-actions">
+        <button
+          type="button"
+          className="btn"
+          onClick={() => {
+            void shellApi.openPlatformWindow().catch((e) => console.error(e));
+          }}
+        >
+          打开 DeepSeek API 平台
+        </button>
+      </div>
+      <p className="settings-live-hint">
+        在主窗口内嵌打开 platform.deepseek.com；顶栏可返回官方 UI。若页面空白，可能是站点禁止嵌套，请改用系统浏览器访问。
+      </p>
 
       {updateCheck && !locked && (
         <div

@@ -18,14 +18,22 @@ import {
 } from "../settings";
 import * as shellApi from "../api/shellApi";
 
+type ChromePatch = Partial<
+  Pick<
+    ShellSettings,
+    | "titlebarStyle"
+    | "titlebarCompact"
+    | "selectionHygiene"
+    | "sessionLogInTitlebar"
+  >
+>;
+
 type ChromeContextValue = {
   chrome: ChromePrefs;
   /** 仅更新内存（打开设置时对齐磁盘） */
   setChrome: (chrome: ChromePrefs) => void;
   /** 外观即时落盘（只写 ui.json） */
-  patchChrome: (
-    patch: Partial<Pick<ShellSettings, "titlebarStyle" | "titlebarCompact">>,
-  ) => void;
+  patchChrome: (patch: ChromePatch) => void;
   /** 整份设置对齐后刷新 chrome 内存 */
   applyFromSettings: (s: ShellSettings) => void;
   refreshFromDisk: () => void;
@@ -37,6 +45,8 @@ export function ChromeProvider({ children }: { children: ReactNode }) {
   const [chrome, setChrome] = useState<ChromePrefs>({
     titlebarStyle: "black",
     titlebarCompact: false,
+    selectionHygiene: false,
+    sessionLogInTitlebar: true,
   });
 
   const refreshFromDisk = useCallback(() => {
@@ -54,21 +64,19 @@ export function ChromeProvider({ children }: { children: ReactNode }) {
     setChrome(chromeFromSettings(s));
   }, []);
 
-  const patchChrome = useCallback(
-    (
-      patch: Partial<Pick<ShellSettings, "titlebarStyle" | "titlebarCompact">>,
-    ) => {
-      setChrome((prev) => {
-        const next: ChromePrefs = {
-          titlebarStyle: patch.titlebarStyle ?? prev.titlebarStyle,
-          titlebarCompact: patch.titlebarCompact ?? prev.titlebarCompact,
-        };
-        void shellApi.saveUiSettings(next).catch((e) => console.error(e));
-        return next;
-      });
-    },
-    [],
-  );
+  const patchChrome = useCallback((patch: ChromePatch) => {
+    setChrome((prev) => {
+      const next: ChromePrefs = {
+        titlebarStyle: patch.titlebarStyle ?? prev.titlebarStyle,
+        titlebarCompact: patch.titlebarCompact ?? prev.titlebarCompact,
+        selectionHygiene: patch.selectionHygiene ?? prev.selectionHygiene,
+        sessionLogInTitlebar:
+          patch.sessionLogInTitlebar ?? prev.sessionLogInTitlebar,
+      };
+      void shellApi.saveUiSettings(next).catch((e) => console.error(e));
+      return next;
+    });
+  }, []);
 
   const value = useMemo(
     () => ({

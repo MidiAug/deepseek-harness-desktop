@@ -96,6 +96,13 @@ export function openLoopbackUrl(url: string): Promise<void> {
   return invoke("open_loopback_url", { url });
 }
 
+export function openPlatformWindow(): Promise<void> {
+  return invoke("open_platform_window");
+}
+
+export { PLATFORM_URL } from "../settings";
+
+
 export type CliLinkStatus = {
   enabled: boolean;
   shimExists: boolean;

@@ -4,10 +4,13 @@ mod error;
 mod install;
 mod paths;
 mod platform;
+mod platform_window;
 mod progress;
 mod runtime;
 mod runtime_lock;
 mod settings;
+mod selection_hygiene;
+mod session_log_proxy;
 mod sidebar_probe;
 mod supervise;
 mod tray;
@@ -102,6 +105,12 @@ fn open_loopback_url(url: String) -> Result<(), String> {
     {
         Err("仅 Windows 支持".into())
     }
+}
+
+/// 打开或聚焦内置 DeepSeek API 平台子窗口。
+#[tauri::command]
+fn open_platform_window(app: tauri::AppHandle) -> Result<(), String> {
+    platform_window::open_or_focus(&app)
 }
 
 #[tauri::command]
@@ -263,6 +272,7 @@ pub fn run() {
             stop_harness,
             open_known_path,
             open_loopback_url,
+            open_platform_window,
             get_runtime_status,
             get_shell_settings,
             save_shell_settings,
@@ -290,12 +300,18 @@ pub fn run() {
             } else {
                 WebviewUrl::App("index.html".into())
             };
+            let frame_init = format!(
+                "{}{}{}",
+                sidebar_probe::INIT_SCRIPT,
+                selection_hygiene::INIT_SCRIPT,
+                session_log_proxy::INIT_SCRIPT
+            );
             let mut win = WebviewWindowBuilder::new(app, "main", url)
                 .title("deepseek-harness-desktop")
                 .inner_size(1100.0, 720.0)
                 .min_inner_size(800.0, 520.0)
                 .decorations(false)
-                .initialization_script_for_all_frames(sidebar_probe::INIT_SCRIPT);
+                .initialization_script_for_all_frames(frame_init);
             if let Some(icon) = app.default_window_icon() {
                 win = win.icon(icon.clone())?;
             }
@@ -309,6 +325,10 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
+                // 平台子窗：正常关闭，不走主窗托盘/询问逻辑
+                if window.label() == platform_window::WINDOW_LABEL {
+                    return;
+                }
                 let cfg = settings::load(window.app_handle());
                 if !cfg.close_pref_set {
                     // 首次（或未确认偏好）：拦住关闭，让前端弹出选择

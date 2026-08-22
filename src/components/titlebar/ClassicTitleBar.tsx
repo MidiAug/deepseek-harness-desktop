@@ -23,6 +23,7 @@ type Props = {
   onHideToTray: () => void;
   onAbout: () => void;
   onCopyVersion: () => void;
+  onOpenPlatform: () => void;
   onWin: (action: WinAction) => void;
 };
 
@@ -39,6 +40,7 @@ export function ClassicTitleBar({
   onHideToTray,
   onAbout,
   onCopyVersion,
+  onOpenPlatform,
   onWin,
 }: Props) {
   const [menu, setMenu] = useState<MenuId>(null);
@@ -204,6 +206,17 @@ export function ClassicTitleBar({
                   }}
                 >
                   关于
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenu(null);
+                    onOpenPlatform();
+                  }}
+                >
+                  DeepSeek API 平台
                 </button>
               </li>
               <li>

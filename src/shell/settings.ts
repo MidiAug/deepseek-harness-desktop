@@ -16,11 +16,17 @@ export type ShellSettings = {
   cliLinkEnabled: boolean;
   titlebarStyle: TitlebarStyle;
   titlebarCompact: boolean;
+  /** 减少误选界面文字（默认关） */
+  selectionHygiene: boolean;
+  /** 简洁模式：隐藏官方 Session log，顶栏代理下载（默认开） */
+  sessionLogInTitlebar: boolean;
 };
 
 export type ChromePrefs = {
   titlebarStyle: TitlebarStyle;
   titlebarCompact: boolean;
+  selectionHygiene: boolean;
+  sessionLogInTitlebar: boolean;
 };
 
 /** 运行时域（settings.json） */
@@ -37,7 +43,13 @@ export type RuntimeSettings = Pick<
 >;
 
 /** UI chrome（ui.json） */
-export type UiSettings = Pick<ShellSettings, "titlebarStyle" | "titlebarCompact">;
+export type UiSettings = Pick<
+  ShellSettings,
+  | "titlebarStyle"
+  | "titlebarCompact"
+  | "selectionHygiene"
+  | "sessionLogInTitlebar"
+>;
 
 export function runtimeFromSettings(s: ShellSettings): RuntimeSettings {
   return {
@@ -56,6 +68,8 @@ export function uiFromSettings(s: ShellSettings): UiSettings {
   return {
     titlebarStyle: normalizeTitlebarStyle(s.titlebarStyle),
     titlebarCompact: s.titlebarCompact ?? false,
+    selectionHygiene: s.selectionHygiene ?? false,
+    sessionLogInTitlebar: s.sessionLogInTitlebar ?? true,
   };
 }
 
@@ -70,6 +84,8 @@ export const defaultShellSettings: ShellSettings = {
   cliLinkEnabled: false,
   titlebarStyle: "black",
   titlebarCompact: false,
+  selectionHygiene: false,
+  sessionLogInTitlebar: true,
 };
 
 /** 旧版曾有 transparent；并入 black */
@@ -81,6 +97,8 @@ export function chromeFromSettings(s: ShellSettings): ChromePrefs {
   return {
     titlebarStyle: normalizeTitlebarStyle(s.titlebarStyle),
     titlebarCompact: s.titlebarCompact ?? false,
+    selectionHygiene: s.selectionHygiene ?? false,
+    sessionLogInTitlebar: s.sessionLogInTitlebar ?? true,
   };
 }
 
@@ -97,5 +115,9 @@ export function normalizeShellSettings(
     cliLinkEnabled: s?.cliLinkEnabled ?? false,
     titlebarStyle: normalizeTitlebarStyle(s?.titlebarStyle),
     titlebarCompact: s?.titlebarCompact ?? false,
+    selectionHygiene: s?.selectionHygiene ?? false,
+    sessionLogInTitlebar: s?.sessionLogInTitlebar ?? true,
   };
 }
+
+export const PLATFORM_URL = "https://platform.deepseek.com";
