@@ -1,7 +1,7 @@
 /** 侧栏几何：WebView init 注入 → postMessage（跨源唯一可靠通道）。 */
 
 import { useEffect, useState } from "react";
-import type { SidebarLayout } from "./ipc-types";
+import type { SidebarLayout } from "../types/ipc-types";
 
 const SIDEBAR_MSG = "dsh-shell-sidebar-probe";
 /** 尚未收到注入上报时的展开态回退宽 */

@@ -15,8 +15,8 @@ import {
   chromeFromSettings,
   type ChromePrefs,
   type ShellSettings,
-} from "../shellSettings";
-import * as shellApi from "./shellApi";
+} from "../settings";
+import * as shellApi from "../api/shellApi";
 
 type ChromeContextValue = {
   chrome: ChromePrefs;

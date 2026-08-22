@@ -1,6 +1,6 @@
 /** 壳更新就绪横幅：后台下完后提示用户确认安装重启。 */
 
-import { useShellUpdate } from "../shell/ShellUpdateProvider";
+import { useShellUpdate } from "../../shell";
 
 export function ShellUpdateBanner() {
   const upd = useShellUpdate();

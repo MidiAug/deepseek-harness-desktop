@@ -2,8 +2,8 @@ import { useState } from "react";
 import {
   normalizeShellSettings,
   type ShellSettings,
-} from "../shellSettings";
-import { shellApi } from "../shell";
+} from "../../shell/settings";
+import { shellApi } from "../../shell";
 
 type Props = {
   open: boolean;

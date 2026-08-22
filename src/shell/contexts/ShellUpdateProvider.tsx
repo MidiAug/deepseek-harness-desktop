@@ -12,7 +12,7 @@ import {
 } from "react";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
-import { prepareShellUpdate } from "./shellApi";
+import { prepareShellUpdate } from "../api/shellApi";
 
 export type ShellUpdatePhase =
   | "idle"

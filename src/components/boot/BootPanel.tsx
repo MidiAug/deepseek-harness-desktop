@@ -6,7 +6,7 @@ import {
   useHostLifecycle,
   type ReadyPayload,
   type StartCommand,
-} from "../shell";
+} from "../../shell";
 
 type Props = {
   startCommand: StartCommand;

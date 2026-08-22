@@ -8,9 +8,9 @@ import type {
   SessionPhase,
   StartCommand,
   TitleConn,
-} from "./ipc-types";
-import type { ReadyPayload } from "./ipc-types";
-import { stopHarness } from "./shellApi";
+  ReadyPayload,
+} from "../types/ipc-types";
+import { stopHarness } from "../api/shellApi";
 
 function withCacheBust(url: string): string {
   const sep = url.includes("?") ? "&" : "?";

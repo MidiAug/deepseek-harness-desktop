@@ -14,7 +14,7 @@ import {
   type ReactNode,
 } from "react";
 import { listen } from "@tauri-apps/api/event";
-import type { ProgressPayload, SessionPhase } from "./ipc-types";
+import type { ProgressPayload, SessionPhase } from "../types/ipc-types";
 import {
   isHeartbeat,
   isLogOnly,
@@ -22,7 +22,7 @@ import {
   pushLogLine,
   truncateProgressMessage,
   type BootStageId,
-} from "./hostProgressMap";
+} from "../hostProgressMap";
 
 export type BusyReason = "idle" | "boot" | "ops" | "progress";
 

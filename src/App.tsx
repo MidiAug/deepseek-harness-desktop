@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { BootPanel } from "./components/BootPanel";
-import { CloseAskDialog } from "./components/CloseAskDialog";
+import { BootPanel } from "./components/boot/BootPanel";
+import { CloseAskDialog } from "./components/chrome/CloseAskDialog";
 import {
   SettingsModal,
   type SettingsSection,
-} from "./components/SettingsModal";
-import { ShellProgressBubble } from "./components/ShellProgressBubble";
-import { ShellTitleBar } from "./components/ShellTitleBar";
-import { ShellUpdateBanner } from "./components/ShellUpdateBanner";
+} from "./components/settings/SettingsModal";
+import { ShellProgressBubble } from "./components/chrome/ShellProgressBubble";
+import { ShellTitleBar } from "./components/titlebar/ShellTitleBar";
+import { ShellUpdateBanner } from "./components/chrome/ShellUpdateBanner";
 import {
   shellApi,
   useChrome,

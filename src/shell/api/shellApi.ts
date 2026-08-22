@@ -5,14 +5,14 @@ import type {
   RuntimeSettings,
   ShellSettings,
   UiSettings,
-} from "../shellSettings";
+} from "../settings";
 import type {
   HarnessUpdateCheck,
   KnownPath,
   ReadyPayload,
   RuntimeStatus,
   StartCommand,
-} from "./ipc-types";
+} from "../types/ipc-types";
 
 /** StrictMode 双挂载共享同一次 ensure，避免串行第二次清扫杀进程。 */
 let ensureInflight: Promise<ReadyPayload> | null = null;

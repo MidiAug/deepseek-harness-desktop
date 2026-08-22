@@ -1,0 +1,97 @@
+/**
+ * 顶栏路由：classic 菜单态 vs compact 叠层；共享最大化同步与窗控动作。
+ */
+
+import { useEffect, useState } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { ClassicTitleBar } from "./ClassicTitleBar";
+import { CompactTitleBar } from "./CompactTitleBar";
+import type { ShellTitleBarProps, WinAction } from "./titlebarTypes";
+
+export type { ShellTitleBarProps } from "./titlebarTypes";
+
+export function ShellTitleBar({
+  port,
+  conn,
+  chrome,
+  sidebarWidthPx,
+  onOpenSettings,
+  onRestart,
+  onStop,
+  onOpenDshHome,
+  onOpenLogs,
+  onHideToTray,
+  onAbout,
+  onCopyVersion,
+}: ShellTitleBarProps) {
+  const [maximized, setMaximized] = useState(false);
+  const compact = chrome.titlebarCompact;
+
+  useEffect(() => {
+    const w = getCurrentWindow();
+    let unlisten: (() => void) | undefined;
+    let cancelled = false;
+
+    async function syncMaximized() {
+      try {
+        const next = await w.isMaximized();
+        if (!cancelled) setMaximized(next);
+      } catch {
+        /* 开发态偶发 IPC 未就绪，忽略 */
+      }
+    }
+
+    void syncMaximized();
+    void w
+      .onResized(() => {
+        void syncMaximized();
+      })
+      .then((fn) => {
+        if (cancelled) fn();
+        else unlisten = fn;
+      });
+
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, []);
+
+  async function onWin(action: WinAction) {
+    const w = getCurrentWindow();
+    if (action === "minimize") await w.minimize();
+    else if (action === "maximize") {
+      await w.toggleMaximize();
+      setMaximized(await w.isMaximized());
+    } else await w.close();
+  }
+
+  if (compact) {
+    return (
+      <CompactTitleBar
+        sidebarWidthPx={sidebarWidthPx}
+        maximized={maximized}
+        onOpenSettings={onOpenSettings}
+        onWin={onWin}
+      />
+    );
+  }
+
+  return (
+    <ClassicTitleBar
+      port={port}
+      conn={conn}
+      chrome={chrome}
+      maximized={maximized}
+      onOpenSettings={onOpenSettings}
+      onRestart={onRestart}
+      onStop={onStop}
+      onOpenDshHome={onOpenDshHome}
+      onOpenLogs={onOpenLogs}
+      onHideToTray={onHideToTray}
+      onAbout={onAbout}
+      onCopyVersion={onCopyVersion}
+      onWin={onWin}
+    />
+  );
+}

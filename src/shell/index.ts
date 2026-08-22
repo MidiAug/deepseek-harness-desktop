@@ -9,24 +9,24 @@ export type {
   SidebarLayout,
   StartCommand,
   TitleConn,
-} from "./ipc-types";
-export * as shellApi from "./shellApi";
-export { useShellSession } from "./useShellSession";
-export { useSidebarLayout, SIDEBAR_FALLBACK_PX } from "./useSidebarLayout";
-export { useShellProgressBubble } from "./useShellProgressBubble";
-export { ChromeProvider, useChrome } from "./ChromeProvider";
+} from "./types/ipc-types";
+export * as shellApi from "./api/shellApi";
+export { useShellSession } from "./hooks/useShellSession";
+export { useSidebarLayout, SIDEBAR_FALLBACK_PX } from "./hooks/useSidebarLayout";
+export { useShellProgressBubble } from "./hooks/useShellProgressBubble";
+export { ChromeProvider, useChrome } from "./contexts/ChromeProvider";
 export {
   HostLifecycleProvider,
   useHostLifecycle,
   type BusyReason,
   type HostLifecycleState,
-} from "./HostLifecycleProvider";
+} from "./contexts/HostLifecycleProvider";
 export {
   ShellUpdateProvider,
   useShellUpdate,
   type ShellUpdatePhase,
   type ShellUpdateState,
-} from "./ShellUpdateProvider";
+} from "./contexts/ShellUpdateProvider";
 export {
   BOOT_STAGES,
   mapStage,
