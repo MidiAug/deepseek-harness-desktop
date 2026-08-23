@@ -1,11 +1,8 @@
 //! Runtime：ensure / restart 编排；包入口解析。
 
-mod package;
+pub mod package;
 mod status;
 
-pub use package::{
-    assert_harness_closure, is_harness_partial, read_harness_meta, resolve_dsh_entry,
-};
 pub use status::build_runtime_status_json;
 
 use tauri::{AppHandle, Runtime};
@@ -100,4 +97,29 @@ pub async fn restart_harness<R: Runtime>(
     let (port, url) = supervise::spawn_and_wait_healthy(app, state).await?;
     log::info!(target: "shell::runtime", "restart_harness ok port={port}");
     Ok(ReadyPayload { url, port })
+}
+
+#[cfg(test)]
+mod import_hygiene {
+    use std::path::Path;
+
+    fn read_src(rel: &str) -> String {
+        let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+        std::fs::read_to_string(manifest.join("src").join(rel)).unwrap_or_default()
+    }
+
+    #[test]
+    fn leaf_modules_import_runtime_package() {
+        for file in ["install.rs", "supervise.rs", "update.rs", "cli_link.rs"] {
+            let text = read_src(file);
+            assert!(
+                text.contains("runtime::package::"),
+                "{file} should import runtime::package"
+            );
+            assert!(
+                !text.contains("use crate::runtime::resolve_dsh_entry"),
+                "{file} must not use runtime re-export for package symbols"
+            );
+        }
+    }
 }

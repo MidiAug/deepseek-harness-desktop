@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "check:release": "node scripts/check-release.mjs",
-    "test:unit": "node --test --experimental-strip-types src/shell/errors/recoveryMatrix.test.ts",
+    "test:unit": "node --test --experimental-strip-types src/shell/errors/recoveryMatrix.test.ts src/shell/hostProgressMap.test.ts",
     "audit:snapshot": "node scripts/audit-system-snapshot.mjs",
     "audit:cdp": "node scripts/audit-cdp-capture.mjs",
     "audit:matrix": "node scripts/audit-run-matrix.mjs"

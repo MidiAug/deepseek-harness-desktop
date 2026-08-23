@@ -1,39 +1,16 @@
-import { useState, type RefObject } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   shellApi,
   shellLog,
-  type HarnessUpdateCheck,
+  useHarnessSettingsOps,
+  useHostLifecycle,
+  useShellUpdate,
   type RuntimeStatus,
-  type ShellUpdateState,
 } from "../../shell";
 import { useLocale } from "../../shell/locale";
 
-type LifeSlice = {
-  message: string;
-  percent: number | null;
-  logLines: string[];
-};
-
-type ShellUpdSlice = Pick<
-  ShellUpdateState,
-  "phase" | "version" | "percent"
-> & {
-  checkNow: (force?: boolean) => void | Promise<void>;
-  installAndRelaunch: () => void | Promise<void>;
-};
-
 type Props = {
   runtime: RuntimeStatus | null;
-  locked: boolean;
-  showProgress: boolean;
-  barIndeterminate: boolean;
-  life: LifeSlice;
-  logEndRef: RefObject<HTMLDivElement | null>;
-  updateCheck: HarnessUpdateCheck | null;
-  shellUpd: ShellUpdSlice;
-  onCheckUpdate: () => void | Promise<void>;
-  onApplyUpdate: () => void | Promise<void>;
-  onApplyNetworkRestart: () => void | Promise<void>;
   onDiagnosticsExported?: (path: string) => void;
   onDiagnosticsError?: (
     message: string,
@@ -41,23 +18,33 @@ type Props = {
   ) => void;
 };
 
+/** 关于分区：harness 运维 + 进度/日志；自消费 HarnessSettingsOpsProvider。 */
 export function SettingsSectionAbout({
   runtime,
-  locked,
-  showProgress,
-  barIndeterminate,
-  life,
-  logEndRef,
-  updateCheck,
-  shellUpd,
-  onCheckUpdate,
-  onApplyUpdate,
-  onApplyNetworkRestart,
   onDiagnosticsExported,
   onDiagnosticsError,
 }: Props) {
   const { t } = useLocale();
+  const life = useHostLifecycle();
+  const shellUpd = useShellUpdate();
+  const {
+    updateCheck,
+    onCheckUpdate,
+    onApplyUpdate,
+    onApplyNetworkRestart,
+  } = useHarnessSettingsOps();
   const [exporting, setExporting] = useState(false);
+  const logEndRef = useRef<HTMLDivElement>(null);
+
+  const locked = life.locked;
+  const showProgress = locked || life.logLines.length > 0;
+  const barIndeterminate =
+    locked && (life.percent == null || life.percent === 75);
+
+  useEffect(() => {
+    if (life.logLines.length === 0) return;
+    logEndRef.current?.scrollIntoView({ block: "end" });
+  }, [life.logLines]);
 
   async function onExportDiagnostics() {
     if (exporting || locked) return;

@@ -3,6 +3,7 @@
 mod logging;
 mod diagnostics;
 mod error;
+mod inject;
 mod install;
 mod net;
 mod paths;
@@ -17,6 +18,7 @@ mod selection_hygiene;
 mod session_log_proxy;
 mod dsh_theme;
 mod dsh_locale;
+mod dsh_settings;
 mod dsh_settings_watch;
 mod sidebar_probe;
 mod supervise;
@@ -260,7 +262,7 @@ async fn apply_harness_update(
     result
 }
 
-/// 壳自更新安装前：跨进程锁 + 杀托管进程树（anywhere #469）。
+/// 壳自更新安装前：跨进程锁 + 杀托管进程树（B13）。
 #[tauri::command]
 async fn prepare_shell_update(
     app: tauri::AppHandle,
@@ -432,13 +434,7 @@ pub fn run() {
             } else {
                 WebviewUrl::App("index.html".into())
             };
-            let frame_init = format!(
-                "{}{}{}{}",
-                sidebar_probe::INIT_SCRIPT,
-                selection_hygiene::INIT_SCRIPT,
-                session_log_proxy::INIT_SCRIPT,
-                context_menu::INIT_SCRIPT
-            );
+            let frame_init = inject::concat_for_all_frames();
             let mut win = WebviewWindowBuilder::new(app, "main", url)
                 .title("deepseek-harness-desktop")
                 .inner_size(1100.0, 720.0)

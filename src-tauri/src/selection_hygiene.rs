@@ -16,7 +16,7 @@ pub const INIT_SCRIPT: &str = r#"
   var STYLE_ID = "dsh-shell-selection-hygiene";
   var enabled = false;
 
-  // 稳定 DSH slot / flow 选择器（对照 reference deepseek-harness slots.ts）
+  // 稳定 DSH slot / flow 选择器（见 dev/knowledge-base/05-dsh-dom-iframe-chrome.md）
   var CHROME_SELECTORS = [
     '[data-slot="sidebar"], [data-slot="sidebar"] *',
     '[data-slot="conversation.session.header"], [data-slot="conversation.session.header"] *',

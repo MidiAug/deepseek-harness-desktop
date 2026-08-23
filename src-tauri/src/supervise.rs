@@ -15,7 +15,7 @@ use tauri::{AppHandle, Runtime};
 use crate::error::HostError;
 use crate::paths;
 use crate::progress;
-use crate::runtime::resolve_dsh_entry;
+use crate::runtime::package::resolve_dsh_entry;
 use crate::settings;
 
 #[cfg(windows)]

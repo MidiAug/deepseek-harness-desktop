@@ -8,7 +8,7 @@ use crate::install;
 use crate::net::http::http_client;
 use crate::paths::DSH_PACKAGE;
 use crate::progress::{self, ReadyPayload};
-use crate::runtime::read_harness_meta;
+use crate::runtime::package::read_harness_meta;
 use crate::runtime_lock::{self, LockPurpose};
 use crate::settings;
 use crate::supervise::{self, HarnessState};

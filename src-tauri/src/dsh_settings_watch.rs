@@ -9,14 +9,8 @@ use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use tauri::{AppHandle, Emitter, Runtime};
 
 use crate::dsh_locale;
+use crate::dsh_settings;
 use crate::dsh_theme;
-use crate::paths;
-use crate::settings;
-
-fn dsh_home_for<R: Runtime>(app: &AppHandle<R>) -> std::path::PathBuf {
-    let cfg = settings::load(app);
-    paths::dsh_home(app, Some(cfg.dsh_home_override.as_str()))
-}
 
 fn settings_yaml_hit(paths: &[std::path::PathBuf]) -> bool {
     if paths.is_empty() {
@@ -42,7 +36,7 @@ pub fn spawn_watch<R: Runtime>(app: &AppHandle<R>) {
     std::thread::Builder::new()
         .name("dsh-settings-watch".into())
         .spawn(move || {
-            let home = dsh_home_for(&app);
+            let home = dsh_settings::dsh_home_for_app(&app);
             let _ = fs::create_dir_all(&home);
             let (tx, rx) = mpsc::channel();
             let mut watcher = match RecommendedWatcher::new(

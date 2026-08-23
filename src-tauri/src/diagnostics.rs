@@ -9,7 +9,7 @@ use tauri::{AppHandle, Runtime};
 use crate::error::HostError;
 use crate::paths;
 use crate::progress;
-use crate::runtime::{build_runtime_status_json, read_harness_meta};
+use crate::runtime::{build_runtime_status_json, package::read_harness_meta};
 use crate::settings::{self, RuntimeSettings};
 use crate::supervise::HarnessState;
 

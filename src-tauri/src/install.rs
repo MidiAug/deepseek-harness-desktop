@@ -16,7 +16,7 @@ use crate::paths::{self, DSH_PACKAGE, NODE_DIST_NAME};
 #[cfg(windows)]
 use crate::platform;
 use crate::progress;
-use crate::runtime::{
+use crate::runtime::package::{
     assert_harness_closure, is_harness_partial, resolve_dsh_entry,
 };
 use crate::settings::{self, ShellSettings};
@@ -333,7 +333,7 @@ async fn npm_install_dsh<R: Runtime>(app: &AppHandle<R>, force: bool) -> Result<
         ));
     }
 
-    // 闭包门禁（anywhere #339）：入口 + 声明的 @deepseek-ai/* 依赖目录
+    // 闭包门禁（B13）：入口 + 声明的 @deepseek-ai/* 依赖目录
     assert_harness_closure(app)?;
     emit_progress(
         app,

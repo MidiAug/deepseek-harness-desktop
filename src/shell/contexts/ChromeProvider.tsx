@@ -15,6 +15,8 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   chromeFromSettings,
+  normalizeShellSettings,
+  normalizeShellTheme,
   type ChromePrefs,
   type ResolvedTheme,
   type ShellSettings,
@@ -94,9 +96,17 @@ export function ChromeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshFromDisk = useCallback(() => {
-    void shellApi
-      .getShellSettings()
-      .then((s) => setChrome(chromeFromSettings(s)))
+    void Promise.all([
+      shellApi.getShellSettings(),
+      shellApi.getDshThemePreference(),
+    ])
+      .then(([s, themePref]) => {
+        const ui = chromeFromSettings(normalizeShellSettings(s));
+        setChrome({
+          ...ui,
+          shellTheme: normalizeShellTheme(themePref || ui.shellTheme),
+        });
+      })
       .catch(() => undefined);
   }, []);
 

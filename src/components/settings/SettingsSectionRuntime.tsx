@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { ShellSettings } from "../../shell/settings";
-import { shellApi, type RuntimeStatus } from "../../shell";
+import { shellApi, useHarnessSettingsOps, type RuntimeStatus } from "../../shell";
 import { useLocale } from "../../shell/locale";
 import type { CliLinkStatus } from "../../shell/api/shellApi";
 import { SettingsPrefRow } from "./SettingsPrefRow";
@@ -22,7 +22,6 @@ type Props = {
   setCliStatus: Dispatch<SetStateAction<CliLinkStatus | null>>;
   refreshRuntime: () => void;
   onStopHarness?: () => void;
-  onApplyNetworkRestart: () => void | Promise<void>;
 };
 
 export function SettingsSectionRuntime({
@@ -39,9 +38,9 @@ export function SettingsSectionRuntime({
   setCliStatus,
   refreshRuntime,
   onStopHarness,
-  onApplyNetworkRestart,
 }: Props) {
   const { t } = useLocale();
+  const { onApplyNetworkRestart } = useHarnessSettingsOps();
 
   return (
     <div className="settings-section">

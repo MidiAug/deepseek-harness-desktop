@@ -11,6 +11,10 @@ export type {
   TitleConn,
 } from "./types/ipc-types";
 export * as shellApi from "./api/shellApi";
+export {
+  HarnessSettingsOpsProvider,
+  useHarnessSettingsOps,
+} from "./hooks/useHarnessSettingsOps";
 export { useShellSession } from "./hooks/useShellSession";
 export { useSidebarLayout, SIDEBAR_FALLBACK_PX } from "./hooks/useSidebarLayout";
 export { useHarnessContextMenu } from "./hooks/useHarnessContextMenu";

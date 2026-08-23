@@ -6,16 +6,17 @@ import {
 } from "react";
 import {
   normalizeShellSettings,
+  normalizeShellTheme,
   runtimeFromSettings,
   type ShellSettings,
 } from "../../shell/settings";
 import {
+  HarnessSettingsOpsProvider,
   shellApi,
   shellLog,
   useChrome,
+  useHarnessSettingsOps,
   useHostLifecycle,
-  useShellUpdate,
-  type HarnessUpdateCheck,
   type ReadyPayload,
   type RuntimeStatus,
 } from "../../shell";
@@ -43,75 +44,74 @@ type FaultState = {
 type Props = {
   open: boolean;
   onClose: () => void;
-  /** 打开时定位到的分区（菜单「关于」→ about） */
   initialSection?: SettingsSection;
-  /** harness 更新/重启成功后回灌会话 iframe */
   onHarnessReady?: (payload: ReadyPayload) => void;
-  /** 停止托管进程 */
   onStopHarness?: () => void;
 };
 
-/** 居中两栏设置：几何对齐 DSH SettingsRoot；全部即时落盘。 */
-export function SettingsModal({
-  open,
+async function loadShellSettingsWithTheme(): Promise<ShellSettings> {
+  const [s, themePref] = await Promise.all([
+    shellApi.getShellSettings(),
+    shellApi.getDshThemePreference(),
+  ]);
+  return normalizeShellSettings({
+    ...s,
+    shellTheme: normalizeShellTheme(themePref || s.shellTheme),
+  });
+}
+
+type PanelProps = {
+  onClose: () => void;
+  initialSection?: SettingsSection;
+  onHarnessReady?: (payload: ReadyPayload) => void;
+  onStopHarness?: () => void;
+  runtime: RuntimeStatus | null;
+  refreshRuntime: () => void;
+  hint: string | null;
+  flashHint: (msg: string) => void;
+  fault: FaultState | null;
+  reportFault: (
+    message: string | null,
+    retry?: () => void | Promise<void>,
+  ) => void;
+};
+
+function SettingsModalPanel({
   onClose,
   initialSection,
   onHarnessReady,
   onStopHarness,
-}: Props) {
+  runtime,
+  refreshRuntime,
+  hint,
+  flashHint,
+  fault,
+  reportFault,
+}: PanelProps) {
   const { setChrome, patchChrome, chrome } = useChrome();
   const { t } = useLocale();
   const sections = useSectionLabels();
   const life = useHostLifecycle();
-  const shellUpd = useShellUpdate();
+  const { setUpdateCheck } = useHarnessSettingsOps();
   const [settings, setSettings] = useState<ShellSettings>(
     normalizeShellSettings(null),
   );
-  const [runtime, setRuntime] = useState<RuntimeStatus | null>(null);
   const [cliStatus, setCliStatus] = useState<CliLinkStatus | null>(null);
-  const [fault, setFault] = useState<FaultState | null>(null);
-  const [hint, setHint] = useState<string | null>(null);
-  const [section, setSection] = useState<SettingsSection>("network");
-  const [updateCheck, setUpdateCheck] = useState<HarnessUpdateCheck | null>(
-    null,
+  const [section, setSection] = useState<SettingsSection>(
+    initialSection ?? "network",
   );
   const [portDraft, setPortDraft] = useState("");
-  const logEndRef = useRef<HTMLDivElement>(null);
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const faultRef = useRef<FaultState | null>(null);
   faultRef.current = fault;
 
-  const reportFault = useCallback(
-    (message: string | null, retry?: () => void | Promise<void>) => {
-      if (message === null) {
-        setFault(null);
-        return;
-      }
-      shellLog.warn("settings", message);
-      setFault({ message, retry });
-    },
-    [],
-  );
-
-  const refreshRuntime = useCallback(() => {
-    void shellApi
-      .getRuntimeStatus()
-      .then(setRuntime)
-      .catch(() => undefined);
-  }, []);
-
   useEffect(() => {
-    if (!open) return;
-    setFault(null);
-    setHint(null);
     setUpdateCheck(null);
     setSection(initialSection ?? "network");
-    void shellApi
-      .getShellSettings()
-      .then((s) => {
-        const next = normalizeShellSettings(s);
+    void loadShellSettingsWithTheme()
+      .then((next) => {
         setSettings(next);
         setPortDraft(
           next.preferredPort > 0 ? String(next.preferredPort) : "",
@@ -126,31 +126,23 @@ export function SettingsModal({
       .catch((e) => reportFault(String(e)));
     refreshRuntime();
     void shellApi.getCliLinkStatus().then(setCliStatus).catch(() => undefined);
-  }, [open, initialSection, setChrome, refreshRuntime]);
+  }, [initialSection, setChrome, refreshRuntime, setUpdateCheck, reportFault]);
 
-  // 官方 UI / yaml watch 改主题时，设置弹窗内选项跟着变
   useEffect(() => {
-    if (!open) return;
     setSettings((s) =>
       s.shellTheme === chrome.shellTheme
         ? s
         : { ...s, shellTheme: chrome.shellTheme },
     );
-  }, [chrome.shellTheme, open]);
+  }, [chrome.shellTheme]);
 
   useEffect(() => {
-    if (!open) return;
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-
-  useEffect(() => {
-    if (life.logLines.length === 0) return;
-    logEndRef.current?.scrollIntoView({ block: "end" });
-  }, [life.logLines]);
+  }, [onClose]);
 
   useEffect(() => {
     return () => {
@@ -163,7 +155,7 @@ export function SettingsModal({
       switch (cta) {
         case "retry": {
           const current = faultRef.current;
-          setFault(null);
+          reportFault(null);
           if (current?.retry) {
             void current.retry();
           } else {
@@ -173,28 +165,22 @@ export function SettingsModal({
         }
         case "network":
           setSection("network");
-          setFault(null);
+          reportFault(null);
           break;
         case "logs":
           void shellApi.openKnownPath("logs");
           break;
         case "reset":
           setSection("data");
-          setFault(null);
+          reportFault(null);
           break;
       }
     },
-    [refreshRuntime],
+    [refreshRuntime, reportFault],
   );
 
-  if (!open) return null;
-
-  function flashHint(msg: string) {
-    setHint(msg);
-  }
-
   function persistRuntime(next: ShellSettings, softHint?: string) {
-    setFault(null);
+    reportFault(null);
     void shellApi
       .saveRuntimeSettings(runtimeFromSettings(next))
       .then(() => {
@@ -204,13 +190,12 @@ export function SettingsModal({
         const msg = typeof e === "string" ? e : String(e);
         const snapshot = { ...next };
         reportFault(msg, () => persistRuntime(snapshot, softHint));
-        void shellApi.getShellSettings().then((s) => {
-          setSettings(normalizeShellSettings(s));
-        });
+        void loadShellSettingsWithTheme()
+          .then(setSettings)
+          .catch(() => undefined);
       });
   }
 
-  /** 即时写 runtime 域；文本类可 debounce。 */
   function patchRuntime(
     patch: Partial<ShellSettings>,
     opts?: { debounceMs?: number; softHint?: string },
@@ -245,79 +230,8 @@ export function SettingsModal({
     patchChrome(patch);
   }
 
-  async function onCheckUpdate() {
-    setFault(null);
-    setHint(null);
-    life.beginOps(t("settings.hint.checkingUpdate"));
-    try {
-      const r = await shellApi.checkHarnessUpdate();
-      setUpdateCheck(r);
-      if (!r.updateAvailable) {
-        flashHint(t("settings.about.upToDate"));
-      } else {
-        flashHint(
-          `${t("settings.about.updateFound")} ${r.latest ?? "?"} (${r.local ?? "?"})`,
-        );
-      }
-    } catch (e) {
-      const msg = typeof e === "string" ? e : String(e);
-      reportFault(msg, onCheckUpdate);
-    } finally {
-      life.endOps({
-        clearProgress: true,
-      });
-    }
-  }
-
-  async function onApplyUpdate() {
-    setFault(null);
-    setHint(null);
-    life.beginOps(t("settings.about.harnessUpdating"));
-    try {
-      const payload = await shellApi.applyHarnessUpdate();
-      setUpdateCheck(null);
-      refreshRuntime();
-      onHarnessReady?.(payload);
-      flashHint(t("settings.about.updated"));
-      life.seedBoot({
-        message: t("boot.msg.harnessUpdated"),
-        stageId: "start",
-        percent: 100,
-      });
-    } catch (e) {
-      const msg = typeof e === "string" ? e : String(e);
-      reportFault(msg, onApplyUpdate);
-      refreshRuntime();
-    } finally {
-      life.endOps();
-    }
-  }
-
-  async function onApplyNetworkRestart() {
-    setFault(null);
-    setHint(null);
-    life.beginOps(t("settings.hint.networkRestart"));
-    try {
-      const payload = await shellApi.restartHarness();
-      refreshRuntime();
-      onHarnessReady?.(payload);
-      flashHint(t("settings.about.networkRestarted"));
-    } catch (e) {
-      const msg = typeof e === "string" ? e : String(e);
-      reportFault(msg, onApplyNetworkRestart);
-    } finally {
-      life.endOps({
-        clearProgress: true,
-      });
-    }
-  }
-
   const compactOn = settings.titlebarCompact;
   const locked = life.locked;
-  // 仅 busy 或确有日志行；勿用 idle 残留 message（clear 后曾误出「正在准备」条）
-  const showProgress = locked || life.logLines.length > 0;
-  const barIndeterminate =
-    locked && (life.percent == null || life.percent === 75);
 
   return (
     <div className="modal-backdrop settings-overlay" role="presentation">
@@ -348,8 +262,7 @@ export function SettingsModal({
                 aria-current={section === s.id ? "true" : undefined}
                 onClick={() => {
                   setSection(s.id);
-                  setHint(null);
-                  setFault(null);
+                  reportFault(null);
                 }}
               >
                 {settingsNavIcon(s.id)}
@@ -383,14 +296,12 @@ export function SettingsModal({
                 patchRuntime={patchRuntime}
               />
             )}
-
             {section === "window" && (
               <SettingsSectionWindow
                 settings={settings}
                 patchRuntime={patchRuntime}
               />
             )}
-
             {section === "appearance" && (
               <SettingsSectionAppearance
                 settings={settings}
@@ -398,7 +309,6 @@ export function SettingsModal({
                 patchAppearance={patchAppearance}
               />
             )}
-
             {section === "runtime" && (
               <SettingsSectionRuntime
                 settings={settings}
@@ -414,10 +324,8 @@ export function SettingsModal({
                 setCliStatus={setCliStatus}
                 refreshRuntime={refreshRuntime}
                 onStopHarness={onStopHarness}
-                onApplyNetworkRestart={onApplyNetworkRestart}
               />
             )}
-
             {section === "data" && (
               <SettingsSectionData
                 settings={settings}
@@ -429,24 +337,9 @@ export function SettingsModal({
                 onHarnessReady={onHarnessReady}
               />
             )}
-
             {section === "about" && (
               <SettingsSectionAbout
                 runtime={runtime}
-                locked={locked}
-                showProgress={showProgress}
-                barIndeterminate={barIndeterminate}
-                life={{
-                  message: life.message,
-                  percent: life.percent,
-                  logLines: life.logLines,
-                }}
-                logEndRef={logEndRef}
-                updateCheck={updateCheck}
-                shellUpd={shellUpd}
-                onCheckUpdate={onCheckUpdate}
-                onApplyUpdate={onApplyUpdate}
-                onApplyNetworkRestart={onApplyNetworkRestart}
                 onDiagnosticsExported={(path) =>
                   flashHint(
                     t("settings.about.exportDiagnosticsDone", { path }),
@@ -466,5 +359,81 @@ export function SettingsModal({
         </div>
       </div>
     </div>
+  );
+}
+
+function SettingsModalOpen({
+  onClose,
+  initialSection,
+  onHarnessReady,
+  onStopHarness,
+}: Omit<Props, "open">) {
+  const [runtime, setRuntime] = useState<RuntimeStatus | null>(null);
+  const [hint, setHint] = useState<string | null>(null);
+  const [fault, setFault] = useState<FaultState | null>(null);
+
+  const refreshRuntime = useCallback(() => {
+    void shellApi
+      .getRuntimeStatus()
+      .then(setRuntime)
+      .catch(() => undefined);
+  }, []);
+
+  const flashHint = useCallback((msg: string) => {
+    setHint(msg);
+  }, []);
+
+  const reportFault = useCallback(
+    (message: string | null, retry?: () => void | Promise<void>) => {
+      if (message === null) {
+        setFault(null);
+        setHint(null);
+        return;
+      }
+      shellLog.warn("settings", message);
+      setFault({ message, retry });
+    },
+    [],
+  );
+
+  return (
+    <HarnessSettingsOpsProvider
+      refreshRuntime={refreshRuntime}
+      onHarnessReady={onHarnessReady}
+      reportFault={reportFault}
+      flashHint={flashHint}
+    >
+      <SettingsModalPanel
+        onClose={onClose}
+        initialSection={initialSection}
+        onHarnessReady={onHarnessReady}
+        onStopHarness={onStopHarness}
+        runtime={runtime}
+        refreshRuntime={refreshRuntime}
+        hint={hint}
+        flashHint={flashHint}
+        fault={fault}
+        reportFault={reportFault}
+      />
+    </HarnessSettingsOpsProvider>
+  );
+}
+
+/** 居中两栏设置：几何对齐 DSH SettingsRoot；全部即时落盘。 */
+export function SettingsModal({
+  open,
+  onClose,
+  initialSection,
+  onHarnessReady,
+  onStopHarness,
+}: Props) {
+  if (!open) return null;
+  return (
+    <SettingsModalOpen
+      onClose={onClose}
+      initialSection={initialSection}
+      onHarnessReady={onHarnessReady}
+      onStopHarness={onStopHarness}
+    />
   );
 }

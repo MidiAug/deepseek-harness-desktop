@@ -8,7 +8,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Runtime};
 
 use crate::paths;
-use crate::runtime::resolve_dsh_entry;
+use crate::runtime::package::resolve_dsh_entry;
 use crate::settings;
 
 #[derive(Debug, Clone, Serialize)]

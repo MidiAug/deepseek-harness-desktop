@@ -192,7 +192,7 @@ export function ShellUpdateProvider({ children }: { children: ReactNode }) {
     if (!update || state.phase !== "downloaded") return;
     apply({ phase: "installing", message: "正在停止托管进程并安装壳更新…" });
     try {
-      // 先杀树再装，避免 anywhere #469「DSH 未关导致更新失败」
+      // 先杀树再装，避免 DSH 未关导致更新失败（B13）
       await prepareShellUpdate();
       apply({ phase: "installing", message: "正在安装壳更新并重启…" });
       await update.install();

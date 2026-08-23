@@ -1,0 +1,136 @@
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useState,
+  type ReactNode,
+} from "react";
+import * as shellApi from "../api/shellApi";
+import { useHostLifecycle } from "../contexts/HostLifecycleProvider";
+import type { HarnessUpdateCheck, ReadyPayload } from "../types/ipc-types";
+import { useLocale } from "../locale";
+
+type FaultReporter = (
+  message: string | null,
+  retry?: () => void | Promise<void>,
+) => void;
+
+export type HarnessSettingsOpsOptions = {
+  refreshRuntime: () => void;
+  onHarnessReady?: (payload: ReadyPayload) => void;
+  reportFault: FaultReporter;
+  flashHint: (msg: string) => void;
+};
+
+export type HarnessSettingsOps = {
+  updateCheck: HarnessUpdateCheck | null;
+  setUpdateCheck: (check: HarnessUpdateCheck | null) => void;
+  onCheckUpdate: () => Promise<void>;
+  onApplyUpdate: () => Promise<void>;
+  onApplyNetworkRestart: () => Promise<void>;
+};
+
+const HarnessSettingsOpsContext = createContext<HarnessSettingsOps | null>(null);
+
+function useHarnessSettingsOpsImpl({
+  refreshRuntime,
+  onHarnessReady,
+  reportFault,
+  flashHint,
+}: HarnessSettingsOpsOptions): HarnessSettingsOps {
+  const { t } = useLocale();
+  const life = useHostLifecycle();
+  const [updateCheck, setUpdateCheck] = useState<HarnessUpdateCheck | null>(
+    null,
+  );
+
+  const onCheckUpdate = useCallback(async () => {
+    reportFault(null);
+    life.beginOps(t("settings.hint.checkingUpdate"));
+    try {
+      const r = await shellApi.checkHarnessUpdate();
+      setUpdateCheck(r);
+      if (!r.updateAvailable) {
+        flashHint(t("settings.about.upToDate"));
+      } else {
+        flashHint(
+          `${t("settings.about.updateFound")} ${r.latest ?? "?"} (${r.local ?? "?"})`,
+        );
+      }
+    } catch (e) {
+      const msg = typeof e === "string" ? e : String(e);
+      reportFault(msg, onCheckUpdate);
+    } finally {
+      life.endOps({ clearProgress: true });
+    }
+  }, [flashHint, life, reportFault, t]);
+
+  const onApplyUpdate = useCallback(async () => {
+    reportFault(null);
+    life.beginOps(t("settings.about.harnessUpdating"));
+    try {
+      const payload = await shellApi.applyHarnessUpdate();
+      setUpdateCheck(null);
+      refreshRuntime();
+      onHarnessReady?.(payload);
+      flashHint(t("settings.about.updated"));
+      life.seedBoot({
+        message: t("boot.msg.harnessUpdated"),
+        stageId: "start",
+        percent: 100,
+      });
+    } catch (e) {
+      const msg = typeof e === "string" ? e : String(e);
+      reportFault(msg, onApplyUpdate);
+      refreshRuntime();
+    } finally {
+      life.endOps();
+    }
+  }, [flashHint, life, onHarnessReady, refreshRuntime, reportFault, t]);
+
+  const onApplyNetworkRestart = useCallback(async () => {
+    reportFault(null);
+    life.beginOps(t("settings.hint.networkRestart"));
+    try {
+      const payload = await shellApi.restartHarness();
+      refreshRuntime();
+      onHarnessReady?.(payload);
+      flashHint(t("settings.about.networkRestarted"));
+    } catch (e) {
+      const msg = typeof e === "string" ? e : String(e);
+      reportFault(msg, onApplyNetworkRestart);
+    } finally {
+      life.endOps({ clearProgress: true });
+    }
+  }, [flashHint, life, onHarnessReady, refreshRuntime, reportFault, t]);
+
+  return {
+    updateCheck,
+    setUpdateCheck,
+    onCheckUpdate,
+    onApplyUpdate,
+    onApplyNetworkRestart,
+  };
+}
+
+export function HarnessSettingsOpsProvider({
+  children,
+  ...opts
+}: HarnessSettingsOpsOptions & { children: ReactNode }) {
+  const value = useHarnessSettingsOpsImpl(opts);
+  return (
+    <HarnessSettingsOpsContext.Provider value={value}>
+      {children}
+    </HarnessSettingsOpsContext.Provider>
+  );
+}
+
+export function useHarnessSettingsOps(): HarnessSettingsOps {
+  const ctx = useContext(HarnessSettingsOpsContext);
+  if (!ctx) {
+    throw new Error(
+      "useHarnessSettingsOps 须在 HarnessSettingsOpsProvider 内使用",
+    );
+  }
+  return ctx;
+}
