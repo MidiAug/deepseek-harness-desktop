@@ -37,3 +37,6 @@ dev/
 
 # Codegraph local index
 .codegraph/
+
+# Playwright MCP runtime artifacts
+.playwright-mcp/

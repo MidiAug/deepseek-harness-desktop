@@ -33,6 +33,7 @@ import { SettingsSectionAbout } from "./SettingsSectionAbout";
 import { settingsNavIcon } from "./settingsNavIcon";
 import { FaultRecoveryBlock } from "../chrome/FaultRecoveryBlock";
 import type { FaultCta } from "../../shell/errors/recoveryMatrix";
+import { blockModalSelectAll } from "../../shell/modalKeydown";
 
 export type { SettingsSection } from "./settingsTypes";
 
@@ -105,6 +106,7 @@ function SettingsModalPanel({
   settingsRef.current = settings;
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const faultRef = useRef<FaultState | null>(null);
+  const modalRef = useRef<HTMLDivElement | null>(null);
   faultRef.current = fault;
 
   useEffect(() => {
@@ -139,10 +141,16 @@ function SettingsModalPanel({
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
+      blockModalSelectAll(e);
     }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
   }, [onClose]);
+
+  useEffect(() => {
+    window.getSelection()?.removeAllRanges();
+    modalRef.current?.focus({ preventScroll: true });
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -243,6 +251,8 @@ function SettingsModalPanel({
         onClick={onClose}
       />
       <div
+        ref={modalRef}
+        tabIndex={-1}
         className="modal settings-modal"
         role="dialog"
         aria-modal="true"

@@ -33,6 +33,7 @@ futures-util = "0.3"
 tauri-plugin-updater = "2.10.1"
 tauri-plugin-process = "2.3.1"
 tauri-plugin-log = "2"
+tauri-plugin-opener = "2"
 log = "0.4"
 # 监视 DSH_HOME/settings.yaml 主题变更（事件驱动，替代轮询）
 notify = "6"

@@ -53,6 +53,12 @@
   background: var(--color-canvas);
 }
 
+/* 弹窗打开：阻断 harness 指针事件，避免 iframe 持焦点与跨层选区 */
+.shell.shell-backdrop-open .shell-body {
+  user-select: none;
+  pointer-events: none;
+}
+
 .harness-frame {
   position: absolute;
   inset: 0;

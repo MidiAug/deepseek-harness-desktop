@@ -1,6 +1,7 @@
 //! Harness iframe：简洁模式下隐藏官方 Session log，并由壳顶栏 postMessage 代理点击。
 //! 消息：`{ source: "dsh-shell", type: "session-log-proxy", enabled: bool }`
 //! 点击：`{ source: "dsh-shell", type: "session-log-click" }`
+//! 关窗：`{ source: "dsh-shell", type: "session-log-dismiss-dialog" }`
 //! 上报：`{ source: "dsh-harness", type: "session-log-available", available: bool }`
 //! best-effort；上游 DOM 大改可能失效。
 
@@ -18,6 +19,49 @@ pub const INIT_SCRIPT: &str = r#"
   var MARK = "data-dsh-shell-session-log-hidden";
   var enabled = false;
   var lastReported = null;
+  var reportTrueTimer = null;
+  var REPORT_TRUE_DELAY_MS = 280;
+
+  function postAvailability(available) {
+    try {
+      window.parent.postMessage(
+        {
+          source: "dsh-harness",
+          type: "session-log-available",
+          available: available,
+        },
+        "*"
+      );
+    } catch (e) {}
+  }
+
+  function reportAvailabilityNow(available) {
+    if (reportTrueTimer) {
+      clearTimeout(reportTrueTimer);
+      reportTrueTimer = null;
+    }
+    if (available === lastReported) return;
+    lastReported = available;
+    postAvailability(available);
+  }
+
+  function resetAvailability() {
+    reportAvailabilityNow(false);
+  }
+
+  function hookNavigation() {
+    var origPush = history.pushState;
+    var origReplace = history.replaceState;
+    history.pushState = function () {
+      resetAvailability();
+      return origPush.apply(this, arguments);
+    };
+    history.replaceState = function () {
+      resetAvailability();
+      return origReplace.apply(this, arguments);
+    };
+    window.addEventListener("popstate", resetAvailability);
+  }
 
   function ensureStyle() {
     var style = document.getElementById(STYLE_ID);
@@ -103,18 +147,16 @@ pub const INIT_SCRIPT: &str = r#"
 
   function reportAvailability() {
     var available = !!findSessionLogControl();
-    if (available === lastReported) return;
-    lastReported = available;
-    try {
-      window.parent.postMessage(
-        {
-          source: "dsh-harness",
-          type: "session-log-available",
-          available: available,
-        },
-        "*"
-      );
-    } catch (e) {}
+    if (!available) {
+      reportAvailabilityNow(false);
+      return;
+    }
+    if (lastReported === true || reportTrueTimer) return;
+    reportTrueTimer = setTimeout(function () {
+      reportTrueTimer = null;
+      if (!findSessionLogControl()) return;
+      reportAvailabilityNow(true);
+    }, REPORT_TRUE_DELAY_MS);
   }
 
   function refresh() {
@@ -151,6 +193,65 @@ pub const INIT_SCRIPT: &str = r#"
     } catch (e) {}
   }
 
+  function looksLikeSessionExportDialog(text) {
+    if (!text || text.length > 400) return false;
+    if (!/session/i.test(text)) return false;
+    return (
+      text.indexOf("导出") >= 0 ||
+      text.indexOf("export") >= 0 ||
+      text.indexOf("ZIP") >= 0 ||
+      text.indexOf("zip") >= 0 ||
+      text.indexOf("下载") >= 0 ||
+      text.indexOf("download") >= 0
+    );
+  }
+
+  function clickDialogDismiss(dialog) {
+    var buttons = dialog.querySelectorAll("button");
+    for (var i = 0; i < buttons.length; i++) {
+      var label = textOf(buttons[i]);
+      if (label === "关闭" || label === "Close") {
+        buttons[i].click();
+        return true;
+      }
+    }
+    var iconClose = dialog.querySelector(
+      "button[aria-label='关闭'], button[aria-label='Close']"
+    );
+    if (iconClose) {
+      iconClose.click();
+      return true;
+    }
+    return false;
+  }
+
+  /** Harness「Session 导出已开始下载」信息弹窗；下载完成后由壳代点「关闭」。 */
+  function dismissSessionExportDialog() {
+    try {
+      var seen = [];
+      function tryDismiss(dlg) {
+        if (!dlg || seen.indexOf(dlg) >= 0) return false;
+        seen.push(dlg);
+        if (!dlg.getBoundingClientRect) return false;
+        var r = dlg.getBoundingClientRect();
+        if (r.width < 50 || r.height < 50) return false;
+        if (!looksLikeSessionExportDialog(textOf(dlg))) return false;
+        return clickDialogDismiss(dlg);
+      }
+      var roots = document.querySelectorAll(
+        "[role='dialog'], [role='alertdialog']"
+      );
+      for (var i = 0; i < roots.length; i++) {
+        if (tryDismiss(roots[i])) return;
+      }
+      // DSH Modal 常为 CSS module class*=_dialog_
+      var modals = document.querySelectorAll("div[class*='dialog']");
+      for (var j = 0; j < modals.length; j++) {
+        if (tryDismiss(modals[j])) return;
+      }
+    } catch (e) {}
+  }
+
   window.addEventListener("message", function (ev) {
     var d = ev && ev.data;
     if (!d || d.source !== "dsh-shell") return;
@@ -158,10 +259,13 @@ pub const INIT_SCRIPT: &str = r#"
       setEnabled(d.enabled === true);
     } else if (d.type === "session-log-click") {
       proxyClick();
+    } else if (d.type === "session-log-dismiss-dialog") {
+      dismissSessionExportDialog();
     }
   });
 
   function boot() {
+    hookNavigation();
     reportAvailability();
     var obs = new MutationObserver(function () {
       if (boot._t) clearTimeout(boot._t);

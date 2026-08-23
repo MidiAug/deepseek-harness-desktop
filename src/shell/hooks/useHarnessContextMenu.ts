@@ -36,6 +36,7 @@ export function useHarnessContextMenu(
   const {
     showToast,
     toastMessage,
+    toastAction,
     toastLeaving,
     toastVisible,
   } = useShellToast();
@@ -189,6 +190,7 @@ export function useHarnessContextMenu(
     close,
     selectAction,
     copyToastMessage: toastMessage,
+    copyToastAction: toastAction,
     copyToastLeaving: toastLeaving,
     copyToastVisible: toastVisible || toastLeaving,
   };

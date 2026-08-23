@@ -17,19 +17,34 @@ import {
   shellLog,
   useChrome,
   useHostLifecycle,
+  useLocale,
   usePlatformWebview,
   useShellProgressBubble,
   useShellSession,
   useSidebarLayout,
   useHarnessContextMenu,
 } from "./shell";
+import type { DownloadFinishedPayload } from "./shell/api/shellApi";
+import { useShellToast } from "./shell/hooks/useShellToast";
+import {
+  clearShellSelections,
+  dismissSessionExportDialog,
+  focusHarnessFrame,
+  requestHarnessSelectAll,
+  setHarnessShellModalOpen,
+} from "./shell/harnessFramePost";
 import "./App.css";
 
 /** 托盘恢复时清掉 :hover 残留（关闭钮曾压在鼠标下） */
 function suppressHoverResidue() {
   document.body.classList.add("suppress-hover");
-  if (document.activeElement instanceof HTMLElement) {
-    document.activeElement.blur();
+  const active = document.activeElement;
+  // 勿 blur harness iframe：窗口重新聚焦时用户常正点选区，blur 会导致灰→蓝→灰闪烁
+  if (
+    active instanceof HTMLElement &&
+    !(active instanceof HTMLIFrameElement)
+  ) {
+    active.blur();
   }
   window.setTimeout(() => {
     document.body.classList.remove("suppress-hover");
@@ -76,6 +91,7 @@ function postSessionLogClick(frame: HTMLIFrameElement | null) {
 }
 
 export default function App() {
+  const { t } = useLocale();
   const session = useShellSession();
   const { syncSessionPhase } = useHostLifecycle();
   const { sidebarWidthPx } = useSidebarLayout(session.iframeKey);
@@ -96,6 +112,16 @@ export default function App() {
   >(undefined);
   const [closeAskOpen, setCloseAskOpen] = useState(false);
   const [sessionLogAvailable, setSessionLogAvailable] = useState(false);
+  const sessionLogDownloadPending = useRef(false);
+  const sessionLogDownloadTimer = useRef<number | null>(null);
+  const {
+    showToast: showDownloadToast,
+    dismissToast: dismissDownloadToast,
+    toastMessage: downloadToastMessage,
+    toastAction: downloadToastAction,
+    toastLeaving: downloadToastLeaving,
+    toastVisible: downloadToastVisible,
+  } = useShellToast();
 
   const openSettings = useCallback((section?: SettingsSection) => {
     setSettingsSection(section);
@@ -181,28 +207,138 @@ export default function App() {
   // 换页 / 重载 iframe 时先隐藏，等 harness 再上报
   useEffect(() => {
     setSessionLogAvailable(false);
+    sessionLogDownloadPending.current = false;
+    if (sessionLogDownloadTimer.current != null) {
+      window.clearTimeout(sessionLogDownloadTimer.current);
+      sessionLogDownloadTimer.current = null;
+    }
   }, [session.iframeKey, bodyView]);
 
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    void listen<DownloadFinishedPayload>("shell-download-finished", (ev) => {
+      shellLog.info(
+        "download",
+        `event finished success=${ev.payload.success} path=${ev.payload.path ?? "?"} url=${ev.payload.url ?? "?"}`,
+      );
+      if (!sessionLogDownloadPending.current) {
+        shellLog.info("download", "ignored (no pending session-log click)");
+        return;
+      }
+      sessionLogDownloadPending.current = false;
+      if (sessionLogDownloadTimer.current != null) {
+        window.clearTimeout(sessionLogDownloadTimer.current);
+        sessionLogDownloadTimer.current = null;
+      }
+      if (!ev.payload.success || !ev.payload.path) {
+        shellLog.warn(
+          "download",
+          `session-log finished but unusable payload success=${ev.payload.success} path=${ev.payload.path ?? ""}`,
+        );
+        return;
+      }
+      const filePath = ev.payload.path;
+      shellLog.info("download", `session-log toast path=${filePath}`);
+      dismissSessionExportDialog(harnessFrameRef.current);
+      showDownloadToast(t("chrome.sessionLog.downloaded"), {
+        action: {
+          label: t("chrome.sessionLog.open"),
+          onClick: () => {
+            dismissDownloadToast();
+            shellLog.info("download", `session-log reveal path=${filePath}`);
+            dismissSessionExportDialog(harnessFrameRef.current);
+            void shellApi.revealDownloadedFile(filePath).catch((e) => {
+              shellLog.error("download", `reveal path=${filePath}`, e);
+            });
+          },
+        },
+      });
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => {
+      unlisten?.();
+    };
+  }, [dismissDownloadToast, showDownloadToast, t]);
+
   const onSessionLog = useCallback(() => {
+    shellLog.info("download", "session-log click (pending download toast)");
+    sessionLogDownloadPending.current = true;
+    if (sessionLogDownloadTimer.current != null) {
+      window.clearTimeout(sessionLogDownloadTimer.current);
+    }
+    sessionLogDownloadTimer.current = window.setTimeout(() => {
+      sessionLogDownloadPending.current = false;
+      sessionLogDownloadTimer.current = null;
+    }, 60_000);
     postSessionLogClick(harnessFrameRef.current);
   }, []);
 
   const shellOverlay = chrome.titlebarCompact && bodyView === "harness";
+  const shellBackdropOpen = settingsOpen || closeAskOpen;
   const showHarness =
     session.showIframe && !!session.serviceUrl;
   const harnessVisible = bodyView === "harness";
+
+  // 弹窗开/关：通知 iframe；关闭时焦点回 harness，避免 Ctrl+A 选中壳层
+  useEffect(() => {
+    const frame = harnessFrameRef.current;
+    setHarnessShellModalOpen(frame, shellBackdropOpen);
+    if (shellBackdropOpen) {
+      clearShellSelections(frame);
+      return;
+    }
+    clearShellSelections(frame);
+    if (harnessVisible && showHarness) {
+      focusHarnessFrame(frame);
+    }
+  }, [shellBackdropOpen, session.iframeKey, harnessVisible, showHarness]);
+
+  // 弹窗关闭后若焦点仍留在壳 DOM，拦截 Ctrl+A 并委托 iframe
+  useEffect(() => {
+    if (!harnessVisible || !showHarness || shellBackdropOpen) return;
+
+    function onShellCtrlA(e: KeyboardEvent) {
+      if ((e.key !== "a" && e.key !== "A") || !(e.ctrlKey || e.metaKey)) {
+        return;
+      }
+      const target = e.target;
+      if (
+        target instanceof HTMLElement &&
+        target.closest(
+          "textarea, input, [contenteditable='true'], [contenteditable='']",
+        )
+      ) {
+        return;
+      }
+      const frame = harnessFrameRef.current;
+      if (!frame || document.activeElement === frame) return;
+
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      window.getSelection()?.removeAllRanges();
+      focusHarnessFrame(frame);
+      requestHarnessSelectAll(frame);
+    }
+
+    document.addEventListener("keydown", onShellCtrlA, true);
+    return () => document.removeEventListener("keydown", onShellCtrlA, true);
+  }, [harnessVisible, showHarness, shellBackdropOpen]);
+
   const platformWebviewActive =
     bodyView === "platform" && !settingsOpen && !closeAskOpen;
 
   const contextMenuEnabled =
     harnessVisible && showHarness && !settingsOpen && !closeAskOpen;
-  const { menu: contextMenu, close: closeContextMenu, selectAction, copyToastMessage, copyToastLeaving, copyToastVisible } =
+  const { menu: contextMenu, close: closeContextMenu, selectAction, copyToastMessage, copyToastAction, copyToastLeaving, copyToastVisible } =
     useHarnessContextMenu(harnessFrameRef, contextMenuEnabled, settingsOpen);
 
   usePlatformWebview(platformWebviewActive, shellBodyEl, resolvedTheme);
 
   return (
-    <div className={`shell${shellOverlay ? " titlebar-overlay" : ""}`}>
+    <div
+      className={`shell${shellOverlay ? " titlebar-overlay" : ""}${shellBackdropOpen ? " shell-backdrop-open" : ""}`}
+    >
       <ShellTitleBar
         port={session.port}
         conn={session.titleConn}
@@ -267,7 +403,7 @@ export default function App() {
             title="DeepSeek Harness"
             src={session.serviceUrl!}
             hidden={!harnessVisible}
-            allow="clipboard-read; clipboard-write"
+            allow="clipboard-read; clipboard-write; downloads"
             onLoad={() => {
               session.markIframeConnected();
               const frame = harnessFrameRef.current;
@@ -276,6 +412,8 @@ export default function App() {
                 frame,
                 chrome.titlebarCompact && chrome.sessionLogInTitlebar,
               );
+              setHarnessShellModalOpen(frame, shellBackdropOpen);
+              if (shellBackdropOpen) clearShellSelections(frame);
             }}
             onError={session.markIframeError}
           />
@@ -293,6 +431,16 @@ export default function App() {
             message={copyToastMessage}
             leaving={copyToastLeaving}
             showSpinner={false}
+            action={copyToastAction ?? undefined}
+          />
+        )}
+
+        {downloadToastVisible && downloadToastMessage && (
+          <ShellProgressBubble
+            message={downloadToastMessage}
+            leaving={downloadToastLeaving}
+            showSpinner={false}
+            action={downloadToastAction ?? undefined}
           />
         )}
       </div>

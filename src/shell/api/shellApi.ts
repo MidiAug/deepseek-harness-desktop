@@ -88,6 +88,16 @@ export function openKnownPath(which: KnownPath): Promise<void> {
   return invoke("open_known_path", { which });
 }
 
+export type DownloadFinishedPayload = {
+  path: string;
+  success: boolean;
+  url?: string | null;
+};
+
+export function revealDownloadedFile(path: string): Promise<void> {
+  return invoke("reveal_downloaded_file", { path });
+}
+
 export function hideToTray(): Promise<void> {
   return invoke("hide_to_tray");
 }

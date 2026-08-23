@@ -1,7 +1,10 @@
 //! Harness iframe 选择洁净：按 DSH 稳定 `data-slot` / `data-chat-flow-kind` 标 chrome，
 //! 不用文案关键词、不用 CSS-module 哈希类。对话正文与工具行保持可复制。
 //! 知识库：`dev/knowledge-base/05-dsh-dom-iframe-chrome.md`
-//! postMessage：`{ source: "dsh-shell", type: "selection-hygiene", enabled: bool }`
+//! postMessage：
+//!   `{ source: "dsh-shell", type: "selection-hygiene", enabled: bool }`
+//!   `{ source: "dsh-shell", type: "shell-modal-open", open: bool }`
+//!   `{ source: "dsh-shell", type: "clear-selection" }`
 
 pub const INIT_SCRIPT: &str = r#"
 (function () {
@@ -14,9 +17,12 @@ pub const INIT_SCRIPT: &str = r#"
   }
 
   var STYLE_ID = "dsh-shell-selection-hygiene";
+  var PIN_STYLE_ID = "dsh-shell-pin-no-select";
   var enabled = false;
+  var shellModalOpen = false;
+  window.__dshShellModalOpen = false;
+  window.__dshSelectionHygiene = false;
 
-  // 稳定 DSH slot / flow 选择器（见 dev/knowledge-base/05-dsh-dom-iframe-chrome.md）
   var CHROME_SELECTORS = [
     '[data-slot="sidebar"], [data-slot="sidebar"] *',
     '[data-slot="conversation.session.header"], [data-slot="conversation.session.header"] *',
@@ -41,6 +47,30 @@ pub const INIT_SCRIPT: &str = r#"
     '[data-dsh-shell-no-select], [data-dsh-shell-no-select] *'
   ].join(",\n");
 
+  function clearCodeHeaderMarks() {
+    var nodes = document.querySelectorAll("[data-dsh-shell-code-header]");
+    for (var i = 0; i < nodes.length; i++) {
+      nodes[i].removeAttribute("data-dsh-shell-code-header");
+    }
+    var pin = document.getElementById(PIN_STYLE_ID);
+    if (pin) pin.remove();
+  }
+
+  function ensurePinStyle() {
+    if (!enabled) return;
+    if (document.getElementById(PIN_STYLE_ID)) return;
+    var style = document.createElement("style");
+    style.id = PIN_STYLE_ID;
+    style.textContent = [
+      "[data-dsh-shell-code-header], [data-dsh-shell-code-header] *",
+      "{",
+      "  -webkit-user-select: none !important;",
+      "  user-select: none !important;",
+      "}"
+    ].join("\n");
+    (document.head || document.documentElement).appendChild(style);
+  }
+
   function ensureStyle() {
     var style = document.getElementById(STYLE_ID);
     if (!enabled) {
@@ -60,7 +90,7 @@ pub const INIT_SCRIPT: &str = r#"
     (document.head || document.documentElement).appendChild(style);
   }
 
-  function clearMarks() {
+  function clearHygieneMarks() {
     var nodes = document.querySelectorAll("[data-dsh-shell-no-select]");
     for (var i = 0; i < nodes.length; i++) {
       nodes[i].removeAttribute("data-dsh-shell-no-select");
@@ -74,7 +104,13 @@ pub const INIT_SCRIPT: &str = r#"
     );
   }
 
-  // 用户消息行：气泡可拖选，时间/复制等兄弟节点不可（无独立 data-slot）
+  function clearSelection() {
+    try {
+      var sel = window.getSelection();
+      if (sel) sel.removeAllRanges();
+    } catch (e) {}
+  }
+
   function isMessageBubbleContainer(el) {
     if (!el || isEditableContext(el)) return false;
     if (el.querySelector('[data-slot="conversation.message.images"]')) return true;
@@ -99,13 +135,14 @@ pub const INIT_SCRIPT: &str = r#"
     }
   }
 
-  function markCodeBlockChrome() {
+  function markCodeBlockHeaders() {
+    if (!enabled) return;
     var blocks = document.querySelectorAll("[class*='md-code-block']");
     for (var i = 0; i < blocks.length; i++) {
       var block = blocks[i];
       var header = block.firstElementChild;
       if (header && header.querySelector("button")) {
-        header.setAttribute("data-dsh-shell-no-select", "1");
+        header.setAttribute("data-dsh-shell-code-header", "1");
       }
     }
   }
@@ -113,22 +150,29 @@ pub const INIT_SCRIPT: &str = r#"
   function refresh() {
     try {
       if (!enabled) {
-        clearMarks();
+        clearHygieneMarks();
+        clearCodeHeaderMarks();
         ensureStyle();
         return;
       }
-      clearMarks();
+      ensurePinStyle();
+      markCodeBlockHeaders();
+      clearHygieneMarks();
       ensureStyle();
-      if (document.body) {
-        markUserRowChrome();
-        markCodeBlockChrome();
-      }
+      if (document.body) markUserRowChrome();
     } catch (e) {}
   }
 
   function setEnabled(next) {
     enabled = !!next;
+    window.__dshSelectionHygiene = enabled;
     refresh();
+  }
+
+  function setShellModalOpen(next) {
+    shellModalOpen = !!next;
+    window.__dshShellModalOpen = shellModalOpen;
+    if (shellModalOpen) clearSelection();
   }
 
   window.addEventListener("message", function (ev) {
@@ -136,29 +180,20 @@ pub const INIT_SCRIPT: &str = r#"
     if (!d || d.source !== "dsh-shell") return;
     if (d.type === "selection-hygiene") {
       setEnabled(d.enabled === true);
+    } else if (d.type === "shell-modal-open") {
+      setShellModalOpen(d.open === true);
+    } else if (d.type === "clear-selection") {
+      clearSelection();
     }
   });
 
   function boot() {
     refresh();
-    var obs = new MutationObserver(function (mutations) {
-      if (!enabled) return;
-      var needUserChrome = false;
-      for (var i = 0; i < mutations.length; i++) {
-        var m = mutations[i];
-        if (m.type === "childList" && m.addedNodes.length > 0) {
-          needUserChrome = true;
-          break;
-        }
-      }
-      if (needUserChrome) markUserRowChrome();
+    var obs = new MutationObserver(function () {
       if (boot._t) clearTimeout(boot._t);
       boot._t = setTimeout(refresh, 200);
     });
-    obs.observe(document.documentElement, {
-      childList: true,
-      subtree: true
-    });
+    obs.observe(document.documentElement, { childList: true, subtree: true });
   }
 
   if (document.readyState === "loading") {

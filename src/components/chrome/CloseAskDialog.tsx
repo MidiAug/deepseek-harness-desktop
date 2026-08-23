@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   normalizeShellSettings,
   type ShellSettings,
 } from "../../shell/settings";
 import { shellApi, shellLog } from "../../shell";
 import { useLocale } from "../../shell/locale";
+import { blockModalSelectAll } from "../../shell/modalKeydown";
 
 type Props = {
   open: boolean;
@@ -15,6 +16,19 @@ export function CloseAskDialog({ open, onClose }: Props) {
   const { t } = useLocale();
   const [remember, setRemember] = useState(true);
   const [busy, setBusy] = useState(false);
+  const modalRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+      blockModalSelectAll(e);
+    }
+    document.addEventListener("keydown", onKey, true);
+    window.getSelection()?.removeAllRanges();
+    modalRef.current?.focus({ preventScroll: true });
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -43,6 +57,8 @@ export function CloseAskDialog({ open, onClose }: Props) {
   return (
     <div className="modal-backdrop" role="presentation">
       <div
+        ref={modalRef}
+        tabIndex={-1}
         className="modal close-ask"
         role="dialog"
         aria-labelledby="close-ask-title"

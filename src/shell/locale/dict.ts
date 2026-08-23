@@ -177,6 +177,8 @@ export type LocaleKey =
   | "boot.msg.harnessUpdated"
   | "chrome.windowControls.aria"
   | "chrome.sessionLog"
+  | "chrome.sessionLog.downloaded"
+  | "chrome.sessionLog.open"
   | "chrome.minimize"
   | "chrome.maximize"
   | "chrome.restore"
@@ -243,7 +245,7 @@ export const zh: LocaleDict = {
   "settings.sessionLog.aria": "隐藏官方 Session log",
   "settings.hygiene.title": "减少误选界面文字",
   "settings.hygiene.description":
-    "拖选或全选对话时，尽量不带上侧栏、时间戳、按钮提示和输入区控件；聊天正文与代码块仍可正常复制。",
+    "开启后：拖选/全选（含 Ctrl+A）尽量不带上侧栏、时间戳、按钮和输入区控件；代码块顶栏亦排除。关闭后嵌入页走浏览器原生选区，无壳约束。",
   "settings.hygiene.aria": "减少误选界面文字",
   "settings.mirror.title": "镜像",
   "settings.mirror.description": "影响 Node 下载与 npm registry；下次安装或更新时生效",
@@ -410,6 +412,8 @@ export const zh: LocaleDict = {
   "boot.msg.harnessUpdated": "更新完成",
   "chrome.windowControls.aria": "窗口控制",
   "chrome.sessionLog": "下载 Session log",
+  "chrome.sessionLog.downloaded": "Session log 下载完成",
+  "chrome.sessionLog.open": "打开",
   "chrome.minimize": "最小化",
   "chrome.maximize": "最大化",
   "chrome.restore": "还原",
@@ -475,7 +479,7 @@ export const en: LocaleDict = {
   "settings.sessionLog.aria": "Hide official Session log",
   "settings.hygiene.title": "Reduce accidental UI text selection",
   "settings.hygiene.description":
-    "When selecting or selecting all in chat, avoid sidebar, timestamps, tooltips, and input chrome; message body and code blocks still copy normally.",
+    "On: drag-select and Select All (incl. Ctrl+A) skip sidebar, timestamps, buttons, and input chrome; code block headers excluded. Off: embedded page uses native selection with no shell constraints.",
   "settings.hygiene.aria": "Reduce accidental UI text selection",
   "settings.mirror.title": "Mirror",
   "settings.mirror.description":
@@ -649,6 +653,8 @@ export const en: LocaleDict = {
   "boot.msg.harnessUpdated": "Update complete",
   "chrome.windowControls.aria": "Window controls",
   "chrome.sessionLog": "Download Session log",
+  "chrome.sessionLog.downloaded": "Session log download complete",
+  "chrome.sessionLog.open": "Open",
   "chrome.minimize": "Minimize",
   "chrome.maximize": "Maximize",
   "chrome.restore": "Restore",

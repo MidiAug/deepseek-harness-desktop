@@ -25,13 +25,16 @@ mod supervise;
 mod tray;
 mod update;
 mod cli_link;
+mod shell_download;
 
 use error::HostError;
 use progress::ReadyPayload;
 use settings::{RuntimeSettings, ShellSettings, UiSettings};
 use supervise::HarnessState;
 use update::HarnessUpdateCheck;
-use tauri::{Emitter, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+use tauri::{
+    Emitter, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder, WindowEvent,
+};
 #[cfg(desktop)]
 use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
 #[tauri::command]
@@ -71,6 +74,12 @@ fn stop_harness(
     supervise::stop_and_clear_pid(&app, &state);
     progress::append_shell_log(&app, "[ops] stop_harness");
     Ok(())
+}
+
+/// 在资源管理器中选中已下载文件（须为存在的普通文件；`tauri-plugin-opener`）。
+#[tauri::command]
+fn reveal_downloaded_file(app: tauri::AppHandle, path: String) -> Result<(), String> {
+    shell_download::reveal_via_ipc(&app, &path)
 }
 
 /// 仅允许打开壳已知目录，禁止任意路径。
@@ -390,12 +399,14 @@ pub fn run() {
         .plugin(log_builder.build())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_opener::init())
         .manage(HarnessState::default())
         .invoke_handler(tauri::generate_handler![
             ensure_and_start,
             restart_harness,
             stop_harness,
             open_known_path,
+            reveal_downloaded_file,
             open_loopback_url,
             open_platform_window,
             show_platform_webview,
@@ -444,7 +455,9 @@ pub fn run() {
             if let Some(icon) = app.default_window_icon() {
                 win = win.icon(icon.clone())?;
             }
-            let window = win.build()?;
+            let window = win
+                .on_download(shell_download::handle_download_event)
+                .build()?;
             #[cfg(desktop)]
             {
                 let flags = StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED;
