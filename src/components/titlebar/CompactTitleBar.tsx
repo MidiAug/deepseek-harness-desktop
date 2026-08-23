@@ -12,6 +12,7 @@ import {
 import { flushSync } from "react-dom";
 import { ShellTooltip } from "../chrome/ShellTooltip";
 import { IconDownloadOutline16 } from "../chrome/DshIcons";
+import { useLocale } from "../../shell/locale";
 import { WindowControls } from "./WindowControls";
 import type { WinAction } from "./titlebarTypes";
 
@@ -33,6 +34,7 @@ export function CompactTitleBar({
   onOpenSettings,
   onWin,
 }: Props) {
+  const { t } = useLocale();
   const [dragPin, setDragPin] = useState<"shown" | "hidden" | null>(null);
   const barRef = useRef<HTMLElement>(null);
   const dragPinRef = useRef(dragPin);
@@ -140,14 +142,14 @@ export function CompactTitleBar({
         <div
           className="titlebar-right titlebar-right-reveal"
           role="toolbar"
-          aria-label="窗口控制"
+          aria-label={t("chrome.windowControls.aria")}
         >
           {showSessionLog && (
-            <ShellTooltip label="下载 Session log">
+            <ShellTooltip label={t("chrome.sessionLog")}>
               <button
                 type="button"
                 className="icon-btn"
-                aria-label="下载 Session log"
+                aria-label={t("chrome.sessionLog")}
                 onClick={onSessionLog}
               >
                 <IconDownloadOutline16 size={12} />

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * 发行前静态门禁（B13）：updater 配置、capabilities、壳更新杀树路径。
+ * 发行前静态门禁（B13 + B19）：updater 配置、capabilities、壳更新杀树路径、
+ * NODE_VERSION 与文档一致（B19 Node 门禁）。
  * 用法：pnpm check:release
  */
 import { readFileSync, existsSync } from "node:fs";
@@ -53,7 +54,7 @@ if (capsText) {
   }
 }
 
-const provider = read("src/shell/ShellUpdateProvider.tsx");
+const provider = read("src/shell/contexts/ShellUpdateProvider.tsx");
 if (provider) {
   if (!provider.includes("prepareShellUpdate")) {
     errors.push("ShellUpdateProvider 未调用 prepareShellUpdate（壳更新前须杀树）");
@@ -70,6 +71,24 @@ if (libRs) {
   }
   if (!libRs.includes("tauri_plugin_single_instance")) {
     errors.push("lib.rs 未注册 tauri_plugin_single_instance");
+  }
+}
+
+const pathsRs = read("src-tauri/src/paths.rs");
+const releasesMd = read("docs/releases.md");
+if (pathsRs && releasesMd) {
+  const nodeMatch = pathsRs.match(
+    /pub const NODE_VERSION:\s*&str\s*=\s*"([^"]+)"/,
+  );
+  const docMatch = releasesMd.match(/NODE_VERSION:\s*(v[\d.]+)/);
+  if (!nodeMatch) {
+    errors.push("paths.rs 缺少 pub const NODE_VERSION");
+  } else if (!docMatch) {
+    errors.push("docs/releases.md 缺少 NODE_VERSION: 行（check:release 断言）");
+  } else if (nodeMatch[1] !== docMatch[1]) {
+    errors.push(
+      `NODE_VERSION 不一致: paths.rs=${nodeMatch[1]} docs/releases.md=${docMatch[1]}`,
+    );
   }
 }
 

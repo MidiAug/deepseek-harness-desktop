@@ -29,6 +29,8 @@ import { SettingsSectionRuntime } from "./SettingsSectionRuntime";
 import { SettingsSectionData } from "./SettingsSectionData";
 import { SettingsSectionAbout } from "./SettingsSectionAbout";
 import { settingsNavIcon } from "./settingsNavIcon";
+import { FaultRecoveryBlock } from "../chrome/FaultRecoveryBlock";
+import type { FaultCta } from "../../shell/errors/recoveryMatrix";
 
 export type { SettingsSection } from "./settingsTypes";
 
@@ -136,6 +138,29 @@ export function SettingsModal({
     };
   }, []);
 
+  const handleFaultCta = useCallback(
+    (cta: FaultCta) => {
+      switch (cta) {
+        case "retry":
+          setError(null);
+          refreshRuntime();
+          break;
+        case "network":
+          setSection("network");
+          setError(null);
+          break;
+        case "logs":
+          void shellApi.openKnownPath("logs");
+          break;
+        case "reset":
+          setSection("data");
+          setError(null);
+          break;
+      }
+    },
+    [refreshRuntime],
+  );
+
   if (!open) return null;
 
   function flashHint(msg: string) {
@@ -226,7 +251,7 @@ export function SettingsModal({
       onHarnessReady?.(payload);
       flashHint(t("settings.about.updated"));
       life.seedBoot({
-        message: "更新完成",
+        message: t("boot.msg.harnessUpdated"),
         stageId: "start",
         percent: 100,
       });
@@ -397,7 +422,9 @@ export function SettingsModal({
             {hint && (
               <p className="settings-live-hint settings-feedback">{hint}</p>
             )}
-            {error && <pre className="error">{error}</pre>}
+            {error && (
+              <FaultRecoveryBlock error={error} onCta={handleFaultCta} />
+            )}
           </div>
         </div>
       </div>

@@ -20,6 +20,7 @@
     "core:window:allow-unminimize",
     "core:app:allow-default-window-icon",
     "updater:default",
-    "process:default"
+    "process:default",
+    "window-state:default"
   ]
 }

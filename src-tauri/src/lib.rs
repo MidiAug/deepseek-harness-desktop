@@ -2,6 +2,7 @@
 
 mod error;
 mod install;
+mod net;
 mod paths;
 mod platform;
 mod platform_window;
@@ -27,6 +28,8 @@ use settings::{RuntimeSettings, ShellSettings, UiSettings};
 use supervise::HarnessState;
 use update::HarnessUpdateCheck;
 use tauri::{Emitter, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+#[cfg(desktop)]
+use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
 #[tauri::command]
 async fn ensure_and_start(
     app: tauri::AppHandle,
@@ -140,31 +143,12 @@ fn get_runtime_status(
     app: tauri::AppHandle,
     state: tauri::State<'_, HarnessState>,
 ) -> Result<serde_json::Value, String> {
-    let node = paths::node_binary(&app)?;
-    let entry = runtime::resolve_dsh_entry(&app)?;
-    let cfg = settings::load(&app);
     let port = state
         .port
         .lock()
         .map(|g| *g)
         .unwrap_or_else(|_| paths::default_port());
-    let meta = runtime::read_harness_meta(&app);
-    let harness_ready = paths::is_file(&entry);
-    Ok(serde_json::json!({
-        "nodeReady": paths::is_file(&node),
-        "harnessReady": harness_ready,
-        "harnessPartial": !harness_ready && runtime::is_harness_partial(&app),
-        "port": port,
-        "dshHome": paths::dsh_home(&app, Some(cfg.dsh_home_override.as_str())).to_string_lossy(),
-        "appData": paths::base_dir(&app)?.to_string_lossy(),
-        "mirror": cfg.mirror,
-        "proxyMode": cfg.proxy_mode,
-        "dshHomeOverride": cfg.dsh_home_override,
-        "closeToTray": cfg.close_to_tray,
-        "harnessVersion": meta.version,
-        "harnessDigest": meta.digest,
-        "shellVersion": env!("CARGO_PKG_VERSION"),
-    }))
+    runtime::build_runtime_status_json(&app, port)
 }
 
 #[tauri::command]
@@ -184,7 +168,15 @@ fn get_dsh_locale_preference(app: tauri::AppHandle) -> String {
 
 #[tauri::command]
 fn set_dsh_locale_preference(app: tauri::AppHandle, preference: String) -> Result<(), String> {
-    dsh_locale::set_preference_for_app(&app, &preference)
+    dsh_locale::set_preference_for_app(&app, &preference)?;
+    tray::sync_locale_pref(&app, &preference);
+    Ok(())
+}
+
+#[tauri::command]
+fn sync_tray_locale(app: tauri::AppHandle, preference: String) -> Result<(), String> {
+    tray::sync_locale_pref(&app, &preference);
+    Ok(())
 }
 
 #[tauri::command]
@@ -256,6 +248,11 @@ fn read_shell_log(app: tauri::AppHandle) -> Result<String, String> {
 
 #[tauri::command]
 fn quit_app(app: tauri::AppHandle) {
+    #[cfg(desktop)]
+    {
+        let flags = StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED;
+        let _ = app.save_window_state(flags);
+    }
     tray::quit_app(&app);
 }
 
@@ -303,6 +300,7 @@ pub fn run() {
                 let _ = win.set_focus();
             }
         }));
+        builder = builder.plugin(tauri_plugin_window_state::Builder::default().build());
     }
     let app = builder
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -323,6 +321,7 @@ pub fn run() {
             set_dsh_theme_preference,
             get_dsh_locale_preference,
             set_dsh_locale_preference,
+            sync_tray_locale,
             save_shell_settings,
             save_runtime_settings,
             save_ui_settings,
@@ -364,7 +363,12 @@ pub fn run() {
             if let Some(icon) = app.default_window_icon() {
                 win = win.icon(icon.clone())?;
             }
-            win.build()?;
+            let window = win.build()?;
+            #[cfg(desktop)]
+            {
+                let flags = StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED;
+                let _ = window.restore_state(flags);
+            }
 
             supervise::sweep_orphans(app.handle());
             if let Err(e) = tray::setup_tray(app.handle()) {
@@ -398,6 +402,11 @@ pub fn run() {
 
     app.run(|app_handle, event| {
         if let RunEvent::Exit = event {
+            #[cfg(desktop)]
+            {
+                let flags = StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED;
+                let _ = app_handle.save_window_state(flags);
+            }
             if let Some(state) = app_handle.try_state::<HarnessState>() {
                 supervise::stop_and_clear_pid(app_handle, &state);
             }

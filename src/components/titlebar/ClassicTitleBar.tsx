@@ -4,6 +4,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { shellApi, type TitleConn } from "../../shell";
+import { useLocale } from "../../shell/locale";
 import { WindowControls } from "./WindowControls";
 import type { WinAction } from "./titlebarTypes";
 
@@ -40,6 +41,7 @@ export function ClassicTitleBar({
   onOpenPlatform,
   onWin,
 }: Props) {
+  const { t } = useLocale();
   const [menu, setMenu] = useState<MenuId>(null);
   const barRef = useRef<HTMLElement>(null);
 
@@ -64,8 +66,8 @@ export function ClassicTitleBar({
     conn === "connected" && port != null
       ? `:${port}`
       : conn === "error"
-        ? "启动失败"
-        : "准备中";
+        ? t("chrome.conn.failed")
+        : t("chrome.conn.preparing");
 
   const statusClass =
     conn === "connected"
@@ -91,7 +93,7 @@ export function ClassicTitleBar({
         <button
           type="button"
           className="menu-dismiss"
-          aria-label="关闭菜单"
+          aria-label={t("chrome.menu.closeAria")}
           tabIndex={-1}
           onMouseDown={(e) => {
             e.preventDefault();
@@ -107,7 +109,7 @@ export function ClassicTitleBar({
             onClick={() => toggle("app")}
             onMouseEnter={() => onMenuEnter("app")}
           >
-            应用
+            {t("chrome.menu.app")}
           </button>
           {menu === "app" && (
             <ul className="menu-pop" role="menu">
@@ -119,7 +121,7 @@ export function ClassicTitleBar({
                     onRestart();
                   }}
                 >
-                  重启官方 UI
+                  {t("chrome.menu.restartUi")}
                 </button>
               </li>
               <li>
@@ -130,7 +132,7 @@ export function ClassicTitleBar({
                     onStop();
                   }}
                 >
-                  停止 harness
+                  {t("settings.port.stop")}
                 </button>
               </li>
               <li>
@@ -141,7 +143,7 @@ export function ClassicTitleBar({
                     onOpenDshHome();
                   }}
                 >
-                  打开 DSH_HOME
+                  {t("chrome.menu.openDshHome")}
                 </button>
               </li>
               <li>
@@ -152,7 +154,7 @@ export function ClassicTitleBar({
                     onOpenLogs();
                   }}
                 >
-                  打开日志目录
+                  {t("chrome.menu.openLogs")}
                 </button>
               </li>
               <li>
@@ -163,7 +165,7 @@ export function ClassicTitleBar({
                     onHideToTray();
                   }}
                 >
-                  隐藏到托盘
+                  {t("chrome.menu.hideTray")}
                 </button>
               </li>
               <li>
@@ -174,7 +176,7 @@ export function ClassicTitleBar({
                     void shellApi.quitApp();
                   }}
                 >
-                  退出
+                  {t("chrome.menu.quit")}
                 </button>
               </li>
             </ul>
@@ -187,7 +189,7 @@ export function ClassicTitleBar({
             onClick={() => toggle("help")}
             onMouseEnter={() => onMenuEnter("help")}
           >
-            帮助
+            {t("chrome.menu.help")}
           </button>
           {menu === "help" && (
             <ul className="menu-pop" role="menu">
@@ -199,7 +201,7 @@ export function ClassicTitleBar({
                     onAbout();
                   }}
                 >
-                  关于
+                  {t("chrome.menu.about")}
                 </button>
               </li>
               <li>
@@ -210,7 +212,7 @@ export function ClassicTitleBar({
                     onOpenPlatform();
                   }}
                 >
-                  DeepSeek API 平台
+                  {t("chrome.menu.platformApi")}
                 </button>
               </li>
               <li>
@@ -221,7 +223,7 @@ export function ClassicTitleBar({
                     onOpenLogs();
                   }}
                 >
-                  打开日志目录
+                  {t("chrome.menu.openLogs")}
                 </button>
               </li>
               <li>
@@ -232,7 +234,7 @@ export function ClassicTitleBar({
                     onCopyVersion();
                   }}
                 >
-                  复制版本信息
+                  {t("chrome.menu.copyVersion")}
                 </button>
               </li>
             </ul>
@@ -246,7 +248,7 @@ export function ClassicTitleBar({
         onDoubleClick={() => void onWin("maximize")}
       >
         <span className="titlebar-product" data-tauri-drag-region>
-          DeepSeek Harness
+          {t("chrome.productName")}
         </span>
         <span className="titlebar-trail" data-tauri-drag-region>
           <span className="titlebar-dot" aria-hidden data-tauri-drag-region>

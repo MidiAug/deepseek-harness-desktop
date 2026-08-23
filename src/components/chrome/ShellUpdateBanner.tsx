@@ -1,27 +1,29 @@
 /** 壳更新就绪横幅：后台下完后提示用户确认安装重启。 */
 
 import { useShellUpdate } from "../../shell";
+import { useLocale } from "../../shell/locale";
 
 export function ShellUpdateBanner() {
   const upd = useShellUpdate();
+  const { t } = useLocale();
 
   if (upd.phase !== "downloaded" && upd.phase !== "downloading") {
     return null;
   }
+
+  const versionLabel = upd.version ?? t("chrome.updateBanner.newVersion");
 
   return (
     <div className="shell-update-banner" role="status" aria-live="polite">
       <div className="shell-update-banner-text">
         {upd.phase === "downloading" ? (
           <>
-            正在下载壳更新
+            {t("settings.about.shellUpdate.downloading")}
             {upd.version ? ` ${upd.version}` : ""}
             {upd.percent != null ? ` · ${upd.percent}%` : "…"}
           </>
         ) : (
-          <>
-            壳 {upd.version ?? "新版本"} 已下载完成，重启后安装
-          </>
+          t("chrome.updateBanner.downloaded", { version: versionLabel })
         )}
       </div>
       {upd.phase === "downloaded" && (
@@ -30,7 +32,7 @@ export function ShellUpdateBanner() {
           className="btn"
           onClick={() => void upd.installAndRelaunch()}
         >
-          立即重启安装
+          {t("settings.about.shellUpdate.install")}
         </button>
       )}
     </div>

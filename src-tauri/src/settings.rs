@@ -450,6 +450,9 @@ fn ensure_http_scheme(host_port: &str) -> String {
     }
 }
 
+/// loopback 探活与子进程 dsh 须绕过系统代理（hairyf #74 / B19）。
+pub const LOOPBACK_NO_PROXY: &str = "127.0.0.1,localhost";
+
 /// 给 Command 注入代理相关环境变量（大小写都写，兼容 Node/npm）。
 #[allow(dead_code)]
 pub fn apply_proxy_env(cmd: &mut Command, settings: &ShellSettings) {
@@ -465,8 +468,8 @@ pub fn apply_proxy_env(cmd: &mut Command, settings: &ShellSettings) {
             ] {
                 cmd.env(key, &url);
             }
-            cmd.env_remove("NO_PROXY");
-            cmd.env_remove("no_proxy");
+            cmd.env("NO_PROXY", LOOPBACK_NO_PROXY);
+            cmd.env("no_proxy", LOOPBACK_NO_PROXY);
         }
         None => {
             for key in [
@@ -498,8 +501,8 @@ pub fn proxy_env_overrides(settings: &ShellSettings) -> std::collections::HashMa
             ] {
                 map.insert(key.to_string(), url.clone());
             }
-            map.insert("NO_PROXY".into(), String::new());
-            map.insert("no_proxy".into(), String::new());
+            map.insert("NO_PROXY".into(), LOOPBACK_NO_PROXY.into());
+            map.insert("no_proxy".into(), LOOPBACK_NO_PROXY.into());
         }
         None => {
             for key in [
@@ -648,5 +651,69 @@ mod tests {
         assert_eq!(t, ShellTheme::System);
         let t2: ShellTheme = serde_json::from_str(r#""system""#).unwrap();
         assert_eq!(t2, ShellTheme::System);
+    }
+
+    #[test]
+    fn proxy_env_overrides_with_proxy_sets_loopback_no_proxy() {
+        let s = ShellSettings {
+            proxy_mode: ProxyMode::Custom,
+            proxy_url: "http://127.0.0.1:7890".into(),
+            ..Default::default()
+        };
+        let map = proxy_env_overrides(&s);
+        assert_eq!(map.get("NO_PROXY").map(String::as_str), Some(LOOPBACK_NO_PROXY));
+        assert_eq!(map.get("no_proxy").map(String::as_str), Some(LOOPBACK_NO_PROXY));
+        assert_eq!(
+            map.get("HTTP_PROXY").map(String::as_str),
+            Some("http://127.0.0.1:7890")
+        );
+    }
+
+    #[test]
+    fn proxy_env_overrides_without_proxy_clears_keys() {
+        let s = ShellSettings {
+            proxy_mode: ProxyMode::Off,
+            ..Default::default()
+        };
+        let map = proxy_env_overrides(&s);
+        assert_eq!(map.get("HTTP_PROXY").map(String::as_str), Some(""));
+        assert!(!map.contains_key("NO_PROXY"));
+        assert!(!map.contains_key("no_proxy"));
+    }
+
+    #[test]
+    fn apply_proxy_env_with_proxy_sets_loopback_no_proxy() {
+        let mut cmd = Command::new("echo");
+        let s = ShellSettings {
+            proxy_mode: ProxyMode::Custom,
+            proxy_url: "http://127.0.0.1:7890".into(),
+            ..Default::default()
+        };
+        apply_proxy_env(&mut cmd, &s);
+        let no_proxy = cmd
+            .get_envs()
+            .find(|(k, _)| *k == "NO_PROXY")
+            .and_then(|(_, v)| v.map(|v| v.to_string_lossy().to_string()));
+        assert_eq!(no_proxy.as_deref(), Some(LOOPBACK_NO_PROXY));
+        let http_proxy = cmd
+            .get_envs()
+            .find(|(k, _)| *k == "HTTP_PROXY")
+            .and_then(|(_, v)| v.map(|v| v.to_string_lossy().to_string()));
+        assert_eq!(http_proxy.as_deref(), Some("http://127.0.0.1:7890"));
+    }
+
+    #[test]
+    fn apply_proxy_env_without_proxy_removes_keys() {
+        let mut cmd = Command::new("echo");
+        cmd.env("HTTP_PROXY", "http://old");
+        let s = ShellSettings {
+            proxy_mode: ProxyMode::Off,
+            ..Default::default()
+        };
+        apply_proxy_env(&mut cmd, &s);
+        let removed = cmd
+            .get_envs()
+            .find(|(k, v)| *k == "HTTP_PROXY" && v.is_none());
+        assert!(removed.is_some());
     }
 }

@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Runtime};
 
+use crate::error::HostError;
 use crate::paths;
 
 /// 本地 harness 元数据（可读摘要，非强签名）。
@@ -64,22 +65,20 @@ fn dsh_package_json<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
 pub fn assert_harness_closure<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
     let entry = resolve_dsh_entry(app)?;
     if !paths::is_file(&entry) {
-        return Err(format!(
-            "INSTALL_FAILED: 安装后未找到入口 {}",
-            entry.display()
+        return Err(String::from(
+            HostError::install(format!("安装后未找到入口 {}", entry.display())),
         ));
     }
     let pkg = dsh_package_json(app)?;
     if !pkg.is_file() {
-        return Err(format!(
-            "INSTALL_FAILED: 缺少 dsh package.json（{}）",
-            pkg.display()
+        return Err(String::from(
+            HostError::install(format!("缺少 dsh package.json（{}）", pkg.display())),
         ));
     }
     let text = fs::read_to_string(&pkg)
-        .map_err(|e| format!("INSTALL_FAILED: 读 dsh package.json: {e}"))?;
+        .map_err(|e| String::from(HostError::install(format!("读 dsh package.json: {e}"))))?;
     let json: serde_json::Value = serde_json::from_str(&text)
-        .map_err(|e| format!("INSTALL_FAILED: 解析 dsh package.json: {e}"))?;
+        .map_err(|e| String::from(HostError::install(format!("解析 dsh package.json: {e}"))))?;
 
     let mut missing: Vec<String> = Vec::new();
     // 仅硬依赖：optionalDependencies 允许缺席
@@ -109,9 +108,11 @@ pub fn assert_harness_closure<R: Runtime>(app: &AppHandle<R>) -> Result<(), Stri
     }
     if !missing.is_empty() {
         missing.sort();
-        return Err(format!(
-            "INSTALL_FAILED: harness 闭包不完整，缺少依赖：{}。请重试安装或「重置托管运行时」。",
-            missing.join(", ")
+        return Err(String::from(
+            HostError::install(format!(
+                "harness 闭包不完整，缺少依赖：{}。请重试安装或「重置托管运行时」。",
+                missing.join(", ")
+            )),
         ));
     }
     Ok(())

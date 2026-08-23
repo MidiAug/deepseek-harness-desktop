@@ -4,9 +4,12 @@ import {
   shellApi,
   stageIndex,
   useHostLifecycle,
+  useLocale,
   type ReadyPayload,
   type StartCommand,
 } from "../../shell";
+import { type FaultCta } from "../../shell/errors/recoveryMatrix";
+import { FaultRecoveryBlock } from "../chrome/FaultRecoveryBlock";
 
 type Props = {
   startCommand: StartCommand;
@@ -31,6 +34,7 @@ export function BootPanel({
   onStatusMessage,
 }: Props) {
   const life = useHostLifecycle();
+  const { t } = useLocale();
   const [failed, setFailed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fastPath, setFastPath] = useState(false);
@@ -49,14 +53,59 @@ export function BootPanel({
   onBootWorkingRef.current = onBootWorking;
   seedBootRef.current = life.seedBoot;
 
-  const setStatus = useCallback((msg: string, stageId?: Parameters<typeof life.seedBoot>[0]["stageId"], percent?: number | null) => {
+  const setStatus = useCallback(
+    (
+      msg: string,
+      stageId?: Parameters<typeof life.seedBoot>[0]["stageId"],
+      percent?: number | null,
+    ) => {
+      seedBootRef.current({
+        message: msg,
+        stageId,
+        percent,
+      });
+      onStatusMessageRef.current?.(msg);
+    },
+    [],
+  );
+
+  const runReset = useCallback(() => {
+    if (!window.confirm(t("boot.reset.confirm"))) {
+      return;
+    }
+    startedRef.current = true;
+    onBootWorkingRef.current?.(true);
+    setFailed(false);
+    setError(null);
     seedBootRef.current({
-      message: msg,
-      stageId,
-      percent,
+      message: t("boot.msg.resetting"),
+      stageId: "detect",
+      percent: 5,
+      clearLog: true,
     });
-    onStatusMessageRef.current?.(msg);
-  }, []);
+    void (async () => {
+      try {
+        const ready = await shellApi.resetHostedRuntime();
+        const msg = `${t("boot.msg.ready")} · :${ready.port}`;
+        seedBootRef.current({
+          message: msg,
+          stageId: "start",
+          percent: 100,
+        });
+        setDone(true);
+        onReady(ready);
+      } catch (e) {
+        setFailed(true);
+        setError(typeof e === "string" ? e : String(e));
+        seedBootRef.current({
+          message: t("boot.msg.resetFailed"),
+          stageId: "start",
+        });
+        startedRef.current = false;
+        onError();
+      }
+    })();
+  }, [onReady, onError, t]);
 
   const start = useCallback(
     async (cmd: StartCommand) => {
@@ -64,9 +113,7 @@ export function BootPanel({
       setError(null);
       setDone(false);
       const msg =
-        cmd === "restart_harness"
-          ? "正在重启官方 UI…"
-          : "正在确保 Node / harness 并启动…";
+        cmd === "restart_harness" ? t("boot.msg.restart") : t("boot.msg.ensure");
       seedBootRef.current({
         message: msg,
         stageId: "detect",
@@ -76,24 +123,47 @@ export function BootPanel({
       onStatusMessageRef.current?.(msg);
       try {
         const ready = await shellApi.startHarness(cmd);
+        const readyMsg = `${t("boot.msg.ready")} · :${ready.port}`;
         seedBootRef.current({
-          message: `服务已就绪 · :${ready.port}`,
+          message: readyMsg,
           stageId: "start",
           percent: 100,
         });
-        onStatusMessageRef.current?.(`服务已就绪 · :${ready.port}`);
+        onStatusMessageRef.current?.(readyMsg);
         setDone(true);
         onReady(ready);
       } catch (e) {
         setFailed(true);
         setError(typeof e === "string" ? e : String(e));
-        seedBootRef.current({ message: "启动失败", stageId: "start" });
-        onStatusMessageRef.current?.("启动失败");
+        seedBootRef.current({ message: t("boot.msg.failed"), stageId: "start" });
+        onStatusMessageRef.current?.(t("boot.msg.failed"));
         startedRef.current = false;
         onError();
       }
     },
-    [onReady, onError],
+    [onReady, onError, t],
+  );
+
+  const runCta = useCallback(
+    (cta: FaultCta) => {
+      switch (cta) {
+        case "retry":
+          startedRef.current = true;
+          onBootWorkingRef.current?.(true);
+          void start(startCommand);
+          break;
+        case "network":
+          onOpenSettings();
+          break;
+        case "logs":
+          void shellApi.openKnownPath("logs");
+          break;
+        case "reset":
+          runReset();
+          break;
+      }
+    },
+    [onOpenSettings, runReset, start, startCommand],
   );
 
   useEffect(() => {
@@ -107,9 +177,9 @@ export function BootPanel({
         setRepairing(partial && !ready);
         coldInstall = !ready;
         if (ready) {
-          setStatus("正在拉起服务…", "start");
+          setStatus(t("boot.msg.ensure"), "start");
         } else if (partial) {
-          setStatus("检测到不完整 harness，准备修复安装…", "install-dsh");
+          setStatus(t("boot.lead.repair"), "install-dsh");
         }
       } catch {
         setFastPath(false);
@@ -123,7 +193,7 @@ export function BootPanel({
         void start(startCommand);
       }
     })();
-  }, [start, startCommand, setStatus]);
+  }, [start, startCommand, setStatus, t]);
 
   useEffect(() => {
     if (!logOpen) return;
@@ -153,7 +223,9 @@ export function BootPanel({
 
   const { message, percent, stageId, logLines } = life;
   const activeIdx = stageIndex(stageId);
-  const activeLabel = BOOT_STAGES[activeIdx]?.label ?? "准备";
+  const activeLabel = t(
+    BOOT_STAGES[activeIdx]?.labelKey ?? "boot.stage.prepare",
+  );
   const barIndeterminate =
     working &&
     (percent == null || percent === 75 || /npm install|修复安装/.test(message));
@@ -163,15 +235,15 @@ export function BootPanel({
       <div className="boot-shell">
         <div className="boot-card">
           <header className="boot-hero">
-            <p className="boot-brand">deepseek-harness-desktop</p>
+            <p className="boot-brand">{t("boot.brand")}</p>
             <div className="boot-hero-row">
               <h1 className="boot-title">
-                {repairing ? "修复安装" : "首次准备"}
+                {repairing ? t("boot.title.repair") : t("boot.title.firstRun")}
               </h1>
               {working && (
                 <span className="boot-hero-meta">
                   {barIndeterminate
-                    ? "进行中"
+                    ? t("boot.status.working")
                     : percent != null
                       ? `${percent}%`
                       : null}
@@ -179,14 +251,12 @@ export function BootPanel({
               )}
             </div>
             <p className="boot-lead">
-              {repairing
-                ? "上次更新可能中断，正在补全托管 harness 入口后启动。"
-                : "安装托管 Node 与 harness 后自动打开官方界面。"}
+              {repairing ? t("boot.lead.repair") : t("boot.lead.firstRun")}
             </p>
           </header>
 
           {!failed && (
-            <ol className="boot-steps" aria-label="准备步骤">
+            <ol className="boot-steps" aria-label={t("boot.steps")}>
               {BOOT_STAGES.map((s, i) => {
                 const state =
                   i < activeIdx ? "done" : i === activeIdx ? "active" : "todo";
@@ -197,7 +267,7 @@ export function BootPanel({
                         /
                       </span>
                     )}
-                    <span className="boot-step-label">{s.label}</span>
+                    <span className="boot-step-label">{t(s.labelKey)}</span>
                   </li>
                 );
               })}
@@ -208,10 +278,14 @@ export function BootPanel({
             <div className="boot-status-head">
               <span className="boot-status-stage">{activeLabel}</span>
               <span className="boot-status-hint">
-                {failed ? "失败" : "实时状态"}
+                {failed ? t("boot.status.failed") : t("boot.status.live")}
               </span>
             </div>
-            <p className="boot-status-line">{message}</p>
+            {failed && error ? (
+              <FaultRecoveryBlock error={error} onCta={runCta} />
+            ) : (
+              <p className="boot-status-line">{message}</p>
+            )}
             {working && (
               <div
                 className={`boot-bar${barIndeterminate ? " indeterminate" : ""}`}
@@ -232,84 +306,6 @@ export function BootPanel({
                 />
               </div>
             )}
-            {error && <pre className="boot-error">{error}</pre>}
-            {failed && (
-              <p className="boot-actions">
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => {
-                    startedRef.current = true;
-                    onBootWorkingRef.current?.(true);
-                    void start(startCommand);
-                  }}
-                >
-                  重试
-                </button>
-                <button
-                  type="button"
-                  className="btn ghost"
-                  onClick={onOpenSettings}
-                >
-                  去设置网络
-                </button>
-                <button
-                  type="button"
-                  className="btn ghost"
-                  onClick={() => {
-                    void shellApi.openKnownPath("logs");
-                  }}
-                >
-                  打开日志
-                </button>
-                <button
-                  type="button"
-                  className="btn ghost"
-                  onClick={() => {
-                    if (
-                      !window.confirm(
-                        "将清除本机托管的 harness 安装并重新下载（保留已下载的 Node；不会删除 ~/.dsh 会话与插件）。继续？",
-                      )
-                    ) {
-                      return;
-                    }
-                    startedRef.current = true;
-                    onBootWorkingRef.current?.(true);
-                    setFailed(false);
-                    setError(null);
-                    seedBootRef.current({
-                      message: "正在重置托管运行时…",
-                      stageId: "detect",
-                      percent: 5,
-                      clearLog: true,
-                    });
-                    void (async () => {
-                      try {
-                        const ready = await shellApi.resetHostedRuntime();
-                        seedBootRef.current({
-                          message: `服务已就绪 · :${ready.port}`,
-                          stageId: "start",
-                          percent: 100,
-                        });
-                        setDone(true);
-                        onReady(ready);
-                      } catch (e) {
-                        setFailed(true);
-                        setError(typeof e === "string" ? e : String(e));
-                        seedBootRef.current({
-                          message: "重置失败",
-                          stageId: "start",
-                        });
-                        startedRef.current = false;
-                        onError();
-                      }
-                    })();
-                  }}
-                >
-                  重置托管运行时
-                </button>
-              </p>
-            )}
           </section>
 
           <section className="boot-log">
@@ -319,19 +315,20 @@ export function BootPanel({
               aria-expanded={logOpen}
               onClick={() => setLogOpen((v) => !v)}
             >
-              <span className="boot-log-title">过程日志</span>
+              <span className="boot-log-title">{t("boot.log.title")}</span>
               <span className="boot-log-meta">
-                {logLines.length} 行 · {logOpen ? "收起" : "展开"}
+                {t("boot.log.lineCount", { n: String(logLines.length) })}
+                {logOpen ? t("boot.log.collapse") : t("boot.log.expand")}
               </span>
             </button>
             {logOpen && (
               <div
                 ref={logBodyRef}
                 className="boot-log-body"
-                aria-label="过程日志"
+                aria-label={t("boot.log.title")}
               >
                 {logLines.length === 0 ? (
-                  <div className="boot-log-empty">等待进度…</div>
+                  <div className="boot-log-empty">{t("boot.log.wait")}</div>
                 ) : (
                   logLines.map((line, i) => (
                     <div

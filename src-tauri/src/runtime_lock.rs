@@ -6,6 +6,7 @@ use std::io::Write;
 
 use tauri::{AppHandle, Runtime};
 
+use crate::error::HostError;
 use crate::paths;
 
 /// 锁用途标签（写入文件第二行，便于诊断）。
@@ -52,7 +53,8 @@ pub fn acquire<R: Runtime>(
 ) -> Result<RuntimeLockGuard, String> {
     let path = paths::runtime_lock_file(app)?;
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| format!("INSTALL_FAILED: mkdir lock: {e}"))?;
+        fs::create_dir_all(parent)
+            .map_err(|e| String::from(HostError::install(format!("mkdir lock: {e}"))))?;
     }
 
     let my_pid = std::process::id();
@@ -67,8 +69,10 @@ pub fn acquire<R: Runtime>(
         let holder_purpose = lines.next().unwrap_or("unknown").trim().to_string();
 
         if holder != 0 && holder != my_pid && pid_alive(holder) {
-            return Err(format!(
-                "INSTALL_FAILED: 运行时忙（pid {holder} · {holder_purpose}）。请稍候或关闭其他 deepseek-harness-desktop 实例后再试。"
+            return Err(String::from(
+                HostError::install(format!(
+                    "运行时忙（pid {holder} · {holder_purpose}）。请稍候或关闭其他 deepseek-harness-desktop 实例后再试。"
+                )),
             ));
         }
         // 死进程或无效锁 → 抢占
@@ -76,12 +80,13 @@ pub fn acquire<R: Runtime>(
     }
 
     let mut f = fs::File::create(&path)
-        .map_err(|e| format!("INSTALL_FAILED: 无法创建运行时锁: {e}"))?;
-    writeln!(f, "{my_pid}").map_err(|e| format!("INSTALL_FAILED: 写运行时锁: {e}"))?;
+        .map_err(|e| String::from(HostError::install(format!("无法创建运行时锁: {e}"))))?;
+    writeln!(f, "{my_pid}")
+        .map_err(|e| String::from(HostError::install(format!("写运行时锁: {e}"))))?;
     writeln!(f, "{}", purpose.as_str())
-        .map_err(|e| format!("INSTALL_FAILED: 写运行时锁: {e}"))?;
+        .map_err(|e| String::from(HostError::install(format!("写运行时锁: {e}"))))?;
     f.sync_all()
-        .map_err(|e| format!("INSTALL_FAILED: 同步运行时锁: {e}"))?;
+        .map_err(|e| String::from(HostError::install(format!("同步运行时锁: {e}"))))?;
 
     Ok(RuntimeLockGuard {
         path,

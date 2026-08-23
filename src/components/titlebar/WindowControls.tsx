@@ -8,6 +8,7 @@ import {
   IconWinRestore16,
 } from "../chrome/ShellWindowIcons";
 import { ShellTooltip } from "../chrome/ShellTooltip";
+import { useLocale } from "../../shell/locale";
 import type { WinAction } from "./titlebarTypes";
 
 type Props = {
@@ -22,33 +23,35 @@ export function WindowControls({
   onOpenSettings,
   onWin,
 }: Props) {
+  const { t } = useLocale();
+
   return (
     <>
-      <ShellTooltip label="壳设置">
+      <ShellTooltip label={t("settings.title")}>
         <button
           type="button"
           className="icon-btn"
-          aria-label="壳设置"
+          aria-label={t("settings.title")}
           onClick={onOpenSettings}
         >
           <IconSettingsOutline14 size={14} />
         </button>
       </ShellTooltip>
-      <ShellTooltip label="最小化">
+      <ShellTooltip label={t("chrome.minimize")}>
         <button
           type="button"
           className="win-btn"
-          aria-label="最小化"
+          aria-label={t("chrome.minimize")}
           onClick={() => void onWin("minimize")}
         >
           <IconWinMinimize16 size={12} />
         </button>
       </ShellTooltip>
-      <ShellTooltip label={maximized ? "还原" : "最大化"}>
+      <ShellTooltip label={maximized ? t("chrome.restore") : t("chrome.maximize")}>
         <button
           type="button"
           className="win-btn"
-          aria-label={maximized ? "还原" : "最大化"}
+          aria-label={maximized ? t("chrome.restore") : t("chrome.maximize")}
           onClick={() => void onWin("maximize")}
         >
           {maximized ? (
@@ -58,11 +61,11 @@ export function WindowControls({
           )}
         </button>
       </ShellTooltip>
-      <ShellTooltip label="关闭">
+      <ShellTooltip label={t("chrome.close")}>
         <button
           type="button"
           className="win-btn win-close"
-          aria-label="关闭"
+          aria-label={t("chrome.close")}
           onClick={() => void onWin("close")}
         >
           <IconCloseOutline16 size={12} />

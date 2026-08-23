@@ -1,6 +1,7 @@
 //! Harness iframe：简洁模式下隐藏官方 Session log，并由壳顶栏 postMessage 代理点击。
 //! 消息：`{ source: "dsh-shell", type: "session-log-proxy", enabled: bool }`
 //! 点击：`{ source: "dsh-shell", type: "session-log-click" }`
+//! 上报：`{ source: "dsh-harness", type: "session-log-available", available: bool }`
 //! best-effort；上游 DOM 大改可能失效。
 
 pub const INIT_SCRIPT: &str = r#"
@@ -16,6 +17,7 @@ pub const INIT_SCRIPT: &str = r#"
   var STYLE_ID = "dsh-shell-session-log-proxy";
   var MARK = "data-dsh-shell-session-log-hidden";
   var enabled = false;
+  var lastReported = null;
 
   function ensureStyle() {
     var style = document.getElementById(STYLE_ID);
@@ -99,6 +101,22 @@ pub const INIT_SCRIPT: &str = r#"
     return best;
   }
 
+  function reportAvailability() {
+    var available = !!findSessionLogControl();
+    if (available === lastReported) return;
+    lastReported = available;
+    try {
+      window.parent.postMessage(
+        {
+          source: "dsh-harness",
+          type: "session-log-available",
+          available: available,
+        },
+        "*"
+      );
+    } catch (e) {}
+  }
+
   function refresh() {
     try {
       ensureStyle();
@@ -113,6 +131,7 @@ pub const INIT_SCRIPT: &str = r#"
       var el = findSessionLogControl();
       if (el) el.setAttribute(MARK, "1");
     } catch (e) {}
+    reportAvailability();
   }
 
   function setEnabled(next) {
@@ -143,11 +162,13 @@ pub const INIT_SCRIPT: &str = r#"
   });
 
   function boot() {
-    refresh();
+    reportAvailability();
     var obs = new MutationObserver(function () {
-      if (!enabled) return;
       if (boot._t) clearTimeout(boot._t);
-      boot._t = setTimeout(refresh, 160);
+      boot._t = setTimeout(function () {
+        refresh();
+        reportAvailability();
+      }, 160);
     });
     obs.observe(document.documentElement, {
       childList: true,

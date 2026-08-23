@@ -20,6 +20,7 @@ export function ShellTitleBar({
   onBackFromPlatform,
   onOpenSettings,
   onSessionLog,
+  sessionLogAvailable,
   onRestart,
   onStop,
   onOpenDshHome,
@@ -87,7 +88,9 @@ export function ShellTitleBar({
       <CompactTitleBar
         sidebarWidthPx={sidebarWidthPx}
         maximized={maximized}
-        showSessionLog={chrome.sessionLogInTitlebar}
+        showSessionLog={
+          chrome.sessionLogInTitlebar && sessionLogAvailable
+        }
         onSessionLog={onSessionLog}
         onOpenSettings={onOpenSettings}
         onWin={onWin}

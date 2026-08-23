@@ -37,4 +37,10 @@ export {
   stageIndex,
   type BootStageId,
 } from "./hostProgressMap";
+export {
+  getRecoveryPlan,
+  parseHostErrorPrefix,
+  type FaultCta,
+  type FaultPrefix,
+} from "./errors/recoveryMatrix";
 export { PLATFORM_URL } from "./settings";

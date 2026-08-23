@@ -1,13 +1,16 @@
 //! Runtime：ensure / restart 编排；包入口解析。
 
 mod package;
+mod status;
 
 pub use package::{
     assert_harness_closure, is_harness_partial, read_harness_meta, resolve_dsh_entry,
 };
+pub use status::build_runtime_status_json;
 
 use tauri::{AppHandle, Runtime};
 
+use crate::error::HostError;
 use crate::install;
 use crate::progress::{self, ReadyPayload};
 use crate::runtime_lock::{self, LockPurpose};
@@ -65,9 +68,11 @@ async fn fs_remove_dir_all_retry(path: &std::path::Path) -> Result<(), String> {
         match std::fs::remove_dir_all(path) {
             Ok(()) => return Ok(()),
             Err(e) if attempt == 6 => {
-                return Err(format!(
-                    "INSTALL_FAILED: 无法删除 harness {}: {e}",
-                    path.display()
+                return Err(String::from(
+                    HostError::install(format!(
+                        "无法删除 harness {}: {e}",
+                        path.display()
+                    )),
                 ));
             }
             Err(_) => {

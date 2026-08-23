@@ -14,6 +14,8 @@ export type ShellTitleBarProps = {
   onOpenSettings: () => void;
   /** 简洁顶栏：代理点击官方 Session log */
   onSessionLog: () => void;
+  /** iframe 上报：当前页是否存在 Session log 控件 */
+  sessionLogAvailable: boolean;
   onRestart: () => void;
   onStop: () => void;
   onOpenDshHome: () => void;

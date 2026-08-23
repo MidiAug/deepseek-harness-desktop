@@ -3,12 +3,14 @@
 use serde::Serialize;
 use tauri::{AppHandle, Runtime};
 
+use crate::error::HostError;
 use crate::install;
+use crate::net::http::http_client;
 use crate::paths::DSH_PACKAGE;
 use crate::progress::{self, ReadyPayload};
-use crate::runtime;
+use crate::runtime::read_harness_meta;
 use crate::runtime_lock::{self, LockPurpose};
-use crate::settings::{self, ShellSettings};
+use crate::settings;
 use crate::supervise::{self, HarnessState};
 
 #[derive(Debug, Clone, Serialize)]
@@ -19,26 +21,12 @@ pub struct HarnessUpdateCheck {
     pub update_available: bool,
 }
 
-fn http_client(settings: &ShellSettings) -> Result<reqwest::Client, String> {
-    let mut builder = reqwest::Client::builder().user_agent("deepseek-harness-desktop/0.1");
-    if let Some(proxy) = settings.resolved_proxy_url() {
-        let proxy = reqwest::Proxy::all(&proxy)
-            .map_err(|e| format!("INSTALL_FAILED: 无效代理 {proxy}: {e}"))?;
-        builder = builder.proxy(proxy);
-    } else {
-        builder = builder.no_proxy();
-    }
-    builder
-        .build()
-        .map_err(|e| format!("INSTALL_FAILED: http client: {e}"))
-}
-
 /// 查询 registry latest，与本地 package.json version 对比。
 pub async fn check_harness_update<R: Runtime>(
     app: &AppHandle<R>,
 ) -> Result<HarnessUpdateCheck, String> {
     let cfg = settings::load(app);
-    let local = runtime::read_harness_meta(app).version;
+    let local = read_harness_meta(app).version;
     let registry = cfg.npm_registry().trim_end_matches('/');
     // `@scope/name` → `@scope%2Fname`
     let encoded = DSH_PACKAGE.replace('/', "%2F");
@@ -52,19 +40,18 @@ pub async fn check_harness_update<R: Runtime>(
         .get(&url)
         .send()
         .await
-        .map_err(|e| format!("INSTALL_FAILED: 查询 registry: {e}"))?;
+        .map_err(|e| String::from(HostError::install(format!("查询 registry: {e}"))))?;
     if !resp.status().is_success() {
-        return Err(format!(
-            "INSTALL_FAILED: registry HTTP {} — {url}",
-            resp.status()
+        return Err(String::from(
+            HostError::install(format!("registry HTTP {} — {url}", resp.status())),
         ));
     }
     let text = resp
         .text()
         .await
-        .map_err(|e| format!("INSTALL_FAILED: registry body: {e}"))?;
+        .map_err(|e| String::from(HostError::install(format!("registry body: {e}"))))?;
     let body: serde_json::Value = serde_json::from_str(&text)
-        .map_err(|e| format!("INSTALL_FAILED: 解析 registry JSON: {e}"))?;
+        .map_err(|e| String::from(HostError::install(format!("解析 registry JSON: {e}"))))?;
     let latest = body
         .get("version")
         .and_then(|v| v.as_str())

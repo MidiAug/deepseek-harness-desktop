@@ -39,3 +39,9 @@ TAURI_SIGNING_PRIVATE_KEY_PATH=.secrets/updater.key
 ## 单实例
 
 二次启动聚焦已有主窗（`tauri-plugin-single-instance`），避免双开抢端口 / AppData。
+
+## 托管 Node 版本（check:release 断言）
+
+NODE_VERSION: v22.22.0
+
+与 `src-tauri/src/paths.rs` 的 `pub const NODE_VERSION` 须一致；发行前 `pnpm check:release` 会校验。

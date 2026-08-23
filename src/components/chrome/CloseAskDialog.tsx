@@ -4,6 +4,7 @@ import {
   type ShellSettings,
 } from "../../shell/settings";
 import { shellApi } from "../../shell";
+import { useLocale } from "../../shell/locale";
 
 type Props = {
   open: boolean;
@@ -11,6 +12,7 @@ type Props = {
 };
 
 export function CloseAskDialog({ open, onClose }: Props) {
+  const { t } = useLocale();
   const [remember, setRemember] = useState(true);
   const [busy, setBusy] = useState(false);
 
@@ -47,11 +49,9 @@ export function CloseAskDialog({ open, onClose }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="drawer-head">
-          <h2 id="close-ask-title">关闭窗口</h2>
+          <h2 id="close-ask-title">{t("closeAsk.title")}</h2>
         </div>
-        <p className="lead">
-          关闭时希望怎么做？官方 UI 服务可在托盘后台继续运行。
-        </p>
+        <p className="lead">{t("closeAsk.lead")}</p>
 
         <label className="field check">
           <input
@@ -61,8 +61,8 @@ export function CloseAskDialog({ open, onClose }: Props) {
             onChange={(ev) => setRemember(ev.target.checked)}
           />
           <span>
-            记住为我的默认选择
-            <small>之后可在壳设置 → 窗口 中修改</small>
+            {t("closeAsk.remember")}
+            <small>{t("closeAsk.rememberHint")}</small>
           </span>
         </label>
 
@@ -73,7 +73,7 @@ export function CloseAskDialog({ open, onClose }: Props) {
             disabled={busy}
             onClick={() => void apply(true)}
           >
-            最小化到托盘
+            {t("closeAsk.toTray")}
           </button>
           <button
             type="button"
@@ -81,7 +81,7 @@ export function CloseAskDialog({ open, onClose }: Props) {
             disabled={busy}
             onClick={() => void apply(false)}
           >
-            直接退出
+            {t("closeAsk.quit")}
           </button>
           <button
             type="button"
@@ -89,7 +89,7 @@ export function CloseAskDialog({ open, onClose }: Props) {
             disabled={busy}
             onClick={onClose}
           >
-            取消
+            {t("closeAsk.cancel")}
           </button>
         </div>
       </div>

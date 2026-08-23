@@ -94,6 +94,7 @@ export default function App() {
     SettingsSection | undefined
   >(undefined);
   const [closeAskOpen, setCloseAskOpen] = useState(false);
+  const [sessionLogAvailable, setSessionLogAvailable] = useState(false);
 
   const openSettings = useCallback((section?: SettingsSection) => {
     setSettingsSection(section);
@@ -147,6 +148,18 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    function onMessage(ev: MessageEvent) {
+      const d = ev.data;
+      if (!d || d.source !== "dsh-harness" || d.type !== "session-log-available") {
+        return;
+      }
+      setSessionLogAvailable(d.available === true);
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
+
   // 设置变更后同步注入开关
   useEffect(() => {
     if (bodyView !== "harness") return;
@@ -163,6 +176,11 @@ export default function App() {
     bodyView,
     session.iframeKey,
   ]);
+
+  // 换页 / 重载 iframe 时先隐藏，等 harness 再上报
+  useEffect(() => {
+    setSessionLogAvailable(false);
+  }, [session.iframeKey, bodyView]);
 
   const onSessionLog = useCallback(() => {
     postSessionLogClick(harnessFrameRef.current);
@@ -193,6 +211,7 @@ export default function App() {
         onBackFromPlatform={backFromPlatform}
         onOpenSettings={() => openSettings()}
         onSessionLog={onSessionLog}
+        sessionLogAvailable={sessionLogAvailable}
         onRestart={session.restart}
         onStop={() => void session.stop()}
         onOpenDshHome={() => {

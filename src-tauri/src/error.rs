@@ -10,6 +10,10 @@ pub enum HostError {
     Spawn(String),
     #[error("NODE_MISSING: {0}")]
     NodeMissing(String),
+    #[error("HEALTH_TIMEOUT: {0}")]
+    HealthTimeout(String),
+    #[error("HARNESS_NOT_FOUND: {0}")]
+    HarnessNotFound(String),
     #[error("OPEN_PATH: {0}")]
     OpenPath(String),
     #[error("HIDE: {0}")]
@@ -25,6 +29,18 @@ impl HostError {
 
     pub fn spawn(msg: impl Into<String>) -> Self {
         Self::Spawn(msg.into())
+    }
+
+    pub fn node_missing(msg: impl Into<String>) -> Self {
+        Self::NodeMissing(msg.into())
+    }
+
+    pub fn health_timeout(msg: impl Into<String>) -> Self {
+        Self::HealthTimeout(msg.into())
+    }
+
+    pub fn harness_not_found(msg: impl Into<String>) -> Self {
+        Self::HarnessNotFound(msg.into())
     }
 }
 
@@ -55,5 +71,18 @@ mod tests {
     fn spawn_prefix_stable() {
         let s: String = HostError::spawn("端口占用").into();
         assert!(s.starts_with("SPAWN_FAILED:"));
+    }
+
+    #[test]
+    fn health_timeout_prefix_stable() {
+        let s: String = HostError::health_timeout("探活超时").into();
+        assert!(s.starts_with("HEALTH_TIMEOUT:"));
+        assert!(s.contains("探活超时"));
+    }
+
+    #[test]
+    fn harness_not_found_prefix_stable() {
+        let s: String = HostError::harness_not_found("/path/entry").into();
+        assert!(s.starts_with("HARNESS_NOT_FOUND:"));
     }
 }

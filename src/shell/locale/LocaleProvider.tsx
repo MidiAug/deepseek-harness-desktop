@@ -53,6 +53,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     applyDocumentLang(locale);
+    void shellApi.syncTrayLocale(locale).catch(() => undefined);
   }, [locale]);
 
   const refreshFromDisk = useCallback(() => {

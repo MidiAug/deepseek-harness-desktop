@@ -11,11 +11,14 @@ use tauri::{AppHandle, Runtime};
 use zip::ZipArchive;
 
 use crate::error::HostError;
+use crate::net::http::http_client;
 use crate::paths::{self, DSH_PACKAGE, NODE_DIST_NAME};
 #[cfg(windows)]
 use crate::platform;
 use crate::progress;
-use crate::runtime::resolve_dsh_entry;
+use crate::runtime::{
+    assert_harness_closure, is_harness_partial, resolve_dsh_entry,
+};
 use crate::settings::{self, ShellSettings};
 
 /// 下载最大尝试次数（含首次）；失败退避 500ms → 1s → 2s…
@@ -35,7 +38,7 @@ pub async fn ensure_runtime_installed<R: Runtime>(app: &AppHandle<R>) -> Result<
     #[cfg(not(windows))]
     {
         let _ = app;
-        return Err("INSTALL_FAILED: B2 仅支持 Windows x64".into());
+        return Err(String::from(HostError::install("B2 仅支持 Windows x64")));
     }
     #[cfg(windows)]
     {
@@ -55,7 +58,8 @@ async fn ensure_node<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
 
     emit_progress(app, "download-node", "正在下载 Node.js…", Some(5));
     let runtime = paths::runtime_dir(app)?;
-    fs::create_dir_all(&runtime).map_err(|e| format!("INSTALL_FAILED: mkdir runtime: {e}"))?;
+    fs::create_dir_all(&runtime)
+        .map_err(|e| String::from(HostError::install(format!("mkdir runtime: {e}"))))?;
 
     let cfg = settings::load(app);
     let zip_path = runtime.join(format!("{NODE_DIST_NAME}.zip"));
@@ -76,9 +80,8 @@ async fn ensure_node<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
     let _ = fs::remove_file(&zip_path);
 
     if !paths::is_file(&node) {
-        return Err(format!(
-            "INSTALL_FAILED: 解压后未找到 {}",
-            node.display()
+        return Err(String::from(
+            HostError::install(format!("解压后未找到 {}", node.display())),
         ));
     }
     emit_progress(app, "extract-node", "Node 就绪", Some(60));
@@ -92,7 +95,7 @@ async fn ensure_dsh<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
         emit_progress(app, "detect", "已找到托管 harness", Some(70));
         return Ok(());
     }
-    if crate::runtime::is_harness_partial(app) {
+    if is_harness_partial(app) {
         emit_progress(
             app,
             "install-dsh",
@@ -128,7 +131,7 @@ pub async fn force_install_dsh<R: Runtime>(app: &AppHandle<R>) -> Result<(), Str
 #[cfg(not(windows))]
 pub async fn force_install_dsh<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
     let _ = app;
-    Err("INSTALL_FAILED: B2 仅支持 Windows x64".into())
+    Err(String::from(HostError::install("B2 仅支持 Windows x64")))
 }
 
 /// 将 `node_modules/@deepseek-ai/dsh` 改名为旁路备份，避免更新中途退出后无入口。
@@ -187,7 +190,9 @@ fn restore_stashed_dsh_package<R: Runtime>(
     if pkg.exists() {
         let _ = fs::remove_dir_all(&pkg);
     }
-    fs::rename(bak, &pkg).map_err(|e| format!("INSTALL_FAILED: 回滚旧 harness 失败: {e}"))
+    fs::rename(bak, &pkg).map_err(|e| {
+        String::from(HostError::install(format!("回滚旧 harness 失败: {e}")))
+    })
 }
 
 /// 删除 `node_modules/@deepseek-ai/dsh`，带短重试（文件锁）。
@@ -214,9 +219,11 @@ async fn remove_installed_dsh_package<R: Runtime>(app: &AppHandle<R>) -> Result<
             }
             Err(e) => {
                 if attempt == 6 {
-                    return Err(format!(
-                        "INSTALL_FAILED: 无法删除旧 harness 包 {}: {e}",
-                        pkg.display()
+                    return Err(String::from(
+                        HostError::install(format!(
+                            "无法删除旧 harness 包 {}: {e}",
+                            pkg.display()
+                        )),
                     ));
                 }
                 tokio::time::sleep(std::time::Duration::from_millis(400 * u64::from(attempt)))
@@ -231,14 +238,14 @@ async fn remove_installed_dsh_package<R: Runtime>(app: &AppHandle<R>) -> Result<
 #[cfg(windows)]
 async fn npm_install_dsh<R: Runtime>(app: &AppHandle<R>, force: bool) -> Result<(), String> {
     let harness = paths::harness_dir(app)?;
-    fs::create_dir_all(&harness).map_err(|e| format!("INSTALL_FAILED: mkdir harness: {e}"))?;
+    fs::create_dir_all(&harness)
+        .map_err(|e| String::from(HostError::install(format!("mkdir harness: {e}"))))?;
 
     let node = paths::node_binary(app)?;
     let npm_cli = paths::npm_cli_js(app)?;
     if !paths::is_file(&npm_cli) {
-        return Err(format!(
-            "NODE_MISSING: 未找到 npm-cli.js（{})",
-            npm_cli.display()
+        return Err(String::from(
+            HostError::node_missing(format!("未找到 npm-cli.js（{})", npm_cli.display())),
         ));
     }
 
@@ -303,8 +310,8 @@ async fn npm_install_dsh<R: Runtime>(app: &AppHandle<R>, force: bool) -> Result<
         })
     })
     .await
-    .map_err(|e| format!("INSTALL_FAILED: join npm: {e}"))?
-    .map_err(|e| format!("INSTALL_FAILED: spawn npm: {e}"))?;
+    .map_err(|e| String::from(HostError::install(format!("join npm: {e}"))))?
+    .map_err(|e| String::from(HostError::install(format!("spawn npm: {e}"))))?;
 
     let (code, stdout, stderr) = output;
     progress::append_shell_log(
@@ -320,13 +327,13 @@ async fn npm_install_dsh<R: Runtime>(app: &AppHandle<R>, force: bool) -> Result<
             app,
             &format!("npm_install_dsh FAIL stderr=\n{stderr}\nstdout=\n{stdout}"),
         );
-        return Err(format!(
-            "INSTALL_FAILED: npm install 失败\n{stderr}\n{stdout}"
+        return Err(String::from(
+            HostError::install(format!("npm install 失败\n{stderr}\n{stdout}")),
         ));
     }
 
     // 闭包门禁（anywhere #339）：入口 + 声明的 @deepseek-ai/* 依赖目录
-    crate::runtime::assert_harness_closure(app)?;
+    assert_harness_closure(app)?;
     emit_progress(
         app,
         "install-dsh",
@@ -342,20 +349,6 @@ async fn npm_install_dsh<R: Runtime>(app: &AppHandle<R>, force: bool) -> Result<
 
 fn node_dir_for_path(node: &Path) -> PathBuf {
     node.parent().unwrap_or(Path::new(".")).to_path_buf()
-}
-
-fn http_client(settings: &ShellSettings) -> Result<reqwest::Client, String> {
-    let mut builder = reqwest::Client::builder().user_agent("deepseek-harness-desktop/0.1");
-    if let Some(proxy) = settings.resolved_proxy_url() {
-        let proxy = reqwest::Proxy::all(&proxy)
-            .map_err(|e| format!("INSTALL_FAILED: 无效代理 {proxy}: {e}"))?;
-        builder = builder.proxy(proxy);
-    } else {
-        builder = builder.no_proxy();
-    }
-    builder
-        .build()
-        .map_err(|e| format!("INSTALL_FAILED: http client: {e}"))
 }
 
 async fn download_file<R: Runtime>(
@@ -402,7 +395,8 @@ async fn download_file_once<R: Runtime>(
     attempt: u32,
 ) -> Result<(), String> {
     if let Some(parent) = dest.parent() {
-        fs::create_dir_all(parent).map_err(|e| HostError::install(format!("mkdir: {e}")))?;
+        fs::create_dir_all(parent)
+            .map_err(|e| String::from(HostError::install(format!("mkdir: {e}"))))?;
     }
     let partial = dest.with_extension("partial");
     let existing = fs::metadata(&partial).ok().map(|m| m.len()).unwrap_or(0);
@@ -480,12 +474,12 @@ async fn verify_node_sha256<R: Runtime>(
         .get(settings.node_shasums_url())
         .send()
         .await
-        .map_err(|e| format!("INSTALL_FAILED: 拉取 SHASUMS: {e}"))?
+        .map_err(|e| String::from(HostError::install(format!("拉取 SHASUMS: {e}"))))?
         .error_for_status()
-        .map_err(|e| format!("INSTALL_FAILED: SHASUMS HTTP: {e}"))?
+        .map_err(|e| String::from(HostError::install(format!("SHASUMS HTTP: {e}"))))?
         .text()
         .await
-        .map_err(|e| format!("INSTALL_FAILED: SHASUMS body: {e}"))?;
+        .map_err(|e| String::from(HostError::install(format!("SHASUMS body: {e}"))))?;
 
     let needle = format!("{NODE_DIST_NAME}.zip");
     let expected = text
@@ -500,42 +494,47 @@ async fn verify_node_sha256<R: Runtime>(
                 None
             }
         })
-        .ok_or_else(|| format!("INSTALL_FAILED: SHASUMS 中无 {needle}"))?;
+        .ok_or_else(|| String::from(HostError::install(format!("SHASUMS 中无 {needle}"))))?;
 
-    let bytes = fs::read(zip_path).map_err(|e| format!("INSTALL_FAILED: 读 zip: {e}"))?;
+    let bytes = fs::read(zip_path)
+        .map_err(|e| String::from(HostError::install(format!("读 zip: {e}"))))?;
     let mut hasher = Sha256::new();
     hasher.update(&bytes);
     let actual = hex::encode(hasher.finalize());
     if !actual.eq_ignore_ascii_case(&expected) {
         let _ = app;
-        return Err(format!(
-            "INSTALL_FAILED: SHA-256 不匹配 expected={expected} actual={actual}"
+        return Err(String::from(
+            HostError::install(format!("SHA-256 不匹配 expected={expected} actual={actual}")),
         ));
     }
     Ok(())
 }
 
 fn extract_zip(zip_path: &Path, dest: &Path) -> Result<(), String> {
-    let file = File::open(zip_path).map_err(|e| format!("INSTALL_FAILED: open zip: {e}"))?;
-    let mut archive =
-        ZipArchive::new(file).map_err(|e| format!("INSTALL_FAILED: 无效 zip: {e}"))?;
+    let file = File::open(zip_path)
+        .map_err(|e| String::from(HostError::install(format!("open zip: {e}"))))?;
+    let mut archive = ZipArchive::new(file)
+        .map_err(|e| String::from(HostError::install(format!("无效 zip: {e}"))))?;
     for i in 0..archive.len() {
         let mut file = archive
             .by_index(i)
-            .map_err(|e| format!("INSTALL_FAILED: zip entry: {e}"))?;
+            .map_err(|e| String::from(HostError::install(format!("zip entry: {e}"))))?;
         let outpath = match file.enclosed_name() {
             Some(path) => dest.join(path),
             None => continue,
         };
         if file.is_dir() {
-            fs::create_dir_all(&outpath).map_err(|e| format!("INSTALL_FAILED: mkdir: {e}"))?;
+            fs::create_dir_all(&outpath)
+                .map_err(|e| String::from(HostError::install(format!("mkdir: {e}"))))?;
         } else {
             if let Some(parent) = outpath.parent() {
-                fs::create_dir_all(parent).map_err(|e| format!("INSTALL_FAILED: mkdir: {e}"))?;
+                fs::create_dir_all(parent)
+                    .map_err(|e| String::from(HostError::install(format!("mkdir: {e}"))))?;
             }
-            let mut outfile =
-                File::create(&outpath).map_err(|e| format!("INSTALL_FAILED: create: {e}"))?;
-            copy(&mut file, &mut outfile).map_err(|e| format!("INSTALL_FAILED: extract: {e}"))?;
+            let mut outfile = File::create(&outpath)
+                .map_err(|e| String::from(HostError::install(format!("create: {e}"))))?;
+            copy(&mut file, &mut outfile)
+                .map_err(|e| String::from(HostError::install(format!("extract: {e}"))))?;
         }
     }
     Ok(())

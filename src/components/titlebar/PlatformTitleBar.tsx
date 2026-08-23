@@ -4,6 +4,7 @@
 
 import type { MouseEvent } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { useLocale } from "../../shell/locale";
 import { WindowControls } from "./WindowControls";
 import type { WinAction } from "./titlebarTypes";
 
@@ -27,6 +28,8 @@ export function PlatformTitleBar({
   onOpenSettings,
   onWin,
 }: Props) {
+  const { t } = useLocale();
+
   return (
     <header className="titlebar">
       <div className="titlebar-left">
@@ -35,7 +38,7 @@ export function PlatformTitleBar({
           className="menu-trigger titlebar-back"
           onClick={onBack}
         >
-          ← 返回
+          ← {t("chrome.platform.back")}
         </button>
       </div>
       <div
@@ -44,7 +47,7 @@ export function PlatformTitleBar({
         onMouseDown={startTitlebarDrag}
       >
         <span className="titlebar-product" data-tauri-drag-region>
-          DeepSeek 开放平台
+          {t("chrome.platform.title")}
         </span>
       </div>
       <div className="titlebar-right">

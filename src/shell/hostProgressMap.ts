@@ -2,14 +2,16 @@
  * install-progress stage 映射（全仓唯一副本）。
  */
 
+import type { LocaleKey } from "./locale";
+
 export const BOOT_STAGES = [
-  { id: "detect", label: "检测" },
-  { id: "download-node", label: "下载 Node" },
-  { id: "verify-node", label: "校验" },
-  { id: "extract-node", label: "解压" },
-  { id: "install-dsh", label: "安装 harness" },
-  { id: "start", label: "启动" },
-] as const;
+  { id: "detect", labelKey: "boot.stage.detect" },
+  { id: "download-node", labelKey: "boot.stage.download-node" },
+  { id: "verify-node", labelKey: "boot.stage.verify-node" },
+  { id: "extract-node", labelKey: "boot.stage.extract-node" },
+  { id: "install-dsh", labelKey: "boot.stage.install-dsh" },
+  { id: "start", labelKey: "boot.stage.start" },
+] as const satisfies ReadonlyArray<{ id: string; labelKey: LocaleKey }>;
 
 export type BootStageId = (typeof BOOT_STAGES)[number]["id"];
 

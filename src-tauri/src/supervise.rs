@@ -12,6 +12,7 @@ use std::time::Duration;
 
 use tauri::{AppHandle, Runtime};
 
+use crate::error::HostError;
 use crate::paths;
 use crate::progress;
 use crate::runtime::resolve_dsh_entry;
@@ -77,10 +78,12 @@ fn find_available_port(start: u16) -> Result<u16, String> {
         }
         port = port
             .checked_add(1)
-            .ok_or_else(|| "SPAWN_FAILED: 无可用端口".to_string())?;
+            .ok_or_else(|| String::from(HostError::spawn("无可用端口")))?;
     }
-    Err(format!(
-        "SPAWN_FAILED: 自 {start} 起连续端口均被占用（常见原因：其他桌面端仍占 3081）"
+    Err(String::from(
+        HostError::spawn(format!(
+            "自 {start} 起连续端口均被占用（常见原因：其他桌面端仍占 3081）"
+        )),
     ))
 }
 
@@ -100,7 +103,7 @@ pub async fn spawn_and_wait_healthy<R: Runtime>(
     #[cfg(not(windows))]
     {
         let _ = (app, state);
-        return Err("SPAWN_FAILED: 仅 Windows 支持".into());
+        return Err(String::from(HostError::spawn("仅 Windows 支持")));
     }
 
     #[cfg(windows)]
@@ -124,21 +127,29 @@ pub async fn spawn_and_wait_healthy<R: Runtime>(
 
         let node = paths::node_binary(app)?;
         if !paths::is_file(&node) {
-            return Err(format!("NODE_MISSING: {}", node.display()));
+            return Err(String::from(
+                HostError::node_missing(node.display().to_string()),
+            ));
         }
         let entry = resolve_dsh_entry(app)?;
         if !paths::is_file(&entry) {
-            return Err(format!("HARNESS_NOT_FOUND: {}", entry.display()));
+            return Err(String::from(
+                HostError::harness_not_found(entry.display().to_string()),
+            ));
         }
         let harness = paths::harness_dir(app)?;
         let dsh_home = paths::dsh_home(app, Some(cfg.dsh_home_override.as_str()));
-        fs::create_dir_all(&dsh_home).map_err(|e| format!("SPAWN_FAILED: mkdir DSH_HOME: {e}"))?;
+        fs::create_dir_all(&dsh_home).map_err(|e| {
+            String::from(HostError::spawn(format!("mkdir DSH_HOME: {e}")))
+        })?;
 
         stop_owned(state);
 
         let log_path = paths::harness_log_file(app)?;
         if let Some(parent) = log_path.parent() {
-            fs::create_dir_all(parent).map_err(|e| format!("SPAWN_FAILED: mkdir logs: {e}"))?;
+            fs::create_dir_all(parent).map_err(|e| {
+                String::from(HostError::spawn(format!("mkdir logs: {e}")))
+            })?;
         }
         append_log(
             &log_path,
@@ -173,7 +184,7 @@ pub async fn spawn_and_wait_healthy<R: Runtime>(
         ];
 
         let proc = platform::spawn_owned(&node, &args, Some(&harness), &envs)
-            .map_err(|e| format!("SPAWN_FAILED: {e}"))?;
+            .map_err(|e| String::from(HostError::spawn(format!("{e}"))))?;
         let pid = proc.pid;
         spawn_file_readers(proc.stdout, proc.stderr, log_path.clone());
         *state.owned.lock().map_err(|e| e.to_string())? = Some(proc.handle);
@@ -236,19 +247,23 @@ async fn wait_healthy<R: Runtime>(
         .timeout(Duration::from_secs(2))
         .no_proxy()
         .build()
-        .map_err(|e| format!("HEALTH_TIMEOUT: client: {e}"))?;
+        .map_err(|e| String::from(HostError::health_timeout(format!("client: {e}"))))?;
     let deadline = tokio::time::Instant::now() + timeout;
     let mut tick: u32 = 0;
     loop {
         if tokio::time::Instant::now() > deadline {
-            return Err(format!(
-                "HEALTH_TIMEOUT: {url} 在时限内未返回 HTTP 200（请查看 AppData/logs/harness.log）"
+            return Err(String::from(
+                HostError::health_timeout(format!(
+                    "{url} 在时限内未返回 HTTP 200（请查看 AppData/logs/harness.log）"
+                )),
             ));
         }
 
         if !process_still_ours(state, expected_pid) {
-            return Err(format!(
-                "SPAWN_FAILED: dsh 进程 {expected_pid} 已退出，未能监听 {port}"
+            return Err(String::from(
+                HostError::spawn(format!(
+                    "dsh 进程 {expected_pid} 已退出，未能监听 {port}"
+                )),
             ));
         }
 

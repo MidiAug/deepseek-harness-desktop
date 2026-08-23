@@ -125,7 +125,86 @@ export type LocaleKey =
   | "contextMenu.deleteWorkspace"
   | "contextMenu.fork"
   | "contextMenu.archive"
-  | "contextMenu.copied";
+  | "contextMenu.copied"
+  | "boot.brand"
+  | "boot.title.firstRun"
+  | "boot.title.repair"
+  | "boot.lead.firstRun"
+  | "boot.lead.repair"
+  | "boot.status.failed"
+  | "boot.status.live"
+  | "boot.status.working"
+  | "boot.steps"
+  | "boot.stage.detect"
+  | "boot.stage.download-node"
+  | "boot.stage.verify-node"
+  | "boot.stage.extract-node"
+  | "boot.stage.install-dsh"
+  | "boot.stage.start"
+  | "boot.stage.prepare"
+  | "boot.log.title"
+  | "boot.log.lineCount"
+  | "boot.log.wait"
+  | "boot.log.collapse"
+  | "boot.log.expand"
+  | "boot.technicalDetails"
+  | "boot.msg.restart"
+  | "boot.msg.ensure"
+  | "boot.msg.ready"
+  | "boot.msg.failed"
+  | "boot.msg.resetting"
+  | "boot.msg.resetFailed"
+  | "boot.fault.install.title"
+  | "boot.fault.install.body"
+  | "boot.fault.health.title"
+  | "boot.fault.health.body"
+  | "boot.fault.spawn.title"
+  | "boot.fault.spawn.body"
+  | "boot.fault.node.title"
+  | "boot.fault.node.body"
+  | "boot.fault.harness.title"
+  | "boot.fault.harness.body"
+  | "boot.fault.default.title"
+  | "boot.fault.default.body"
+  | "boot.cta.retry"
+  | "boot.cta.network"
+  | "boot.cta.logs"
+  | "boot.cta.reset"
+  | "boot.reset.confirm"
+  | "boot.msg.harnessUpdated"
+  | "chrome.windowControls.aria"
+  | "chrome.sessionLog"
+  | "chrome.minimize"
+  | "chrome.maximize"
+  | "chrome.restore"
+  | "chrome.close"
+  | "chrome.menu.closeAria"
+  | "chrome.menu.app"
+  | "chrome.menu.help"
+  | "chrome.menu.restartUi"
+  | "chrome.menu.openDshHome"
+  | "chrome.menu.openLogs"
+  | "chrome.menu.hideTray"
+  | "chrome.menu.quit"
+  | "chrome.menu.about"
+  | "chrome.menu.platformApi"
+  | "chrome.menu.copyVersion"
+  | "chrome.conn.failed"
+  | "chrome.conn.preparing"
+  | "chrome.productName"
+  | "chrome.platform.back"
+  | "chrome.platform.title"
+  | "chrome.updateBanner.downloaded"
+  | "chrome.updateBanner.newVersion"
+  | "closeAsk.title"
+  | "closeAsk.lead"
+  | "closeAsk.remember"
+  | "closeAsk.rememberHint"
+  | "closeAsk.toTray"
+  | "closeAsk.quit"
+  | "closeAsk.cancel"
+  | "tray.open"
+  | "tray.quit";
 
 export type LocaleDict = Record<LocaleKey, string>;
 
@@ -271,6 +350,90 @@ export const zh: LocaleDict = {
   "contextMenu.fork": "分叉会话",
   "contextMenu.archive": "归档会话",
   "contextMenu.copied": "已复制",
+  "boot.brand": "deepseek-harness-desktop",
+  "boot.title.firstRun": "首次准备",
+  "boot.title.repair": "修复安装",
+  "boot.lead.firstRun": "安装托管 Node 与 harness 后自动打开官方界面。",
+  "boot.lead.repair": "上次更新可能中断，正在补全托管 harness 入口后启动。",
+  "boot.status.failed": "失败",
+  "boot.status.live": "实时状态",
+  "boot.status.working": "进行中",
+  "boot.steps": "准备步骤",
+  "boot.stage.detect": "检测",
+  "boot.stage.download-node": "下载 Node",
+  "boot.stage.verify-node": "校验",
+  "boot.stage.extract-node": "解压",
+  "boot.stage.install-dsh": "安装 harness",
+  "boot.stage.start": "启动",
+  "boot.stage.prepare": "准备",
+  "boot.log.title": "过程日志",
+  "boot.log.lineCount": "{n} 行 · ",
+  "boot.log.wait": "等待进度…",
+  "boot.log.collapse": "收起",
+  "boot.log.expand": "展开",
+  "boot.technicalDetails": "技术详情",
+  "boot.msg.restart": "正在重启官方 UI…",
+  "boot.msg.ensure": "正在确保 Node / harness 并启动…",
+  "boot.msg.ready": "服务已就绪",
+  "boot.msg.failed": "启动失败",
+  "boot.msg.resetting": "正在重置托管运行时…",
+  "boot.msg.resetFailed": "重置失败",
+  "boot.fault.install.title": "安装失败",
+  "boot.fault.install.body":
+    "下载 Node 或 harness 时出错，常见于网络、镜像或代理设置。可打开日志查看详情。",
+  "boot.fault.health.title": "服务未就绪",
+  "boot.fault.health.body":
+    "进程已启动但官方 UI 在时限内未返回 HTTP 200，可能端口被占或插件卡死。",
+  "boot.fault.spawn.title": "无法启动 harness",
+  "boot.fault.spawn.body":
+    "dsh 进程未能监听端口，常见于端口占用或 harness 损坏。",
+  "boot.fault.node.title": "缺少 Node 运行时",
+  "boot.fault.node.body": "托管 Node 未安装或安装不完整，可重试或重置运行时。",
+  "boot.fault.harness.title": "缺少 harness 入口",
+  "boot.fault.harness.body":
+    "托管 harness 入口文件缺失，可能半安装或更新中断，建议重置 harness。",
+  "boot.fault.default.title": "启动失败",
+  "boot.fault.default.body": "请查看下方技术详情，或重试 / 打开日志。",
+  "boot.cta.retry": "重试",
+  "boot.cta.network": "去设置网络",
+  "boot.cta.logs": "打开日志",
+  "boot.cta.reset": "重置托管运行时",
+  "boot.reset.confirm":
+    "将清除本机托管的 harness 安装并重新下载（保留已下载的 Node；不会删除 ~/.dsh 会话与插件）。继续？",
+  "boot.msg.harnessUpdated": "更新完成",
+  "chrome.windowControls.aria": "窗口控制",
+  "chrome.sessionLog": "下载 Session log",
+  "chrome.minimize": "最小化",
+  "chrome.maximize": "最大化",
+  "chrome.restore": "还原",
+  "chrome.close": "关闭",
+  "chrome.menu.closeAria": "关闭菜单",
+  "chrome.menu.app": "应用",
+  "chrome.menu.help": "帮助",
+  "chrome.menu.restartUi": "重启官方 UI",
+  "chrome.menu.openDshHome": "打开 DSH_HOME",
+  "chrome.menu.openLogs": "打开日志目录",
+  "chrome.menu.hideTray": "隐藏到托盘",
+  "chrome.menu.quit": "退出",
+  "chrome.menu.about": "关于",
+  "chrome.menu.platformApi": "DeepSeek API 平台",
+  "chrome.menu.copyVersion": "复制版本信息",
+  "chrome.conn.failed": "启动失败",
+  "chrome.conn.preparing": "准备中",
+  "chrome.productName": "DeepSeek Harness",
+  "chrome.platform.back": "返回",
+  "chrome.platform.title": "DeepSeek 开放平台",
+  "chrome.updateBanner.downloaded": "壳 {version} 已下载完成，重启后安装",
+  "chrome.updateBanner.newVersion": "新版本",
+  "closeAsk.title": "关闭窗口",
+  "closeAsk.lead": "关闭时希望怎么做？官方 UI 服务可在托盘后台继续运行。",
+  "closeAsk.remember": "记住为我的默认选择",
+  "closeAsk.rememberHint": "之后可在壳设置 → 窗口 中修改",
+  "closeAsk.toTray": "最小化到托盘",
+  "closeAsk.quit": "直接退出",
+  "closeAsk.cancel": "取消",
+  "tray.open": "打开窗口",
+  "tray.quit": "退出",
 };
 
 export const en: LocaleDict = {
@@ -418,6 +581,96 @@ export const en: LocaleDict = {
   "contextMenu.fork": "Fork conversation",
   "contextMenu.archive": "Archive conversation",
   "contextMenu.copied": "Copied",
+  "boot.brand": "deepseek-harness-desktop",
+  "boot.title.firstRun": "First-time setup",
+  "boot.title.repair": "Repair install",
+  "boot.lead.firstRun":
+    "Installs managed Node and harness, then opens the official UI.",
+  "boot.lead.repair":
+    "A prior update may have interrupted; completing the harness install.",
+  "boot.status.failed": "Failed",
+  "boot.status.live": "Live status",
+  "boot.status.working": "In progress",
+  "boot.steps": "Setup steps",
+  "boot.stage.detect": "Detect",
+  "boot.stage.download-node": "Download Node",
+  "boot.stage.verify-node": "Verify",
+  "boot.stage.extract-node": "Extract",
+  "boot.stage.install-dsh": "Install harness",
+  "boot.stage.start": "Start",
+  "boot.stage.prepare": "Prepare",
+  "boot.log.title": "Process log",
+  "boot.log.lineCount": "{n} lines · ",
+  "boot.log.wait": "Waiting for progress…",
+  "boot.log.collapse": "Collapse",
+  "boot.log.expand": "Expand",
+  "boot.technicalDetails": "Technical details",
+  "boot.msg.restart": "Restarting official UI…",
+  "boot.msg.ensure": "Ensuring Node / harness and starting…",
+  "boot.msg.ready": "Service ready",
+  "boot.msg.failed": "Start failed",
+  "boot.msg.resetting": "Resetting hosted runtime…",
+  "boot.msg.resetFailed": "Reset failed",
+  "boot.fault.install.title": "Install failed",
+  "boot.fault.install.body":
+    "Could not download Node or harness—often network, mirror, or proxy. Check logs for details.",
+  "boot.fault.health.title": "Service not ready",
+  "boot.fault.health.body":
+    "Process started but the official UI did not return HTTP 200 in time—port conflict or plugin hang.",
+  "boot.fault.spawn.title": "Could not start harness",
+  "boot.fault.spawn.body":
+    "dsh did not listen on a port—often port in use or damaged harness.",
+  "boot.fault.node.title": "Node runtime missing",
+  "boot.fault.node.body":
+    "Managed Node is missing or incomplete. Retry or reset the hosted runtime.",
+  "boot.fault.harness.title": "Harness entry missing",
+  "boot.fault.harness.body":
+    "Managed harness entry file is missing—partial install or interrupted update. Reset harness.",
+  "boot.fault.default.title": "Start failed",
+  "boot.fault.default.body":
+    "See technical details below, or retry / open logs.",
+  "boot.cta.retry": "Retry",
+  "boot.cta.network": "Network settings",
+  "boot.cta.logs": "Open logs",
+  "boot.cta.reset": "Reset hosted runtime",
+  "boot.reset.confirm":
+    "Clears the local harness install and re-downloads (keeps Node; does not delete ~/.dsh). Continue?",
+  "boot.msg.harnessUpdated": "Update complete",
+  "chrome.windowControls.aria": "Window controls",
+  "chrome.sessionLog": "Download Session log",
+  "chrome.minimize": "Minimize",
+  "chrome.maximize": "Maximize",
+  "chrome.restore": "Restore",
+  "chrome.close": "Close",
+  "chrome.menu.closeAria": "Close menu",
+  "chrome.menu.app": "App",
+  "chrome.menu.help": "Help",
+  "chrome.menu.restartUi": "Restart official UI",
+  "chrome.menu.openDshHome": "Open DSH_HOME",
+  "chrome.menu.openLogs": "Open logs folder",
+  "chrome.menu.hideTray": "Hide to tray",
+  "chrome.menu.quit": "Quit",
+  "chrome.menu.about": "About",
+  "chrome.menu.platformApi": "DeepSeek API platform",
+  "chrome.menu.copyVersion": "Copy version info",
+  "chrome.conn.failed": "Start failed",
+  "chrome.conn.preparing": "Preparing",
+  "chrome.productName": "DeepSeek Harness",
+  "chrome.platform.back": "Back",
+  "chrome.platform.title": "DeepSeek Open Platform",
+  "chrome.updateBanner.downloaded":
+    "Shell {version} downloaded. Restart to install.",
+  "chrome.updateBanner.newVersion": "new version",
+  "closeAsk.title": "Close window",
+  "closeAsk.lead":
+    "What should happen when you close? The official UI service can keep running in the tray.",
+  "closeAsk.remember": "Remember as my default",
+  "closeAsk.rememberHint": "Change later in Shell settings → Window",
+  "closeAsk.toTray": "Minimize to tray",
+  "closeAsk.quit": "Quit completely",
+  "closeAsk.cancel": "Cancel",
+  "tray.open": "Open window",
+  "tray.quit": "Quit",
 };
 
 export const dicts: Record<"zh" | "en", LocaleDict> = { zh, en };

@@ -134,6 +134,11 @@ export function setDshLocalePreference(preference: string): Promise<void> {
   return invoke("set_dsh_locale_preference", { preference });
 }
 
+/** 同步托盘菜单文案（与 LocaleProvider 当前 locale 对齐）。 */
+export function syncTrayLocale(preference: string): Promise<void> {
+  return invoke("sync_tray_locale", { preference });
+}
+
 export { PLATFORM_URL } from "../settings";
 
 

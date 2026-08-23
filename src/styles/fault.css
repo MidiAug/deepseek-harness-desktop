@@ -1,0 +1,39 @@
+/* 故障恢复块：Boot 与设置弹窗共用 */
+.fault-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 22px;
+  color: var(--color-text-primary);
+}
+
+.fault-body {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--color-text-secondary);
+}
+
+.fault-technical {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(242, 90, 90, 0.1);
+  border: 1px solid rgba(242, 90, 90, 0.35);
+  color: #ffb4b4;
+  font-size: 12px;
+  line-height: 18px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.fault-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 0;
+}
+
+.settings-scroll .fault-block {
+  margin-top: 12px;
+}
