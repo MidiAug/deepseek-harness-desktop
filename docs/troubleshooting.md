@@ -46,6 +46,8 @@
 ## 关于页版本 / digest
 
 - **壳版本** · **harness 版本** · **digest**（package.json SHA-256 前 16 hex）在壳设置 → **关于**（菜单「关于」直达）  
+- **求助时导出诊断**：设置 → 关于 → **导出诊断**（版本、脱敏设置、路径摘要、`logs/shell.log` + `logs/harness.log` 尾部、`runtime-status.json`；打开所在文件夹后可打包发送）  
+- **开发排障**：`pnpm tauri dev` 时终端会刷 `[shell::*]` / `[harness::out]` 日志；也可开 DevTools（`attachConsole`）看前后端合并流  
 - 「检查 harness 更新」走当前镜像/代理的 npm registry；失败时看 `INSTALL_FAILED:` 文案与代理设置  
 - 「更新并重启」会停托管进程、移除旧包、强制 `npm install @deepseek-ai/dsh@latest` 再拉起；**可能需数分钟**  
 - 关于页会显示**进度条**与**滚动过程日志**（npm 输出按行流式刷新；约 12s 无输出会有心跳提示）  
@@ -56,3 +58,9 @@
 
 - 确认代理对 **应用本身** 生效，而不仅是浏览器（完整能力在 B3）  
 - 镜像与代理都配时，确认失败步骤是「下载壳资源」还是「dsh plugin」  
+
+## 怀疑插件导致无法启动
+
+- 壳 **重置托管运行时** 只清 AppData `harness`，**不删** `~/.dsh` 内已装插件  
+- 若官方 UI 因插件卡死：备份后尝试删除或移走 `%USERPROFILE%\.dsh\plugins`（或你自定义的 `DSH_HOME` 下 `plugins`）再重启  
+- 仍失败：设置 → 关于 → **导出诊断**，附 `shell.log` 与 `manifest.json` 求助  

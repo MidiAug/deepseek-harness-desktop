@@ -53,12 +53,12 @@ pub fn spawn_watch<R: Runtime>(app: &AppHandle<R>) {
             ) {
                 Ok(w) => w,
                 Err(e) => {
-                    eprintln!("dsh settings watch: {e}");
+                    log::warn!(target: "shell::watch", "dsh settings watch: {e}");
                     return;
                 }
             };
             if let Err(e) = watcher.watch(&home, RecursiveMode::NonRecursive) {
-                eprintln!("dsh settings watch dir: {e}");
+                log::warn!(target: "shell::watch", "dsh settings watch dir: {e}");
                 return;
             }
             let (mut last_theme, mut last_locale) = read_prefs(&home);

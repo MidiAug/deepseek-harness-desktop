@@ -21,6 +21,7 @@ import {
   type ShellTheme,
 } from "../settings";
 import * as shellApi from "../api/shellApi";
+import { shellLog } from "../logger";
 
 type ChromePatch = Partial<
   Pick<
@@ -133,7 +134,7 @@ export function ChromeProvider({ children }: { children: ReactNode }) {
       if (patch.shellTheme != null) {
         void shellApi
           .setDshThemePreference(patch.shellTheme)
-          .catch((e) => console.error(e));
+          .catch((e) => shellLog.error("chrome", "set theme", e));
       }
       const uiOnly = {
         titlebarCompact: next.titlebarCompact,
@@ -145,7 +146,7 @@ export function ChromeProvider({ children }: { children: ReactNode }) {
         patch.selectionHygiene != null ||
         patch.sessionLogInTitlebar != null
       ) {
-        void shellApi.saveUiSettings(uiOnly).catch((e) => console.error(e));
+        void shellApi.saveUiSettings(uiOnly).catch((e) => shellLog.error("chrome", "save ui", e));
       }
       return next;
     });

@@ -11,6 +11,7 @@ import {
 } from "../../shell/settings";
 import {
   shellApi,
+  shellLog,
   useChrome,
   useHostLifecycle,
   useShellUpdate,
@@ -33,6 +34,11 @@ import { FaultRecoveryBlock } from "../chrome/FaultRecoveryBlock";
 import type { FaultCta } from "../../shell/errors/recoveryMatrix";
 
 export type { SettingsSection } from "./settingsTypes";
+
+type FaultState = {
+  message: string;
+  retry?: () => void | Promise<void>;
+};
 
 type Props = {
   open: boolean;
@@ -63,7 +69,7 @@ export function SettingsModal({
   );
   const [runtime, setRuntime] = useState<RuntimeStatus | null>(null);
   const [cliStatus, setCliStatus] = useState<CliLinkStatus | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [fault, setFault] = useState<FaultState | null>(null);
   const [hint, setHint] = useState<string | null>(null);
   const [section, setSection] = useState<SettingsSection>("network");
   const [updateCheck, setUpdateCheck] = useState<HarnessUpdateCheck | null>(
@@ -74,6 +80,20 @@ export function SettingsModal({
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const faultRef = useRef<FaultState | null>(null);
+  faultRef.current = fault;
+
+  const reportFault = useCallback(
+    (message: string | null, retry?: () => void | Promise<void>) => {
+      if (message === null) {
+        setFault(null);
+        return;
+      }
+      shellLog.warn("settings", message);
+      setFault({ message, retry });
+    },
+    [],
+  );
 
   const refreshRuntime = useCallback(() => {
     void shellApi
@@ -84,7 +104,7 @@ export function SettingsModal({
 
   useEffect(() => {
     if (!open) return;
-    setError(null);
+    setFault(null);
     setHint(null);
     setUpdateCheck(null);
     setSection(initialSection ?? "network");
@@ -103,7 +123,7 @@ export function SettingsModal({
           sessionLogInTitlebar: next.sessionLogInTitlebar,
         });
       })
-      .catch((e) => setError(String(e)));
+      .catch((e) => reportFault(String(e)));
     refreshRuntime();
     void shellApi.getCliLinkStatus().then(setCliStatus).catch(() => undefined);
   }, [open, initialSection, setChrome, refreshRuntime]);
@@ -141,20 +161,26 @@ export function SettingsModal({
   const handleFaultCta = useCallback(
     (cta: FaultCta) => {
       switch (cta) {
-        case "retry":
-          setError(null);
-          refreshRuntime();
+        case "retry": {
+          const current = faultRef.current;
+          setFault(null);
+          if (current?.retry) {
+            void current.retry();
+          } else {
+            refreshRuntime();
+          }
           break;
+        }
         case "network":
           setSection("network");
-          setError(null);
+          setFault(null);
           break;
         case "logs":
           void shellApi.openKnownPath("logs");
           break;
         case "reset":
           setSection("data");
-          setError(null);
+          setFault(null);
           break;
       }
     },
@@ -168,14 +194,16 @@ export function SettingsModal({
   }
 
   function persistRuntime(next: ShellSettings, softHint?: string) {
-    setError(null);
+    setFault(null);
     void shellApi
       .saveRuntimeSettings(runtimeFromSettings(next))
       .then(() => {
         if (softHint) flashHint(softHint);
       })
       .catch((e) => {
-        setError(typeof e === "string" ? e : String(e));
+        const msg = typeof e === "string" ? e : String(e);
+        const snapshot = { ...next };
+        reportFault(msg, () => persistRuntime(snapshot, softHint));
         void shellApi.getShellSettings().then((s) => {
           setSettings(normalizeShellSettings(s));
         });
@@ -218,7 +246,7 @@ export function SettingsModal({
   }
 
   async function onCheckUpdate() {
-    setError(null);
+    setFault(null);
     setHint(null);
     life.beginOps(t("settings.hint.checkingUpdate"));
     try {
@@ -232,7 +260,8 @@ export function SettingsModal({
         );
       }
     } catch (e) {
-      setError(typeof e === "string" ? e : String(e));
+      const msg = typeof e === "string" ? e : String(e);
+      reportFault(msg, onCheckUpdate);
     } finally {
       life.endOps({
         clearProgress: true,
@@ -241,7 +270,7 @@ export function SettingsModal({
   }
 
   async function onApplyUpdate() {
-    setError(null);
+    setFault(null);
     setHint(null);
     life.beginOps(t("settings.about.harnessUpdating"));
     try {
@@ -256,7 +285,8 @@ export function SettingsModal({
         percent: 100,
       });
     } catch (e) {
-      setError(typeof e === "string" ? e : String(e));
+      const msg = typeof e === "string" ? e : String(e);
+      reportFault(msg, onApplyUpdate);
       refreshRuntime();
     } finally {
       life.endOps();
@@ -264,7 +294,7 @@ export function SettingsModal({
   }
 
   async function onApplyNetworkRestart() {
-    setError(null);
+    setFault(null);
     setHint(null);
     life.beginOps(t("settings.hint.networkRestart"));
     try {
@@ -273,7 +303,8 @@ export function SettingsModal({
       onHarnessReady?.(payload);
       flashHint(t("settings.about.networkRestarted"));
     } catch (e) {
-      setError(typeof e === "string" ? e : String(e));
+      const msg = typeof e === "string" ? e : String(e);
+      reportFault(msg, onApplyNetworkRestart);
     } finally {
       life.endOps({
         clearProgress: true,
@@ -318,7 +349,7 @@ export function SettingsModal({
                 onClick={() => {
                   setSection(s.id);
                   setHint(null);
-                  setError(null);
+                  setFault(null);
                 }}
               >
                 {settingsNavIcon(s.id)}
@@ -378,7 +409,7 @@ export function SettingsModal({
                 locked={locked}
                 patchRuntime={patchRuntime}
                 flashHint={flashHint}
-                setError={setError}
+                setError={reportFault}
                 setSettings={setSettings}
                 setCliStatus={setCliStatus}
                 refreshRuntime={refreshRuntime}
@@ -393,7 +424,7 @@ export function SettingsModal({
                 locked={locked}
                 patchRuntime={patchRuntime}
                 flashHint={flashHint}
-                setError={setError}
+                setError={reportFault}
                 refreshRuntime={refreshRuntime}
                 onHarnessReady={onHarnessReady}
               />
@@ -416,14 +447,20 @@ export function SettingsModal({
                 onCheckUpdate={onCheckUpdate}
                 onApplyUpdate={onApplyUpdate}
                 onApplyNetworkRestart={onApplyNetworkRestart}
+                onDiagnosticsExported={(path) =>
+                  flashHint(
+                    t("settings.about.exportDiagnosticsDone", { path }),
+                  )
+                }
+                onDiagnosticsError={reportFault}
               />
             )}
 
             {hint && (
               <p className="settings-live-hint settings-feedback">{hint}</p>
             )}
-            {error && (
-              <FaultRecoveryBlock error={error} onCta={handleFaultCta} />
+            {fault && (
+              <FaultRecoveryBlock error={fault.message} onCta={handleFaultCta} />
             )}
           </div>
         </div>

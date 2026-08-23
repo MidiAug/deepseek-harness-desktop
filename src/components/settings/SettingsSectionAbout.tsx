@@ -1,6 +1,7 @@
-import type { RefObject } from "react";
+import { useState, type RefObject } from "react";
 import {
   shellApi,
+  shellLog,
   type HarnessUpdateCheck,
   type RuntimeStatus,
   type ShellUpdateState,
@@ -33,6 +34,11 @@ type Props = {
   onCheckUpdate: () => void | Promise<void>;
   onApplyUpdate: () => void | Promise<void>;
   onApplyNetworkRestart: () => void | Promise<void>;
+  onDiagnosticsExported?: (path: string) => void;
+  onDiagnosticsError?: (
+    message: string,
+    retry?: () => void | Promise<void>,
+  ) => void;
 };
 
 export function SettingsSectionAbout({
@@ -47,8 +53,28 @@ export function SettingsSectionAbout({
   onCheckUpdate,
   onApplyUpdate,
   onApplyNetworkRestart,
+  onDiagnosticsExported,
+  onDiagnosticsError,
 }: Props) {
   const { t } = useLocale();
+  const [exporting, setExporting] = useState(false);
+
+  async function onExportDiagnostics() {
+    if (exporting || locked) return;
+    const run = async () => {
+      setExporting(true);
+      try {
+        const result = await shellApi.exportDiagnostics();
+        onDiagnosticsExported?.(result.path);
+      } catch (e) {
+        const msg = typeof e === "string" ? e : String(e);
+        onDiagnosticsError?.(msg, run);
+      } finally {
+        setExporting(false);
+      }
+    };
+    await run();
+  }
 
   return (
     <div className="settings-section settings-about">
@@ -100,9 +126,17 @@ export function SettingsSectionAbout({
       <div className="settings-cell-actions">
         <button
           type="button"
+          className="btn ghost"
+          disabled={locked || exporting}
+          onClick={() => void onExportDiagnostics()}
+        >
+          {t("settings.about.exportDiagnostics")}
+        </button>
+        <button
+          type="button"
           className="btn"
           onClick={() => {
-            void shellApi.openPlatformWindow().catch((e) => console.error(e));
+            void shellApi.openPlatformWindow().catch((e) => shellLog.error("about", "open platform", e));
           }}
         >
           {t("settings.about.openPlatform")}
@@ -211,6 +245,9 @@ export function SettingsSectionAbout({
             : shellUpd.phase === "unsupported"
               ? t("settings.about.shellUpdate.unsupported")
               : t("settings.about.shellUpdate.idle")}
+      </p>
+      <p className="settings-live-hint settings-live-hint-subtle">
+        {t("settings.about.shellUpdate.safeHint")}
       </p>
       <div className="settings-cell-actions">
         <button

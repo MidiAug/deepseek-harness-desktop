@@ -111,9 +111,12 @@ export type LocaleKey =
   | "settings.about.shellUpdate.idle"
   | "settings.about.shellUpdate.check"
   | "settings.about.shellUpdate.install"
+  | "settings.about.shellUpdate.safeHint"
   | "settings.about.progress.busy"
   | "settings.about.progress.idle"
   | "settings.about.harnessUpdating"
+  | "settings.about.exportDiagnostics"
+  | "settings.about.exportDiagnosticsDone"
   | "settings.about.updateBanner.latest"
   | "contextMenu.copy"
   | "contextMenu.selectAll"
@@ -334,11 +337,15 @@ export const zh: LocaleDict = {
     "壳更新：启动后与每 6 小时自动检查；有新版本后台下载，确认后重启安装。详细进度写入 AppData/logs/shell.log。",
   "settings.about.shellUpdate.check": "检查壳更新",
   "settings.about.shellUpdate.install": "立即重启安装壳",
+  "settings.about.shellUpdate.safeHint":
+    "壳更新只替换程序文件，不会删除 DSH_HOME 或自定义安装目录下的用户数据。",
   "settings.about.progress.busy": "处理中…",
   "settings.about.progress.idle": "最近进度",
   "settings.about.updateBanner.latest": "有可用更新",
   "settings.about.harnessUpdating":
     "已开始更新：停止进程 → 安装 → 重启（可能需数分钟）…",
+  "settings.about.exportDiagnostics": "导出诊断",
+  "settings.about.exportDiagnosticsDone": "诊断已导出至：{path}",
   "contextMenu.copy": "复制",
   "contextMenu.selectAll": "选择全部",
   "contextMenu.undo": "撤销",
@@ -565,11 +572,15 @@ export const en: LocaleDict = {
     "Shell updates check on start and every 6 hours; downloads in background. See AppData/logs/shell.log.",
   "settings.about.shellUpdate.check": "Check shell update",
   "settings.about.shellUpdate.install": "Restart to install shell",
+  "settings.about.shellUpdate.safeHint":
+    "Shell updates replace app files only. They do not delete DSH_HOME or data in a custom install location.",
   "settings.about.progress.busy": "Working…",
   "settings.about.progress.idle": "Recent progress",
   "settings.about.updateBanner.latest": "Update available",
   "settings.about.harnessUpdating":
     "Update started: stop → install → restart (may take several minutes)…",
+  "settings.about.exportDiagnostics": "Export diagnostics",
+  "settings.about.exportDiagnosticsDone": "Diagnostics exported to: {path}",
   "contextMenu.copy": "Copy",
   "contextMenu.selectAll": "Select All",
   "contextMenu.undo": "Undo",

@@ -21,6 +21,7 @@
     "core:app:allow-default-window-icon",
     "updater:default",
     "process:default",
-    "window-state:default"
+    "window-state:default",
+    "log:default"
   ]
 }

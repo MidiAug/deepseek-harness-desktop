@@ -76,6 +76,14 @@ export function readShellLog(): Promise<string> {
   return invoke<string>("read_shell_log");
 }
 
+export type ExportDiagnosticsResult = {
+  path: string;
+};
+
+export function exportDiagnostics(): Promise<ExportDiagnosticsResult> {
+  return invoke<ExportDiagnosticsResult>("export_diagnostics");
+}
+
 export function openKnownPath(which: KnownPath): Promise<void> {
   return invoke("open_known_path", { which });
 }

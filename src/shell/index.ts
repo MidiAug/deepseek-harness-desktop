@@ -43,4 +43,5 @@ export {
   type FaultCta,
   type FaultPrefix,
 } from "./errors/recoveryMatrix";
+export { shellLog } from "./logger";
 export { PLATFORM_URL } from "./settings";

@@ -1,12 +1,9 @@
 //! 进度事件载荷：前端用 stage / message 展示安装状态机。
 
-use std::fs::{self, OpenOptions};
-use std::io::Write;
-
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Runtime};
 
-use crate::paths;
+use crate::logging;
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -29,7 +26,9 @@ pub fn emit_progress<R: Runtime>(
     message: &str,
     percent: Option<u8>,
 ) {
-    append_shell_log(app, &format!("[{stage}] {message}"));
+    if logging::should_log_progress_line(stage, message) {
+        append_shell_log(app, &format!("[{stage}] {message}"));
+    }
     let _ = app.emit(
         "install-progress",
         ProgressPayload {
@@ -40,13 +39,19 @@ pub fn emit_progress<R: Runtime>(
     );
 }
 
-/// 子进程行日志：写 shell.log 并推前端（不改总进度百分比）。
+/// 子进程行日志：限流写 shell.log；UI 仍逐行推送。
 pub fn emit_log_line<R: Runtime>(app: &AppHandle<R>, stage: &str, line: &str) {
     let trimmed = line.trim();
     if trimmed.is_empty() {
         return;
     }
-    append_shell_log(app, &format!("[{stage}] {trimmed}"));
+    if stage == "npm-log" {
+        if logging::should_log_npm_line(trimmed) {
+            append_shell_log(app, &format!("[{stage}] {trimmed}"));
+        }
+    } else if logging::should_log_progress_line(stage, trimmed) {
+        append_shell_log(app, &format!("[{stage}] {trimmed}"));
+    }
     let _ = app.emit(
         "install-progress",
         ProgressPayload {
@@ -57,27 +62,7 @@ pub fn emit_log_line<R: Runtime>(app: &AppHandle<R>, stage: &str, line: &str) {
     );
 }
 
-/// 追加一行到 AppData/logs/shell.log（失败静默，不挡主流程）。
-pub fn append_shell_log<R: Runtime>(app: &AppHandle<R>, line: &str) {
-    let Ok(path) = paths::shell_log_file(app) else {
-        return;
-    };
-    if let Some(parent) = path.parent() {
-        let _ = fs::create_dir_all(parent);
-    }
-    let Ok(mut f) = OpenOptions::new().create(true).append(true).open(&path) else {
-        return;
-    };
-    let ts = chrono_like_now();
-    let _ = writeln!(f, "{ts} {line}");
-}
-
-fn chrono_like_now() -> String {
-    // 避免为日志引入 chrono 依赖：本地粗时间戳即可
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let secs = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
-    format!("unix={secs}")
+/// 宿主进度/运维行：经 tauri-plugin-log 落盘；dev 下同时刷终端。
+pub fn append_shell_log<R: Runtime>(_app: &AppHandle<R>, line: &str) {
+    log::info!(target: "shell::progress", "{line}");
 }

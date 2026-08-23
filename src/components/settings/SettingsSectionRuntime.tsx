@@ -17,7 +17,7 @@ type Props = {
     opts?: { debounceMs?: number; softHint?: string },
   ) => void;
   flashHint: (msg: string) => void;
-  setError: Dispatch<SetStateAction<string | null>>;
+  setError: (error: string | null, retry?: () => void | Promise<void>) => void;
   setSettings: Dispatch<SetStateAction<ShellSettings>>;
   setCliStatus: Dispatch<SetStateAction<CliLinkStatus | null>>;
   refreshRuntime: () => void;

@@ -11,7 +11,7 @@ type Props = {
     opts?: { debounceMs?: number; softHint?: string },
   ) => void;
   flashHint: (msg: string) => void;
-  setError: (error: string | null) => void;
+  setError: (error: string | null, retry?: () => void | Promise<void>) => void;
   refreshRuntime: () => void;
   onHarnessReady?: (payload: ReadyPayload) => void;
 };
@@ -86,17 +86,19 @@ export function SettingsSectionData({
             if (!window.confirm(t("settings.data.reset.confirm"))) {
               return;
             }
-            setError(null);
-            void (async () => {
+            const runReset = async () => {
+              setError(null);
               try {
                 const ready = await shellApi.resetHostedRuntime();
                 flashHint(t("settings.data.reset.done"));
                 refreshRuntime();
                 onHarnessReady?.(ready);
               } catch (e) {
-                setError(typeof e === "string" ? e : String(e));
+                const msg = typeof e === "string" ? e : String(e);
+                setError(msg, runReset);
               }
-            })();
+            };
+            void runReset();
           }}
         >
           {t("settings.data.reset.button")}

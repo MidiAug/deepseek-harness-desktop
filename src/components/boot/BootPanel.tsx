@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   BOOT_STAGES,
   shellApi,
+  shellLog,
   stageIndex,
   useHostLifecycle,
   useLocale,
@@ -95,8 +96,10 @@ export function BootPanel({
         setDone(true);
         onReady(ready);
       } catch (e) {
+        const msg = typeof e === "string" ? e : String(e);
+        shellLog.error("boot", "reset_hosted_runtime", msg);
         setFailed(true);
-        setError(typeof e === "string" ? e : String(e));
+        setError(msg);
         seedBootRef.current({
           message: t("boot.msg.resetFailed"),
           stageId: "start",
@@ -133,8 +136,10 @@ export function BootPanel({
         setDone(true);
         onReady(ready);
       } catch (e) {
+        const msg = typeof e === "string" ? e : String(e);
+        shellLog.error("boot", `startHarness ${cmd}`, msg);
         setFailed(true);
-        setError(typeof e === "string" ? e : String(e));
+        setError(msg);
         seedBootRef.current({ message: t("boot.msg.failed"), stageId: "start" });
         onStatusMessageRef.current?.(t("boot.msg.failed"));
         startedRef.current = false;

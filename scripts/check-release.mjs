@@ -36,6 +36,11 @@ if (confText) {
       if (String(ep).includes("OWNER") || String(ep).includes("example.com")) {
         errors.push(`updater endpoint 仍为占位: ${ep}`);
       }
+      if (String(ep).includes("deepseek-harness-desktop/deepseek-harness-desktop")) {
+        errors.push(
+          `updater endpoint 仍为占位仓库（请改为真实 owner/repo）: ${ep}`,
+        );
+      }
     }
   }
   if (conf?.bundle?.createUpdaterArtifacts !== true) {

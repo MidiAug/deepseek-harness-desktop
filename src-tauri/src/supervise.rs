@@ -45,6 +45,7 @@ impl Default for HarnessState {
 /// 启动前清扫：仅杀「pid 文件记录且仍占该端口」的孤儿，避免误杀他人 node。
 /// （R1：已移除 wmic 按路径扫杀。）
 pub fn sweep_orphans<R: Runtime>(app: &AppHandle<R>) {
+    log::debug!(target: "shell::supervise", "sweep_orphans");
     let Ok(pid_path) = paths::pid_file(app) else {
         return;
     };
@@ -67,6 +68,7 @@ pub fn sweep_orphans<R: Runtime>(app: &AppHandle<R>) {
         return;
     }
     kill_pid_tree(pid);
+    log::info!(target: "shell::supervise", "sweep_orphans killed pid={pid} port={port}");
     let _ = fs::remove_file(&pid_path);
 }
 
@@ -114,6 +116,7 @@ pub async fn spawn_and_wait_healthy<R: Runtime>(
         } else {
             paths::default_port()
         };
+        log::info!(target: "shell::supervise", "spawn_and_wait_healthy begin preferred={preferred}");
         let port = find_available_port(preferred)?;
         if port != preferred {
             progress::emit_progress(
@@ -269,6 +272,7 @@ async fn wait_healthy<R: Runtime>(
 
         match client.get(url).send().await {
             Ok(resp) if resp.status().as_u16() == 200 => {
+                log::info!(target: "shell::supervise", "healthy url={url}");
                 return Ok(());
             }
             Ok(resp) => {
@@ -325,12 +329,16 @@ fn spawn_file_readers(stdout: std::fs::File, stderr: std::fs::File, log_path: Pa
         let reader = BufReader::new(stdout);
         for line in reader.lines().flatten() {
             append_log(&path, &format!("[out] {line}"));
+            #[cfg(debug_assertions)]
+            crate::logging::tee_harness_line_to_host(false, &line);
         }
     });
     thread::spawn(move || {
         let reader = BufReader::new(stderr);
         for line in reader.lines().flatten() {
             append_log_level(&log_path, "WARN", &format!("[err] {line}"));
+            #[cfg(debug_assertions)]
+            crate::logging::tee_harness_line_to_host(true, &line);
         }
     });
 }

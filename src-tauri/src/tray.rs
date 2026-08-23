@@ -51,13 +51,13 @@ pub fn sync_locale<R: Runtime>(app: &AppHandle<R>, locale: ShellLocale) {
     let menu = match build_tray_menu(app, locale) {
         Ok(m) => m,
         Err(e) => {
-            eprintln!("tray rebuild menu: {e}");
+            log::warn!(target: "shell::tray", "tray rebuild menu: {e}");
             return;
         }
     };
     if let Some(tray) = app.tray_by_id(TRAY_ID) {
         if let Err(e) = tray.set_menu(Some(menu)) {
-            eprintln!("tray set_menu: {e}");
+            log::warn!(target: "shell::tray", "tray set_menu: {e}");
         }
     }
 }

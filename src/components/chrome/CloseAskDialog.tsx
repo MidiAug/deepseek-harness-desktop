@@ -3,7 +3,7 @@ import {
   normalizeShellSettings,
   type ShellSettings,
 } from "../../shell/settings";
-import { shellApi } from "../../shell";
+import { shellApi, shellLog } from "../../shell";
 import { useLocale } from "../../shell/locale";
 
 type Props = {
@@ -35,7 +35,7 @@ export function CloseAskDialog({ open, onClose }: Props) {
         await shellApi.quitApp();
       }
     } catch (e) {
-      console.error(e);
+      shellLog.error("closeAsk", "apply close preference", e);
       setBusy(false);
     }
   }

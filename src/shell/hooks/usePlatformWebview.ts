@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { ResolvedTheme } from "../settings";
 import { hidePlatformWebview, showPlatformWebview } from "../api/shellApi";
+import { shellLog } from "../logger";
 
 /** 平台态：在 shell-body 区域挂载原生子 WebView（站点禁止 iframe 嵌套）。 */
 export function usePlatformWebview(
@@ -11,7 +12,7 @@ export function usePlatformWebview(
 ) {
   useEffect(() => {
     if (!active || !shellBodyEl) {
-      void hidePlatformWebview().catch((e: unknown) => console.error(e));
+      void hidePlatformWebview().catch((e: unknown) => shellLog.error("platform", "hide", e));
       return;
     }
 
@@ -24,7 +25,7 @@ export function usePlatformWebview(
       const top = shellBodyEl.getBoundingClientRect().top;
       if (top < 0) return;
       void showPlatformWebview({ top, theme })
-        .catch((e: unknown) => console.error(e));
+        .catch((e: unknown) => shellLog.error("platform", "show", e));
     };
 
     const scheduleSync = () => {
@@ -49,7 +50,7 @@ export function usePlatformWebview(
       ro.disconnect();
       unresized?.();
       unscaled?.();
-      void hidePlatformWebview().catch((e: unknown) => console.error(e));
+      void hidePlatformWebview().catch((e: unknown) => shellLog.error("platform", "hide", e));
     };
   }, [active, shellBodyEl, theme]);
 }

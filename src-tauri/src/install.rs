@@ -35,6 +35,7 @@ fn emit_progress<R: Runtime>(
 
 /// 若已存在可用 Node + dsh 入口则跳过；否则下载/安装。
 pub async fn ensure_runtime_installed<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
+    log::info!(target: "shell::install", "ensure_runtime_installed");
     #[cfg(not(windows))]
     {
         let _ = app;
@@ -366,6 +367,10 @@ async fn download_file<R: Runtime>(
                 last_err = e;
                 if attempt < DOWNLOAD_MAX_ATTEMPTS {
                     let delay_ms = 500u64 * (1 << (attempt - 1));
+                    log::warn!(
+                        target: "shell::install",
+                        "download retry {attempt}/{DOWNLOAD_MAX_ATTEMPTS} url={url} err={last_err}"
+                    );
                     emit_progress(
                         app,
                         stage,

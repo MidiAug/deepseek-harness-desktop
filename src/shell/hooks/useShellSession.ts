@@ -11,6 +11,7 @@ import type {
   ReadyPayload,
 } from "../types/ipc-types";
 import { stopHarness } from "../api/shellApi";
+import { shellLog } from "../logger";
 
 function withCacheBust(url: string): string {
   const sep = url.includes("?") ? "&" : "?";
@@ -29,6 +30,7 @@ export function useShellSession() {
   const [bootMsg, setBootMsg] = useState("正在准备…");
 
   const markReady = useCallback((payload: ReadyPayload) => {
+    shellLog.info("session", `ready embedding port=${payload.port}`);
     setServiceUrl(withCacheBust(payload.url));
     setPort(payload.port);
     setPhase("embedding");
@@ -37,12 +39,14 @@ export function useShellSession() {
   }, []);
 
   const markFailed = useCallback(() => {
+    shellLog.warn("session", "phase failed");
     setPhase("failed");
     setServiceUrl(null);
     setBootStealth(false);
   }, []);
 
   const markIframeConnected = useCallback(() => {
+    shellLog.info("session", "iframe connected");
     setPhase("ready");
   }, []);
 
@@ -54,6 +58,7 @@ export function useShellSession() {
 
   /** BootPanel 进入工作态时：冷启动=installing，快路径=spawning */
   const markBootWorking = useCallback((coldInstall: boolean) => {
+    shellLog.info("session", coldInstall ? "boot installing" : "boot spawning");
     setPhase(coldInstall ? "installing" : "spawning");
   }, []);
 
@@ -70,7 +75,7 @@ export function useShellSession() {
     try {
       await stopHarness();
     } catch (e) {
-      console.error(e);
+      shellLog.error("session", "stop harness", e);
     }
     setPhase("failed");
     setServiceUrl(null);

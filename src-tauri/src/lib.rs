@@ -1,5 +1,7 @@
 //! Tauri 入口：注册状态、命令，启动清扫与退出回收。
 
+mod logging;
+mod diagnostics;
 mod error;
 mod install;
 mod net;
@@ -35,7 +37,13 @@ async fn ensure_and_start(
     app: tauri::AppHandle,
     state: tauri::State<'_, HarnessState>,
 ) -> Result<ReadyPayload, String> {
-    runtime::ensure_and_start(&app, &state).await
+    log::info!(target: "shell::ipc", "ensure_and_start");
+    let result = runtime::ensure_and_start(&app, &state).await;
+    match &result {
+        Ok(p) => log::info!(target: "shell::ipc", "ensure_and_start ok port={}", p.port),
+        Err(e) => log::warn!(target: "shell::ipc", "ensure_and_start err={e}"),
+    }
+    result
 }
 
 #[tauri::command]
@@ -43,7 +51,13 @@ async fn restart_harness(
     app: tauri::AppHandle,
     state: tauri::State<'_, HarnessState>,
 ) -> Result<ReadyPayload, String> {
-    runtime::restart_harness(&app, &state).await
+    log::info!(target: "shell::ipc", "restart_harness");
+    let result = runtime::restart_harness(&app, &state).await;
+    match &result {
+        Ok(p) => log::info!(target: "shell::ipc", "restart_harness ok port={}", p.port),
+        Err(e) => log::warn!(target: "shell::ipc", "restart_harness err={e}"),
+    }
+    result
 }
 
 #[tauri::command]
@@ -51,6 +65,7 @@ fn stop_harness(
     app: tauri::AppHandle,
     state: tauri::State<'_, HarnessState>,
 ) -> Result<(), String> {
+    log::info!(target: "shell::ipc", "stop_harness");
     supervise::stop_and_clear_pid(&app, &state);
     progress::append_shell_log(&app, "[ops] stop_harness");
     Ok(())
@@ -186,7 +201,11 @@ fn get_shell_settings(app: tauri::AppHandle) -> ShellSettings {
 
 #[tauri::command]
 fn save_shell_settings(app: tauri::AppHandle, settings: ShellSettings) -> Result<(), String> {
-    settings::save(&app, &settings)
+    log::info!(target: "shell::ipc", "save_shell_settings");
+    settings::save(&app, &settings).map_err(|e| {
+        log::warn!(target: "shell::ipc", "save_shell_settings err={e}");
+        e
+    })
 }
 
 #[tauri::command]
@@ -194,17 +213,37 @@ fn save_runtime_settings(
     app: tauri::AppHandle,
     settings: RuntimeSettings,
 ) -> Result<(), String> {
-    settings::save_runtime(&app, &settings)
+    log::info!(target: "shell::ipc", "save_runtime_settings");
+    settings::save_runtime(&app, &settings).map_err(|e| {
+        log::warn!(target: "shell::ipc", "save_runtime_settings err={e}");
+        e
+    })
 }
 
 #[tauri::command]
 fn save_ui_settings(app: tauri::AppHandle, settings: UiSettings) -> Result<(), String> {
-    settings::save_ui(&app, &settings)
+    log::info!(target: "shell::ipc", "save_ui_settings");
+    settings::save_ui(&app, &settings).map_err(|e| {
+        log::warn!(target: "shell::ipc", "save_ui_settings err={e}");
+        e
+    })
 }
 
 #[tauri::command]
 async fn check_harness_update(app: tauri::AppHandle) -> Result<HarnessUpdateCheck, String> {
-    update::check_harness_update(&app).await
+    log::info!(target: "shell::ipc", "check_harness_update");
+    let result = update::check_harness_update(&app).await;
+    match &result {
+        Ok(c) => log::info!(
+            target: "shell::ipc",
+            "check_harness_update local={:?} latest={:?} available={}",
+            c.local,
+            c.latest,
+            c.update_available
+        ),
+        Err(e) => log::warn!(target: "shell::ipc", "check_harness_update err={e}"),
+    }
+    result
 }
 
 #[tauri::command]
@@ -212,7 +251,13 @@ async fn apply_harness_update(
     app: tauri::AppHandle,
     state: tauri::State<'_, HarnessState>,
 ) -> Result<ReadyPayload, String> {
-    update::apply_harness_update(&app, &state).await
+    log::info!(target: "shell::ipc", "apply_harness_update");
+    let result = update::apply_harness_update(&app, &state).await;
+    match &result {
+        Ok(p) => log::info!(target: "shell::ipc", "apply_harness_update ok port={}", p.port),
+        Err(e) => log::warn!(target: "shell::ipc", "apply_harness_update err={e}"),
+    }
+    result
 }
 
 /// 壳自更新安装前：跨进程锁 + 杀托管进程树（anywhere #469）。
@@ -244,6 +289,15 @@ async fn reset_hosted_runtime(
 #[tauri::command]
 fn read_shell_log(app: tauri::AppHandle) -> Result<String, String> {
     supervise::read_log_tail(&app, 8000)
+}
+
+#[tauri::command]
+fn export_diagnostics(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, HarnessState>,
+) -> Result<diagnostics::ExportDiagnosticsResult, String> {
+    log::info!(target: "shell::ipc", "export_diagnostics");
+    diagnostics::export_diagnostics(&app, &state)
 }
 
 #[tauri::command]
@@ -294,6 +348,7 @@ pub fn run() {
     #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
     {
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            log::info!(target: "shell::boot", "single_instance: focus existing window");
             if let Some(win) = app.get_webview_window("main") {
                 let _ = win.show();
                 let _ = win.unminimize();
@@ -302,7 +357,35 @@ pub fn run() {
         }));
         builder = builder.plugin(tauri_plugin_window_state::Builder::default().build());
     }
+    let log_dir = logging::host_log_dir();
+    let _ = std::fs::create_dir_all(&log_dir);
+    let mut log_builder = tauri_plugin_log::Builder::new()
+        .level(if cfg!(debug_assertions) {
+            log::LevelFilter::Debug
+        } else {
+            log::LevelFilter::Info
+        })
+        .timezone_strategy(tauri_plugin_log::TimezoneStrategy::UseLocal)
+        .max_file_size(2 * 1024 * 1024)
+        .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepOne)
+        .target(tauri_plugin_log::Target::new(
+            tauri_plugin_log::TargetKind::Folder {
+                path: log_dir,
+                file_name: Some("shell".into()),
+            },
+        ));
+    #[cfg(debug_assertions)]
+    {
+        log_builder = log_builder
+            .target(tauri_plugin_log::Target::new(
+                tauri_plugin_log::TargetKind::Stdout,
+            ))
+            .target(tauri_plugin_log::Target::new(
+                tauri_plugin_log::TargetKind::Webview,
+            ));
+    }
     let app = builder
+        .plugin(log_builder.build())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .manage(HarnessState::default())
@@ -330,12 +413,14 @@ pub fn run() {
             prepare_shell_update,
             reset_hosted_runtime,
             read_shell_log,
+            export_diagnostics,
             get_cli_link_status,
             set_cli_link_enabled,
             quit_app,
             hide_to_tray
         ])
         .setup(|app| {
+            log::info!(target: "shell::boot", "app setup begin");
             // 窗口改在 Rust 创建，以便挂 all-frames init（Windows 会注入 iframe）
             // windows: [] 时不会从 conf 带图标；须显式 .icon，否则 Win 任务栏为空白占位
             let url = if cfg!(debug_assertions) {
@@ -372,7 +457,7 @@ pub fn run() {
 
             supervise::sweep_orphans(app.handle());
             if let Err(e) = tray::setup_tray(app.handle()) {
-                eprintln!("tray setup: {e}");
+                log::warn!(target: "shell::tray", "tray setup: {e}");
             }
             dsh_settings_watch::spawn_watch(app.handle());
             Ok(())
@@ -402,6 +487,7 @@ pub fn run() {
 
     app.run(|app_handle, event| {
         if let RunEvent::Exit = event {
+            log::info!(target: "shell::boot", "app exit: stop harness");
             #[cfg(desktop)]
             {
                 let flags = StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED;

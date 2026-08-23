@@ -69,6 +69,11 @@ pub fn acquire<R: Runtime>(
         let holder_purpose = lines.next().unwrap_or("unknown").trim().to_string();
 
         if holder != 0 && holder != my_pid && pid_alive(holder) {
+            log::warn!(
+                target: "shell::runtime",
+                "runtime_lock busy holder={holder} purpose={holder_purpose} want={}",
+                purpose.as_str()
+            );
             return Err(String::from(
                 HostError::install(format!(
                     "运行时忙（pid {holder} · {holder_purpose}）。请稍候或关闭其他 deepseek-harness-desktop 实例后再试。"

@@ -14,6 +14,7 @@ import type { ShellBodyView } from "./components/titlebar/titlebarTypes";
 import { ShellUpdateBanner } from "./components/chrome/ShellUpdateBanner";
 import {
   shellApi,
+  shellLog,
   useChrome,
   useHostLifecycle,
   usePlatformWebview,
@@ -215,13 +216,13 @@ export default function App() {
         onRestart={session.restart}
         onStop={() => void session.stop()}
         onOpenDshHome={() => {
-          void shellApi.openKnownPath("dshHome").catch((e) => console.error(e));
+          void shellApi.openKnownPath("dshHome").catch((e) => shellLog.error("app", "open dshHome", e));
         }}
         onOpenLogs={() => {
-          void shellApi.openKnownPath("logs").catch((e) => console.error(e));
+          void shellApi.openKnownPath("logs").catch((e) => shellLog.error("app", "open logs", e));
         }}
         onHideToTray={() => {
-          void shellApi.hideToTray().catch((e) => console.error(e));
+          void shellApi.hideToTray().catch((e) => shellLog.error("app", "hideToTray", e));
         }}
         onAbout={() => openSettings("about")}
         onOpenPlatform={openPlatform}
@@ -236,7 +237,7 @@ export default function App() {
               ].join(" · ");
               await navigator.clipboard.writeText(text);
             } catch (e) {
-              console.error(e);
+              shellLog.error("app", "copy version", e);
             }
           })();
         }}
