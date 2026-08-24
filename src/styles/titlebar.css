@@ -327,3 +327,30 @@ body.suppress-hover .titlebar-compact.is-menu-open .titlebar-left-reveal {
 .menu-pop button:hover {
   background: var(--color-nav-hover);
 }
+
+/* 首跑引导：仅标题 + 窗控 */
+.titlebar-minimal {
+  justify-content: center;
+  padding: 0 0 0 0.4rem;
+}
+
+.titlebar-minimal-drag {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+}
+
+.titlebar-minimal .titlebar-product {
+  position: static;
+  transform: none;
+  max-width: calc(100% - 8rem);
+  pointer-events: none;
+}
+
+.titlebar-minimal .titlebar-right {
+  flex: none;
+  margin-left: auto;
+}

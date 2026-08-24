@@ -16,6 +16,8 @@ import type {
   KnownPath,
   ReadyPayload,
   RuntimeStatus,
+  EnvironmentProbe,
+  DirResolveResult,
   StartCommand,
 } from "../types/ipc-types";
 
@@ -37,6 +39,22 @@ export function restartHarness(): Promise<ReadyPayload> {
 
 export function startHarness(cmd: StartCommand): Promise<ReadyPayload> {
   return cmd === "restart_harness" ? restartHarness() : ensureAndStart();
+}
+
+export function probeEnvironment(): Promise<EnvironmentProbe> {
+  return invoke<EnvironmentProbe>("probe_environment");
+}
+
+export function resolveDshHomePath(
+  path: string,
+  mode: "local" | "hosted",
+  autoAdjust = true,
+): Promise<DirResolveResult> {
+  return invoke<DirResolveResult>("resolve_dsh_home_path", {
+    path,
+    mode,
+    autoAdjust,
+  });
 }
 
 export function getRuntimeStatus(): Promise<RuntimeStatus> {
@@ -97,6 +115,20 @@ export type ExportDiagnosticsResult = {
 
 export function exportDiagnostics(): Promise<ExportDiagnosticsResult> {
   return invoke<ExportDiagnosticsResult>("export_diagnostics");
+}
+
+/** 原生目录选择（首跑 DSH_HOME 等）。取消时返回 null。 */
+export async function pickDirectory(
+  defaultPath?: string,
+): Promise<string | null> {
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const selected = await open({
+    directory: true,
+    multiple: false,
+    defaultPath: defaultPath?.trim() || undefined,
+  });
+  if (selected == null) return null;
+  return Array.isArray(selected) ? (selected[0] ?? null) : selected;
 }
 
 export function openKnownPath(which: KnownPath): Promise<void> {

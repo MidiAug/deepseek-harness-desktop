@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ClassicTitleBar } from "./ClassicTitleBar";
 import { CompactTitleBar } from "./CompactTitleBar";
+import { MinimalTitleBar } from "./MinimalTitleBar";
 import { PlatformTitleBar } from "./PlatformTitleBar";
 import type { ShellTitleBarProps, WinAction } from "./titlebarTypes";
 
@@ -14,6 +15,8 @@ export type { ShellTitleBarProps, ShellBodyView } from "./titlebarTypes";
 export function ShellTitleBar({
   port,
   conn,
+  hideConnStatus = false,
+  minimal = false,
   chrome,
   sidebarWidthPx,
   bodyView,
@@ -72,6 +75,10 @@ export function ShellTitleBar({
     } else await w.close();
   }
 
+  if (minimal) {
+    return <MinimalTitleBar maximized={maximized} onWin={onWin} />;
+  }
+
   if (bodyView === "platform") {
     return (
       <PlatformTitleBar
@@ -110,6 +117,7 @@ export function ShellTitleBar({
     <ClassicTitleBar
       port={port}
       conn={conn}
+      hideConnStatus={hideConnStatus}
       maximized={maximized}
       onOpenSettings={onOpenSettings}
       onRestart={onRestart}

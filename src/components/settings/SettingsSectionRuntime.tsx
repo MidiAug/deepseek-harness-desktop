@@ -1,4 +1,4 @@
-﻿import type { Dispatch, SetStateAction } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import type { ShellSettings } from "../../shell/settings";
 import {
   shellApi,
@@ -10,6 +10,8 @@ import { useLocale } from "../../shell/locale";
 import type { CliLinkStatus } from "../../shell/api/shellApi";
 import { SettingsGroup } from "./SettingsGroup";
 import { SettingsPrefRow } from "./SettingsPrefRow";
+import { ShellSelect } from "../chrome/ShellSelect";
+import type { RuntimeSource } from "../../shell/settings";
 
 type Props = {
   settings: ShellSettings;
@@ -47,6 +49,11 @@ export function SettingsSectionRuntime({
   const { showToast } = useAppToast();
   const { onApplyNetworkRestart } = useHarnessSettingsOps();
   const ready = !!runtime?.harnessReady && !!runtime?.port;
+  const sourceOptions: { value: RuntimeSource; label: string }[] = [
+    { value: "auto", label: t("settings.runtimeSource.auto") },
+    { value: "system", label: t("settings.runtimeSource.system") },
+    { value: "hosted", label: t("settings.runtimeSource.hosted") },
+  ];
 
   return (
     <div className="settings-section">
@@ -88,8 +95,42 @@ export function SettingsSectionRuntime({
                 )}
               </dd>
             </div>
+            <div>
+              <dt>{t("settings.runtimeSource.active")}</dt>
+              <dd>
+                {runtime?.activeRuntime === "system"
+                  ? t("settings.runtimeSource.activeSystem")
+                  : runtime?.activeRuntime === "hosted"
+                    ? t("settings.runtimeSource.activeHosted")
+                    : "—"}
+              </dd>
+            </div>
           </dl>
         </div>
+      </SettingsGroup>
+
+      <SettingsGroup title={t("settings.group.runtimeSource")}>
+        <SettingsPrefRow
+          title={t("settings.runtimeSource.title")}
+          description={`${t("settings.runtimeSource.description")} ${
+            runtime?.systemRuntimeDetected
+              ? t("settings.runtimeSource.detected")
+              : t("settings.runtimeSource.notDetected")
+          }`}
+        >
+          <ShellSelect
+            aria-label={t("settings.runtimeSource.aria")}
+            value={settings.runtimeSource}
+            options={sourceOptions}
+            disabled={locked}
+            onChange={(value) => {
+              patchRuntime(
+                { runtimeSource: value as RuntimeSource },
+                { softHint: t("settings.runtimeSource.restartHint") },
+              );
+            }}
+          />
+        </SettingsPrefRow>
       </SettingsGroup>
 
       <SettingsGroup title={t("settings.group.controls")}>

@@ -1,10 +1,13 @@
-﻿import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   shellApi,
   shellLog,
   useHarnessSettingsOps,
   useHostLifecycle,
   useShellUpdate,
+  useAppToast,
+  runtimeFromSettings,
+  normalizeShellSettings,
   type RuntimeStatus,
 } from "../../shell";
 import { useLocale } from "../../shell/locale";
@@ -18,6 +21,7 @@ type Props = {
 /** 关于与更新：身份只读 + 更新 PrefRow；忙时进度条 + 启动日志组。 */
 export function SettingsSectionAbout({ runtime }: Props) {
   const { t } = useLocale();
+  const { showToast } = useAppToast();
   const life = useHostLifecycle();
   const shellUpd = useShellUpdate();
   const {
@@ -130,6 +134,7 @@ export function SettingsSectionAbout({ runtime }: Props) {
             </button>
           </div>
           {identityAdvanced && (
+            <>
             <dl className="settings-about-meta settings-about-meta-advanced">
               <div>
                 <dt>{t("settings.about.digest")}</dt>
@@ -154,6 +159,36 @@ export function SettingsSectionAbout({ runtime }: Props) {
                 </dd>
               </div>
             </dl>
+            <div className="settings-about-advanced-actions">
+              <SettingsPrefRow
+                title={t("settings.about.resetOnboarding")}
+                description={t("settings.about.resetOnboardingDesc")}
+              >
+                <button
+                  type="button"
+                  className="btn ghost"
+                  onClick={() => {
+                    void (async () => {
+                      try {
+                        const s = normalizeShellSettings(
+                          await shellApi.getShellSettings(),
+                        );
+                        await shellApi.saveRuntimeSettings({
+                          ...runtimeFromSettings(s),
+                          onboardingDone: false,
+                        });
+                        showToast(t("settings.about.resetOnboardingDone"));
+                      } catch (e) {
+                        shellLog.error("settings", "reset onboarding", e);
+                      }
+                    })();
+                  }}
+                >
+                  {t("settings.about.resetOnboarding")}
+                </button>
+              </SettingsPrefRow>
+            </div>
+            </>
           )}
         </div>
       </SettingsGroup>

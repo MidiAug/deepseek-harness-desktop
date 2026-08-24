@@ -11,6 +11,7 @@ import type { TitleConn } from "../../shell";
 type Props = {
   port: number | null;
   conn: TitleConn;
+  hideConnStatus?: boolean;
   maximized: boolean;
   onOpenSettings: () => void;
   onRestart: () => void;
@@ -27,6 +28,7 @@ type Props = {
 export function ClassicTitleBar({
   port,
   conn,
+  hideConnStatus = false,
   maximized,
   onOpenSettings,
   onRestart,
@@ -77,16 +79,20 @@ export function ClassicTitleBar({
           {t("chrome.productName")}
         </span>
         <span className="titlebar-trail" data-tauri-drag-region>
-          <span className="titlebar-dot" aria-hidden data-tauri-drag-region>
-            ·
-          </span>
-          <span
-            className={`titlebar-conn ${statusClass}`}
-            data-tauri-drag-region
-          >
-            <span className="titlebar-conn-mark" aria-hidden />
-            {statusLabel}
-          </span>
+          {!hideConnStatus && (
+            <>
+              <span className="titlebar-dot" aria-hidden data-tauri-drag-region>
+                ·
+              </span>
+              <span
+                className={`titlebar-conn ${statusClass}`}
+                data-tauri-drag-region
+              >
+                <span className="titlebar-conn-mark" aria-hidden />
+                {statusLabel}
+              </span>
+            </>
+          )}
         </span>
       </div>
 

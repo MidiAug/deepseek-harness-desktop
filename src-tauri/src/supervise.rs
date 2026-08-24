@@ -17,6 +17,7 @@ use crate::paths;
 use crate::progress;
 use crate::runtime::package::resolve_dsh_entry;
 use crate::settings;
+use crate::system_runtime::{ActiveRuntimeKind, SystemRuntime};
 
 #[cfg(windows)]
 use crate::platform::{self, OwnedProcessHandle};
@@ -28,8 +29,43 @@ pub struct HarnessState {
     pub port: Mutex<u16>,
     /// 会话级干净 profile：优先于 settings 的 DSH_HOME 覆盖。
     pub session_dsh_home: Mutex<Option<PathBuf>>,
+    /// 当前会话实际使用的运行时来源（spawn 后写入）。
+    pub active_runtime: Mutex<Option<ActiveRuntimeKind>>,
+    /// ensure 阶段选定的启动计划（spawn 消费）。
+    pub pending_launch: Mutex<Option<LaunchPlan>>,
     /// 防止 HMR / StrictMode / 重复点击并行跑 ensure（会叠多个 npm install）。
     pub boot_lock: tokio::sync::Mutex<()>,
+}
+
+#[derive(Debug, Clone)]
+pub struct LaunchPlan {
+    pub kind: ActiveRuntimeKind,
+    pub node: PathBuf,
+    pub entry: PathBuf,
+    pub cwd: PathBuf,
+}
+
+impl LaunchPlan {
+    pub fn hosted<R: Runtime>(app: &AppHandle<R>) -> Result<Self, String> {
+        let node = paths::node_binary(app)?;
+        let entry = resolve_dsh_entry(app)?;
+        let cwd = paths::harness_dir(app)?;
+        Ok(Self {
+            kind: ActiveRuntimeKind::Hosted,
+            node,
+            entry,
+            cwd,
+        })
+    }
+
+    pub fn system(rt: SystemRuntime) -> Self {
+        Self {
+            kind: ActiveRuntimeKind::System,
+            node: rt.node,
+            entry: rt.entry,
+            cwd: rt.cwd,
+        }
+    }
 }
 
 impl Default for HarnessState {
@@ -40,7 +76,45 @@ impl Default for HarnessState {
             pid: Mutex::new(None),
             port: Mutex::new(paths::default_port()),
             session_dsh_home: Mutex::new(None),
+            active_runtime: Mutex::new(None),
+            pending_launch: Mutex::new(None),
             boot_lock: tokio::sync::Mutex::new(()),
+        }
+    }
+}
+
+pub fn set_pending_launch(state: &HarnessState, plan: LaunchPlan) -> Result<(), String> {
+    *state.pending_launch.lock().map_err(|e| e.to_string())? = Some(plan);
+    Ok(())
+}
+
+fn take_launch_plan<R: Runtime>(
+    app: &AppHandle<R>,
+    state: &HarnessState,
+) -> Result<LaunchPlan, String> {
+    if let Some(plan) = state
+        .pending_launch
+        .lock()
+        .map_err(|e| e.to_string())?
+        .take()
+    {
+        return Ok(plan);
+    }
+    // restart 等未重跑 ensure：沿用上次来源，默认回落托管
+    let kind = state
+        .active_runtime
+        .lock()
+        .ok()
+        .and_then(|g| *g)
+        .unwrap_or(ActiveRuntimeKind::Hosted);
+    match kind {
+        ActiveRuntimeKind::Hosted => LaunchPlan::hosted(app),
+        ActiveRuntimeKind::System => {
+            if let Some(rt) = crate::system_runtime::resolve_system_runtime() {
+                Ok(LaunchPlan::system(rt))
+            } else {
+                LaunchPlan::hosted(app)
+            }
         }
     }
 }
@@ -194,19 +268,20 @@ pub async fn spawn_and_wait_healthy<R: Runtime>(
         }
         *state.port.lock().map_err(|e| e.to_string())? = port;
 
-        let node = paths::node_binary(app)?;
-        if !paths::is_file(&node) {
+        let plan = take_launch_plan(app, state)?;
+        let node = &plan.node;
+        let entry = &plan.entry;
+        let cwd = &plan.cwd;
+        if !paths::is_file(node) {
             return Err(String::from(
                 HostError::node_missing(node.display().to_string()),
             ));
         }
-        let entry = resolve_dsh_entry(app)?;
-        if !paths::is_file(&entry) {
+        if !paths::is_file(entry) {
             return Err(String::from(
                 HostError::harness_not_found(entry.display().to_string()),
             ));
         }
-        let harness = paths::harness_dir(app)?;
         let dsh_home = effective_dsh_home(app, state, &cfg);
         fs::create_dir_all(&dsh_home).map_err(|e| {
             String::from(HostError::spawn(format!("mkdir DSH_HOME: {e}")))
@@ -222,7 +297,10 @@ pub async fn spawn_and_wait_healthy<R: Runtime>(
         }
         append_log(
             &log_path,
-            &format!("--- spawn dsh web --host 127.0.0.1 --port {port} ---"),
+            &format!(
+                "--- spawn ({:?}) dsh web --host 127.0.0.1 --port {port} ---",
+                plan.kind
+            ),
         );
 
         progress::emit_progress(
@@ -232,15 +310,23 @@ pub async fn spawn_and_wait_healthy<R: Runtime>(
             Some(90),
         );
 
-        let path_dir = node
+        let node_dir = node
             .parent()
             .unwrap_or(std::path::Path::new("."))
             .to_string_lossy()
             .into_owned();
         let mut envs = settings::proxy_env_overrides(&cfg);
         envs.insert("DSH_HOME".into(), dsh_home.to_string_lossy().into_owned());
-        envs.insert("PATH".into(), path_dir);
         envs.insert("NODE_OPTIONS".into(), "--dns-result-order=ipv4first".into());
+        match plan.kind {
+            ActiveRuntimeKind::Hosted => {
+                envs.insert("PATH".into(), node_dir);
+            }
+            ActiveRuntimeKind::System => {
+                let user_path = std::env::var("PATH").unwrap_or_default();
+                envs.insert("PATH".into(), format!("{node_dir};{user_path}"));
+            }
+        }
 
         let args = vec![
             OsString::from(entry.as_os_str()),
@@ -252,19 +338,20 @@ pub async fn spawn_and_wait_healthy<R: Runtime>(
             OsString::from("--no-open"),
         ];
 
-        let proc = platform::spawn_owned(&node, &args, Some(&harness), &envs)
+        let proc = platform::spawn_owned(node, &args, Some(cwd), &envs)
             .map_err(|e| String::from(HostError::spawn(format!("{e}"))))?;
         let pid = proc.pid;
         spawn_file_readers(proc.stdout, proc.stderr, log_path.clone());
         *state.owned.lock().map_err(|e| e.to_string())? = Some(proc.handle);
         *state.pid.lock().map_err(|e| e.to_string())? = Some(pid);
+        *state.active_runtime.lock().map_err(|e| e.to_string())? = Some(plan.kind);
         write_pid_file(app, pid, port)?;
 
         let url = paths::service_url(port);
         wait_healthy(app, &url, state, pid, port, Duration::from_secs(90)).await?;
         progress::emit_progress(app, "start", &format!("官方 UI 已就绪：{url}"), Some(100));
         Ok((port, url))
-    }
+        }
 }
 
 /// 本壳已托管进程且根路径已 HTTP 200 时复用，避免重复 ensure 杀进程。
@@ -377,6 +464,11 @@ async fn wait_healthy<R: Runtime>(
         }
 
         if !process_still_ours(state, expected_pid) {
+            if harness_log_suggests_plugin_issue(app) {
+                return Err(String::from(HostError::plugin_load_failed(format!(
+                    "dsh 进程 {expected_pid} 已退出；日志提示可能与插件或 profile 配置有关"
+                ))));
+            }
             return Err(String::from(
                 HostError::spawn(format!(
                     "dsh 进程 {expected_pid} 已退出，未能监听 {port}"
@@ -431,7 +523,11 @@ fn harness_log_suggests_plugin_issue<R: Runtime>(app: &AppHandle<R>) -> bool {
         &text
     };
     let lower = tail.to_lowercase();
-    lower.contains("plugin") || lower.contains("cordis") || lower.contains("dshmarket")
+    lower.contains("plugin tree")
+        || lower.contains("plugin")
+        || lower.contains("cordis")
+        || lower.contains("credentials")
+        || lower.contains("dshmarket")
 }
 
 fn process_still_ours(state: &HarnessState, expected_pid: u32) -> bool {

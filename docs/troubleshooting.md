@@ -12,6 +12,13 @@
 - 开发态：确认 `%AppData%\npm` 在 PATH 上优先于 DeepSeek Harness 假 `pnpm` shim  
 - 若提示「运行时忙」：另一实例正在更新/安装；关掉多余窗口（壳为单实例，二次启动应聚焦已有窗）  
 
+## 终端 `dsh web` 正常但壳启动失败
+
+- 壳「系统运行时」会优先选用 **npm 全局 Node** 或 **Program Files\\nodejs**，并**排除 Cursor / VS Code 内置 Node**（避免 `where node` 第一条是 IDE 路径）  
+- 自检：在项目根运行 `pnpm audit:runtime`，看 `selectedNode` / `selectedNodeReason` 是否为非 IDE 路径  
+- 若 `harness.log` 出现 `plugin tree failed` / `credentials` 而终端能跑：多为 **同一 `~/.dsh` profile 数据**问题；失败页应提示 **干净 profile** 或检查 `~/.dsh/.credentials.yaml`（如 `version` 须为字符串 `"1"` 而非数字）  
+- 「由壳全新准备」会使用 AppData 独立 `dsh-home`，不与 CLI 默认 profile 混用（见 [configuration.md](./configuration.md)）  
+
 ## 能开窗但页面空白
 
 - 确认本机 `127.0.0.1` 上 harness 端口已监听（debug 默认 **3081**，正式包 **3080**）  

@@ -9,14 +9,16 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "check:release": "node scripts/check-release.mjs",
-    "test:unit": "node --test --experimental-strip-types src/shell/errors/recoveryMatrix.test.ts src/shell/hostProgressMap.test.ts",
+    "test:unit": "node --test --experimental-strip-types src/shell/errors/recoveryMatrix.test.ts src/shell/hostProgressMap.test.ts src/shell/settings.test.ts src/shell/formatPathShort.test.ts",
     "audit:snapshot": "node scripts/audit-system-snapshot.mjs",
+    "audit:runtime": "node scripts/audit-runtime-probe.mjs",
     "audit:cdp": "node scripts/audit-cdp-capture.mjs",
     "audit:matrix": "node scripts/audit-run-matrix.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-autostart": "^2",
+    "@tauri-apps/plugin-dialog": "^2",
     "@tauri-apps/plugin-log": "^2",
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-updater": "^2.10.1",

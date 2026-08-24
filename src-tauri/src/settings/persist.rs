@@ -78,6 +78,10 @@ pub fn load<R: Runtime>(app: &AppHandle<R>) -> ShellSettings {
             if let Ok(r) = serde_json::from_value::<RuntimeSettings>(v.clone()) {
                 runtime = r;
             }
+            // B38 前已有 settings.json 的升级用户：视为已完成首跑
+            if v.get("onboardingDone").is_none() {
+                runtime.onboarding_done = true;
+            }
         }
     }
 

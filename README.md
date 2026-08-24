@@ -20,22 +20,24 @@ Windows 安装包：[GitHub Releases](https://github.com/MidiAug/deepseek-harnes
 
 | 痛点 | 本项目的做法 |
 |------|-------------|
-| 不会配环境 | 自动下载托管 Node + `@deepseek-ai/dsh`，首跑有进度与日志 |
+| 已装 CLI 还要再下一份 | **默认复用本机 dsh**；没有再托管到 AppData |
+| 不会配环境 | 无本机栈时自动下载托管 Node + `@deepseek-ai/dsh` |
 | 数据和 CLI 不互通 | 默认 `$DSH_HOME=~/.dsh`，会话 / 插件与官方 CLI 共用 |
 | 桌面壳常改 UI | **不 patch** 上游包；主区 iframe 加载官方 Web UI |
 | 安全边界模糊 | Harness 页默认无通用 Tauri FS/Shell IPC |
-| 壳和内核绑死 | **壳 / harness 版本分离**，各自检查与更新 |
+| 壳和内核绑死 | 壳自更新独立；托管模式下 harness 由壳更新，系统模式不碰全局包 |
 
 ## 功能亮点
 
-- **零前置依赖**：无需预装 Node，也无需会终端（默认托管路径）
-- **可信进程生命周期**：退出回收托管 `node`/`dsh`；崩溃后启动清扫孤儿进程
+- **零前置依赖（兜底）**：无本机 dsh 时自动下载托管 Node + `@deepseek-ai/dsh`
+- **本机优先**：已装官方 CLI 时可直接嵌入，不强制再下一份
+- **可信进程生命周期**：退出回收本会话 spawn 的 `node`/`dsh`；崩溃后启动清扫
 - **网络友好**：国内 npmmirror 镜像（默认）、系统/自定义 HTTP·SOCKS 代理；设置即时落盘
 - **与官方设置同步**：语言、主题读写 `~/.dsh/settings.yaml`，与 DeepSeek 设置一致
 - **简洁顶栏模式**：透明顶栏叠在官方 UI 上，窗控悬停显现；可代理 Session log 下载
 - **故障恢复**：首跑失败页、干净 profile 启动（不删你的 `~/.dsh`）、重置托管运行时、一键导出诊断
 - **壳自更新**：启动后与每 6 小时后台检查；下载完成后用户确认再重启安装
-- **Harness 独立更新**：关于页按镜像/代理查 npm `latest`，与壳 MSI 更新分开
+- **Harness 独立更新**：托管模式下关于页可更新 AppData 包；系统模式请用本机 npm
 - **单实例 + 托盘**：二次启动聚焦已有窗口；可最小化到托盘
 
 ## 快速开始
@@ -43,9 +45,9 @@ Windows 安装包：[GitHub Releases](https://github.com/MidiAug/deepseek-harnes
 ### 安装包用户
 
 1. 下载并安装 [最新 Release](https://github.com/MidiAug/deepseek-harness-desktop/releases/latest)  
-2. 首次启动，等待下载 Node 与 harness  
-3. 进入官方 DeepSeek Harness Web UI  
-4. 需要代理或镜像：**顶栏齿轮 → 壳设置 → 网络**
+2. 打开应用：若本机已有 dsh 则直接进入；否则等待托管下载  
+3. 主区出现官方 DeepSeek Harness Web UI  
+4. 需要代理、镜像或强制托管/本机：**顶栏齿轮 → 壳设置**
 
 ### 从源码开发
 
@@ -84,8 +86,14 @@ AppData/com.deepseek.harness.desktop/
 ## 不是什么
 
 - 不是 Electron 换皮聊天客户端，也不是 IDE  
-- 不提供「指向本机已有 `dsh`」的自带（BYO）模式  
 - 不 patch `@deepseek-ai/*` 换 UI  
+- 不替你管理 nvm 多版本 Node；探测失败会回落托管或明示错误  
+
+## 运行时来源
+
+默认 **自动**：本机已有可用的 Node + `@deepseek-ai/dsh` 时直接嵌入；否则壳下载托管到 AppData。  
+可在 **设置 → 本地服务 → 运行时来源** 强制「本机」或「托管」。  
+系统模式下壳 **不会** 用 npm 改写你的全局 dsh 包。 
 
 ## 文档
 

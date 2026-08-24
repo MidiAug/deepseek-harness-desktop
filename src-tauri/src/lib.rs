@@ -22,6 +22,7 @@ mod dsh_settings;
 mod dsh_settings_watch;
 mod sidebar_probe;
 mod supervise;
+mod system_runtime;
 mod tray;
 mod update;
 mod cli_link;
@@ -162,6 +163,20 @@ async fn hide_platform_webview(app: tauri::AppHandle) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || platform_window::hide_webview(&app))
         .await
         .map_err(|e| format!("platform hide join: {e}"))?
+}
+
+#[tauri::command]
+fn probe_environment(app: tauri::AppHandle) -> Result<runtime::EnvironmentProbe, String> {
+    runtime::probe_environment(&app)
+}
+
+#[tauri::command]
+fn resolve_dsh_home_path(
+    path: String,
+    mode: String,
+    auto_adjust: Option<bool>,
+) -> Result<paths::DirResolveResult, String> {
+    paths::resolve_dsh_home_for_mode(&path, &mode, auto_adjust.unwrap_or(true))
 }
 
 #[tauri::command]
@@ -420,6 +435,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         // 开机自启：官方插件写 OS 启动项（Windows Run 键），免手写注册表
         .plugin(tauri_plugin_autostart::Builder::new().build())
         .manage(HarnessState::default())
@@ -434,6 +450,8 @@ pub fn run() {
             show_platform_webview,
             hide_platform_webview,
             get_runtime_status,
+            probe_environment,
+            resolve_dsh_home_path,
             get_shell_settings,
             get_dsh_theme_preference,
             set_dsh_theme_preference,

@@ -144,10 +144,11 @@ pub fn read_harness_meta<R: Runtime>(app: &AppHandle<R>) -> HarnessMeta {
     let Ok(pkg) = dsh_package_json(app) else {
         return HarnessMeta::default();
     };
-    read_harness_meta_at(&pkg)
+    read_harness_meta_at_pkg(&pkg)
 }
 
-fn read_harness_meta_at(pkg: &Path) -> HarnessMeta {
+/// 从 package.json 路径读 version + digest。
+pub fn read_harness_meta_at_pkg(pkg: &Path) -> HarnessMeta {
     let Ok(text) = fs::read_to_string(pkg) else {
         return HarnessMeta::default();
     };
@@ -173,7 +174,7 @@ mod tests {
         let pkg = dir.join("package.json");
         let mut f = fs::File::create(&pkg).unwrap();
         write!(f, r#"{{"name":"@deepseek-ai/dsh","version":"1.2.3"}}"#).unwrap();
-        let meta = read_harness_meta_at(&pkg);
+        let meta = read_harness_meta_at_pkg(&pkg);
         assert_eq!(meta.version.as_deref(), Some("1.2.3"));
         assert_eq!(meta.digest.as_ref().map(|d| d.len()), Some(16));
         let _ = fs::remove_dir_all(&dir);

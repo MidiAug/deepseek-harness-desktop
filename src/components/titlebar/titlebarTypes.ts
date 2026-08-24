@@ -6,6 +6,10 @@ export type ShellBodyView = "harness" | "platform";
 export type ShellTitleBarProps = {
   port: number | null;
   conn: TitleConn;
+  /** 首跑向导等阶段隐藏顶栏「准备中」状态，避免与全屏引导重复 */
+  hideConnStatus?: boolean;
+  /** 首跑引导：仅标题 + 窗控 */
+  minimal?: boolean;
   chrome: ChromePrefs;
   /** 简洁叠层：官方 UI 侧栏宽（px），由 WebView 注入上报 */
   sidebarWidthPx: number;

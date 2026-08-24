@@ -18,6 +18,32 @@ export type ReadyPayload = {
   port: number;
 };
 
+export type EnvironmentProbe = {
+  systemRuntimeDetected: boolean;
+  systemNode?: string | null;
+  systemNodeVersion?: string | null;
+  systemEntry?: string | null;
+  dshHomeDefault: string;
+  dshHomeDetected: boolean;
+  hostedDshHomeDefault: string;
+  hostedDshHomeAdjusted: boolean;
+  hostedDshHomeConflictPath?: string | null;
+  hostedDshHomeReuseAvailable: boolean;
+  hostedDshHomeReusePath?: string | null;
+  appDataDir: string;
+  appDataAdjusted: boolean;
+  appDataConflictPath?: string | null;
+  harnessVersion?: string | null;
+  harnessDigest?: string | null;
+};
+
+export type DirResolveResult = {
+  path: string;
+  adjusted: boolean;
+  conflictPath?: string | null;
+  occupied: boolean;
+};
+
 export type RuntimeStatus = {
   nodeReady: boolean;
   harnessReady: boolean;
@@ -34,6 +60,10 @@ export type RuntimeStatus = {
   /** 当前 spawn 实际使用的 DSH_HOME（含干净 profile 会话） */
   effectiveDshHome?: string;
   cleanProfileActive?: boolean;
+  runtimeSource?: "auto" | "system" | "hosted";
+  activeRuntime?: "system" | "hosted" | null;
+  systemRuntimeDetected?: boolean;
+  systemEntry?: string | null;
 };
 
 export type HarnessUpdateCheck = {

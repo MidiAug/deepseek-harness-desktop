@@ -402,3 +402,366 @@
     animation: none;
   }
 }
+
+/* B38 首跑向导 */
+.onboarding-panel {
+  z-index: 2;
+}
+
+.onboarding-shell {
+  width: min(480px, calc(100% - 48px));
+}
+
+.onboarding-card {
+  gap: 20px;
+  /* 对齐 shell-dialog：默认可选禁，仅 .shell-copyable / 输入框可复制 */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.onboarding-card .shell-copyable,
+.onboarding-card input,
+.onboarding-card textarea {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.onboarding-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.onboarding-header .boot-title {
+  margin: 0;
+}
+
+.onboarding-lead {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+
+.onboarding-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.onboarding-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--color-line);
+  background: var(--color-canvas);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+/* 无版本行（应用新安装）更紧凑，避免下方空一大块 */
+.onboarding-choice:not(:has(.onboarding-choice-versions)) {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  gap: 0;
+}
+
+.onboarding-choice.selected {
+  border-color: var(--color-accent, #3b82f6);
+  background: color-mix(in srgb, var(--color-accent, #3b82f6) 6%, var(--color-canvas));
+}
+
+.onboarding-choice.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.onboarding-choice input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.onboarding-choice-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.onboarding-choice-title {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.onboarding-choice-tag {
+  font-size: 11px;
+  line-height: 1.3;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-accent, #3b82f6) 14%, transparent);
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+.onboarding-choice-tag.muted {
+  background: var(--color-line);
+  color: var(--color-muted);
+}
+
+.onboarding-choice-detail {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.onboarding-choice-versions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+
+.onboarding-section-title {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.onboarding-section-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.onboarding-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.onboarding-section-head .boot-title {
+  margin: 0;
+}
+
+.onboarding-section-header .onboarding-lead {
+  margin: 0;
+}
+
+.onboarding-dsh-home {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.onboarding-dsh-home-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--color-line);
+  background: var(--color-canvas);
+  transition: border-color 0.15s ease;
+}
+
+.onboarding-dsh-home-panel:focus-within {
+  border-color: color-mix(
+    in srgb,
+    var(--color-accent, #3b82f6) 45%,
+    var(--color-line)
+  );
+}
+
+.onboarding-dsh-home-input-wrap {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-sizing: border-box;
+}
+
+.onboarding-dsh-home-input-wrap.is-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.onboarding-dsh-home-input-wrap.is-disabled .onboarding-dsh-home-input {
+  color: var(--color-muted);
+  cursor: not-allowed;
+}
+
+.onboarding-dsh-home-input-wrap.is-disabled .onboarding-path-icon-btn {
+  pointer-events: none;
+}
+
+.onboarding-dsh-home-mode {
+  flex: none;
+  display: inline-flex;
+  align-items: stretch;
+  padding: 2px;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: var(--color-canvas);
+}
+
+.onboarding-dsh-home-mode button {
+  appearance: none;
+  margin: 0;
+  padding: 3px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-muted);
+  font: inherit;
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.onboarding-dsh-home-mode button:hover:not(.on) {
+  color: var(--color-ink);
+}
+
+.onboarding-dsh-home-mode button.on {
+  color: var(--color-ink);
+  font-weight: 500;
+  background: var(--color-panel);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.onboarding-dsh-home-mode button:focus-visible {
+  outline: 2px solid color-mix(
+    in srgb,
+    var(--color-accent, #3b82f6) 55%,
+    transparent
+  );
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.onboarding-dsh-home-input {
+  appearance: none;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0 4px 0 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--color-ink);
+  box-sizing: border-box;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.onboarding-dsh-home-input::placeholder {
+  color: var(--color-muted);
+}
+
+.onboarding-dsh-home-input:focus,
+.onboarding-dsh-home-input:focus-visible {
+  outline: none;
+  border: none;
+  box-shadow: none;
+}
+
+.onboarding-dsh-home-input:disabled {
+  opacity: 1;
+  -webkit-text-fill-color: var(--color-muted);
+}
+
+/* 路径反馈：面板内纯文字提示 */
+.onboarding-dsh-home-meta {
+  display: flex;
+  align-items: flex-start;
+}
+
+.onboarding-path-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--color-muted);
+}
+
+.onboarding-path-note.is-warn {
+  color: #9a4e00;
+}
+
+.onboarding-path-note.is-error {
+  color: #b42318;
+}
+
+.onboarding-path-note-hover {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  cursor: help;
+}
+
+:root[data-shell-theme="dark"] .onboarding-path-note.is-warn {
+  color: #ffc96b;
+}
+
+:root[data-shell-theme="dark"] .onboarding-path-note.is-error {
+  color: #ff9b94;
+}
+
+.onboarding-dsh-home-actions {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  margin: 0 -4px 0 2px;
+}
+
+.onboarding-path-icon-btn {
+  appearance: none;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  font: inherit;
+}
+
+.onboarding-path-icon-btn:hover:not(:disabled) {
+  background: var(--color-nav-hover);
+  color: var(--color-ink);
+}
+
+.onboarding-path-icon-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.onboarding-actions {
+  display: flex;
+  justify-content: flex-end;
+}

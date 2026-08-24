@@ -11,6 +11,19 @@ export type LocaleKey =
   | "settings.group.shellChrome"
   | "settings.group.editing"
   | "settings.group.status"
+  | "settings.group.runtimeSource"
+  | "settings.runtimeSource.title"
+  | "settings.runtimeSource.description"
+  | "settings.runtimeSource.aria"
+  | "settings.runtimeSource.auto"
+  | "settings.runtimeSource.system"
+  | "settings.runtimeSource.hosted"
+  | "settings.runtimeSource.active"
+  | "settings.runtimeSource.activeSystem"
+  | "settings.runtimeSource.activeHosted"
+  | "settings.runtimeSource.detected"
+  | "settings.runtimeSource.notDetected"
+  | "settings.runtimeSource.restartHint"
   | "settings.group.controls"
   | "settings.group.port"
   | "settings.group.cli"
@@ -181,6 +194,38 @@ export type LocaleKey =
   | "contextMenu.archive"
   | "contextMenu.copied"
   | "boot.brand"
+  | "onboarding.loading"
+  | "onboarding.title"
+  | "onboarding.lead"
+  | "onboarding.lead.detected"
+  | "onboarding.lead.fresh"
+  | "onboarding.choice.local.title"
+  | "onboarding.choice.local.tag"
+  | "onboarding.choice.local.unavailable"
+  | "onboarding.choice.local.versionDsh"
+  | "onboarding.choice.local.versionNode"
+  | "onboarding.choice.hosted.title"
+  | "onboarding.choice.hosted.tag"
+  | "onboarding.dshHome.section"
+  | "onboarding.dshHome.lead"
+  | "onboarding.dshHome.modeReuse"
+  | "onboarding.dshHome.modeNew"
+  | "onboarding.dshHome.label"
+  | "onboarding.dshHome.browse"
+  | "onboarding.dshHome.reset"
+  | "onboarding.path.warnAutoAdjusted"
+  | "onboarding.dshHome.errorNonempty"
+  | "onboarding.dshHome.hintHosted"
+  | "onboarding.dshHome.hintExisting"
+  | "onboarding.dshHome.hintReuse"
+  | "onboarding.dshHome.hintNew"
+  | "onboarding.confirm"
+  | "onboarding.saving"
+  | "onboarding.done"
+  | "onboarding.continueDefault"
+  | "settings.about.resetOnboarding"
+  | "settings.about.resetOnboardingDesc"
+  | "settings.about.resetOnboardingDone"
   | "boot.title.firstRun"
   | "boot.title.repair"
   | "boot.lead.firstRun"
@@ -271,7 +316,7 @@ export type LocaleKey =
 export type LocaleDict = Record<LocaleKey, string>;
 
 export const zh: LocaleDict = {
-  "settings.title": "壳设置",
+  "settings.title": "应用设置",
   "settings.close": "关闭",
   "settings.nav": "设置分区",
   "settings.section.network": "网络",
@@ -280,22 +325,36 @@ export const zh: LocaleDict = {
   "settings.section.data": "数据与恢复",
   "settings.section.about": "关于与更新",
   "settings.group.sync": "与 DeepSeek Harness 同步",
-  "settings.group.shellChrome": "壳窗口",
+  "settings.group.shellChrome": "窗口",
   "settings.group.editing": "编辑体验",
   "settings.group.status": "服务状态",
+  "settings.group.runtimeSource": "运行时来源",
+  "settings.runtimeSource.title": "运行时来源",
+  "settings.runtimeSource.description":
+    "自动：本机已有可用 dsh 则直接嵌入；否则由应用下载托管。系统：只用本机。托管：只用 AppData。",
+  "settings.runtimeSource.aria": "运行时来源",
+  "settings.runtimeSource.auto": "自动（推荐）",
+  "settings.runtimeSource.system": "本机已装的 dsh",
+  "settings.runtimeSource.hosted": "应用托管安装",
+  "settings.runtimeSource.active": "当前生效",
+  "settings.runtimeSource.activeSystem": "本机",
+  "settings.runtimeSource.activeHosted": "托管",
+  "settings.runtimeSource.detected": "已检测到本机 dsh",
+  "settings.runtimeSource.notDetected": "未检测到本机 dsh",
+  "settings.runtimeSource.restartHint": "更改后请重启 harness 生效",
   "settings.group.controls": "控制",
   "settings.group.port": "端口",
   "settings.group.cli": "命令行 dsh",
   "settings.group.paths": "数据位置",
   "settings.group.diagnostics": "诊断",
   "settings.data.diagnostics.hint":
-    "打包壳/harness 日志、版本与 digest，便于排障或提 issue。",
+    "打包应用/harness 日志、版本与 digest，便于排障或提 issue。",
   "settings.group.recovery": "恢复",
   "settings.group.danger": "危险操作",
   "settings.group.identity": "版本与身份",
   "settings.group.updates": "更新",
   "settings.group.updateHarness": "更新 · Harness",
-  "settings.group.updateShell": "更新 · 壳",
+  "settings.group.updateShell": "更新 · 应用",
   "settings.group.links": "链接",
   "settings.group.runDetail": "运行详情",
   "settings.about.copyLog": "复制日志",
@@ -324,7 +383,7 @@ export const zh: LocaleDict = {
   "settings.sessionLog.aria": "隐藏官方 Session log",
   "settings.hygiene.title": "减少误选界面文字",
   "settings.hygiene.description":
-    "开启后：拖选/全选（含 Ctrl+A）尽量不带上侧栏、时间戳、按钮和输入区控件；代码块顶栏亦排除。关闭后嵌入页走浏览器原生选区，无壳约束。",
+    "开启后：拖选/全选（含 Ctrl+A）尽量不带上侧栏、时间戳、按钮和输入区控件；代码块顶栏亦排除。关闭后嵌入页走浏览器原生选区，无应用层约束。",
   "settings.hygiene.aria": "减少误选界面文字",
   "settings.mirror.title": "镜像",
   "settings.mirror.description": "影响 Node 下载与 npm registry；下次安装或更新时生效",
@@ -333,7 +392,7 @@ export const zh: LocaleDict = {
   "settings.mirror.official": "官方（nodejs.org / npmjs）",
   "settings.mirror.saved": "镜像已保存；下次安装或更新 harness 时生效。",
   "settings.proxy.title": "代理",
-  "settings.proxy.description": "作用于壳下载、npm 与托管 dsh 子进程",
+  "settings.proxy.description": "作用于应用下载、npm 与托管 dsh 子进程",
   "settings.proxy.aria": "代理",
   "settings.proxy.off": "关闭（直连）",
   "settings.proxy.system": "系统代理",
@@ -357,7 +416,7 @@ export const zh: LocaleDict = {
   "settings.autostart.toastFail": "无法更改开机自启，请稍后重试",
   "settings.port.title": "首选端口",
   "settings.port.description":
-    "0 或留空 = 壳默认（开发 3081 / 发行 3080）；被占用时自动顺延。改后需重启 harness。",
+    "0 或留空 = 应用默认（开发 3081 / 发行 3080）；被占用时自动顺延。改后需重启 harness。",
   "settings.port.placeholder": "默认",
   "settings.port.saved": "首选端口已保存；请在下方重启 harness 后生效。",
   "settings.port.current": "当前端口",
@@ -391,7 +450,7 @@ export const zh: LocaleDict = {
   "settings.data.path.logsTitle": "日志目录",
   "settings.data.path.logsDesc": "shell.log 与 harness 运行日志",
   "settings.data.path.appDataTitle": "AppData",
-  "settings.data.path.appDataDesc": "托管 Node、harness 与壳配置",
+  "settings.data.path.appDataDesc": "托管 Node、harness 与应用配置",
   "settings.data.path.dshHomeTitle": "DSH_HOME",
   "settings.data.path.dshHomeDesc": "Harness 用户数据与会话",
   "settings.data.reset.title": "重置托管运行时",
@@ -414,7 +473,7 @@ export const zh: LocaleDict = {
   "settings.data.cleanProfile.exitDone": "已退出干净 profile 并回到正式 DSH_HOME。",
   "settings.about.name": "deepseek-harness-desktop",
   "settings.about.tag": "DeepSeek Harness 桌面版",
-  "settings.about.shellVersion": "壳版本",
+  "settings.about.shellVersion": "应用版本",
   "settings.about.harness": "harness",
   "settings.about.digest": "digest",
   "settings.about.port": "端口",
@@ -424,7 +483,7 @@ export const zh: LocaleDict = {
   "settings.about.notInstalled": "未安装",
   "settings.about.nodeMissing": "未装",
   "settings.about.openPlatform": "打开 DeepSeek API 平台",
-  "settings.about.platformHint": "在壳内打开 platform.deepseek.com",
+  "settings.about.platformHint": "在应用内打开 platform.deepseek.com",
   "settings.about.checkUpdate": "检查更新",
   "settings.about.applyUpdate": "安装更新",
   "settings.about.applyNetwork": "应用网络设置并重启 harness",
@@ -436,17 +495,17 @@ export const zh: LocaleDict = {
   "settings.hint.checkingUpdate": "正在检查更新…",
   "settings.hint.networkRestart": "正在按当前网络设置重启 harness…",
   "settings.about.shellUpdate.downloaded":
-    "壳 {version} 已下载，可立即重启安装。",
-  "settings.about.shellUpdate.downloading": "正在下载壳更新",
+    "应用 {version} 已下载，可立即重启安装。",
+  "settings.about.shellUpdate.downloading": "正在下载应用更新",
   "settings.about.shellUpdate.unsupported":
-    "壳更新：开发态或未配置发行端点时不可用；发行构建将自动检查（启动后 / 每 6 小时），下完再提示安装。",
+    "应用更新：开发态或未配置发行端点时不可用；发行构建将自动检查（启动后 / 每 6 小时），下完再提示安装。",
   "settings.about.shellUpdate.idle":
-    "壳更新：启动后与每 6 小时自动检查；有新版本后台下载，确认后重启安装。详细进度写入 AppData/logs/shell.log。",
+    "应用更新：启动后与每 6 小时自动检查；有新版本后台下载，确认后重启安装。详细进度写入 AppData/logs/shell.log。",
   "settings.about.shellUpdate.check": "检查更新",
   "settings.about.shellUpdate.install": "立即重启安装",
   "settings.about.shellUpdate.safeHint":
-    "壳更新只替换程序文件，不会删除 DSH_HOME 或自定义安装目录下的用户数据。",
-  "settings.about.shellUpdate.rowTitle": "壳",
+    "应用更新只替换程序文件，不会删除 DSH_HOME 或自定义安装目录下的用户数据。",
+  "settings.about.shellUpdate.rowTitle": "应用",
   "settings.about.shellUpdate.descDev": "开发态暂不可用",
   "settings.about.shellUpdate.descAuto": "启动后与每 6 小时自动检查",
   "settings.about.harnessUpdate.rowTitle": "Harness",
@@ -470,6 +529,39 @@ export const zh: LocaleDict = {
   "contextMenu.archive": "归档会话",
   "contextMenu.copied": "已复制",
   "boot.brand": "deepseek-harness-desktop",
+  "onboarding.loading": "正在检测本机环境…",
+  "onboarding.title": "选择如何启动",
+  "onboarding.lead": "",
+  "onboarding.lead.detected": "本机已安装 Harness，选一种方式继续即可。",
+  "onboarding.lead.fresh": "未检测到本机 Harness，将由应用自动下载安装。",
+  "onboarding.choice.local.title": "沿用本机",
+  "onboarding.choice.local.tag": "与 CLI 共用",
+  "onboarding.choice.local.unavailable": "未检测到本机 Node / dsh",
+  "onboarding.choice.local.versionDsh": "DSH {version}",
+  "onboarding.choice.local.versionNode": "Node {version}",
+  "onboarding.choice.hosted.title": "由应用自动安装",
+  "onboarding.choice.hosted.tag": "新安装",
+  "onboarding.dshHome.section": "数据目录",
+  "onboarding.dshHome.lead": "会话与插件存放位置",
+  "onboarding.dshHome.modeReuse": "复用",
+  "onboarding.dshHome.modeNew": "新建",
+  "onboarding.dshHome.label": "数据目录 (DSH_HOME)",
+  "onboarding.dshHome.browse": "浏览文件夹",
+  "onboarding.dshHome.reset": "恢复默认路径",
+  "onboarding.path.warnAutoAdjusted": "默认路径已被占用，已自动调整",
+  "onboarding.dshHome.errorNonempty": "目录非空，请更换或重置",
+  "onboarding.dshHome.hintHosted": "不与 ~/.dsh 混用",
+  "onboarding.dshHome.hintExisting": "将沿用已有数据",
+  "onboarding.dshHome.hintReuse": "将沿用已有数据",
+  "onboarding.dshHome.hintNew": "首次使用，将新建目录",
+  "onboarding.confirm": "继续启动",
+  "onboarding.saving": "保存中…",
+  "onboarding.done": "首跑偏好已保存。",
+  "onboarding.continueDefault": "使用默认设置继续",
+  "settings.about.resetOnboarding": "重新显示首跑向导",
+  "settings.about.resetOnboardingDesc":
+    "下次启动时将再次询问「沿用本机」或「由应用安装」；不会删除数据。",
+  "settings.about.resetOnboardingDone": "已重置；请重启应用以显示首跑向导。",
   "boot.title.firstRun": "首次准备",
   "boot.title.repair": "修复安装",
   "boot.lead.firstRun": "安装托管 Node 与 harness 后自动打开官方界面。",
@@ -551,7 +643,7 @@ export const zh: LocaleDict = {
   "chrome.productName": "DeepSeek Harness",
   "chrome.platform.back": "返回",
   "chrome.platform.title": "DeepSeek 开放平台",
-  "chrome.updateBanner.downloaded": "壳 {version} 已下载完成，重启后安装",
+  "chrome.updateBanner.downloaded": "应用 {version} 已下载完成，重启后安装",
   "chrome.updateBanner.newVersion": "新版本",
   "closeAsk.title": "关闭窗口",
   "closeAsk.lead": "可最小化到托盘继续运行，或直接退出应用。",
@@ -578,6 +670,20 @@ export const en: LocaleDict = {
   "settings.group.shellChrome": "Shell window",
   "settings.group.editing": "Editing",
   "settings.group.status": "Service status",
+  "settings.group.runtimeSource": "Runtime source",
+  "settings.runtimeSource.title": "Runtime source",
+  "settings.runtimeSource.description":
+    "Auto: use local dsh when available, otherwise host in AppData. System: local only. Hosted: AppData only.",
+  "settings.runtimeSource.aria": "Runtime source",
+  "settings.runtimeSource.auto": "Auto (recommended)",
+  "settings.runtimeSource.system": "Local installed dsh",
+  "settings.runtimeSource.hosted": "Shell-hosted install",
+  "settings.runtimeSource.active": "Active",
+  "settings.runtimeSource.activeSystem": "System",
+  "settings.runtimeSource.activeHosted": "Hosted",
+  "settings.runtimeSource.detected": "Local dsh detected",
+  "settings.runtimeSource.notDetected": "No local dsh detected",
+  "settings.runtimeSource.restartHint": "Restart harness after changing",
   "settings.group.controls": "Controls",
   "settings.group.port": "Port",
   "settings.group.cli": "CLI dsh",
@@ -768,6 +874,41 @@ export const en: LocaleDict = {
   "contextMenu.archive": "Archive conversation",
   "contextMenu.copied": "Copied",
   "boot.brand": "deepseek-harness-desktop",
+  "onboarding.loading": "Detecting local environment…",
+  "onboarding.title": "Choose how to start",
+  "onboarding.lead": "",
+  "onboarding.lead.detected": "Harness is already on this PC — pick how to continue.",
+  "onboarding.lead.fresh": "No local Harness found — the app will download and install.",
+  "onboarding.choice.local.title": "Use local install",
+  "onboarding.choice.local.tag": "Shares with CLI",
+  "onboarding.choice.local.unavailable": "No local Node / dsh detected",
+  "onboarding.choice.local.versionDsh": "DSH {version}",
+  "onboarding.choice.local.versionNode": "Node {version}",
+  "onboarding.choice.hosted.title": "Set up with the app",
+  "onboarding.choice.hosted.tag": "Fresh install",
+  "onboarding.dshHome.section": "Data folder",
+  "onboarding.dshHome.lead": "Sessions and plugins storage",
+  "onboarding.dshHome.modeReuse": "Existing",
+  "onboarding.dshHome.modeNew": "New",
+  "onboarding.dshHome.label": "Data folder (DSH_HOME)",
+  "onboarding.dshHome.browse": "Browse folder",
+  "onboarding.dshHome.reset": "Reset to default path",
+  "onboarding.path.warnAutoAdjusted":
+    "The default path is taken; we adjusted it automatically",
+  "onboarding.dshHome.errorNonempty": "Folder not empty — change or reset",
+  "onboarding.dshHome.hintHosted": "Isolated from ~/.dsh",
+  "onboarding.dshHome.hintExisting": "Uses the existing data",
+  "onboarding.dshHome.hintReuse": "Uses the existing data",
+  "onboarding.dshHome.hintNew": "A new folder will be created on first run",
+  "onboarding.confirm": "Continue",
+  "onboarding.saving": "Saving…",
+  "onboarding.done": "First-run preferences saved.",
+  "onboarding.continueDefault": "Continue with defaults",
+  "settings.about.resetOnboarding": "Show first-run wizard again",
+  "settings.about.resetOnboardingDesc":
+    "On next launch you will be asked again; your data is not deleted.",
+  "settings.about.resetOnboardingDone":
+    "Reset. Restart the app to show the first-run wizard.",
   "boot.title.firstRun": "First-time setup",
   "boot.title.repair": "Repair install",
   "boot.lead.firstRun":

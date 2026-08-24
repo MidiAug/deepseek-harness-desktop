@@ -5,7 +5,7 @@
 | 文档 | 内容 |
 |------|------|
 | [getting-started.md](getting-started.md) | 安装、首跑、从源码构建 |
-| [configuration.md](configuration.md) | 代理、镜像、外观、数据目录 |
+| [configuration.md](configuration.md) | 代理、镜像、运行时来源、外观、数据目录 |
 | [troubleshooting.md](troubleshooting.md) | 常见失败与处理 |
 | [releases.md](releases.md) | 壳自更新与 Release 下载 |
 

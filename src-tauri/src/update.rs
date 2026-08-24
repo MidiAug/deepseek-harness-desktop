@@ -91,6 +91,16 @@ pub async fn apply_harness_update<R: Runtime>(
         Some(5),
     );
     let _guard = state.boot_lock.lock().await;
+    let active = state
+        .active_runtime
+        .lock()
+        .ok()
+        .and_then(|g| *g);
+    if active == Some(crate::system_runtime::ActiveRuntimeKind::System) {
+        return Err(String::from(HostError::install(
+            "当前使用本机 dsh，壳不会改写全局 npm 包。请用 npm 自行升级，或将「运行时来源」改为托管后再用壳更新。",
+        )));
+    }
     let _rt_lock = runtime_lock::acquire(app, LockPurpose::HarnessUpdate)?;
 
     progress::emit_progress(app, "update-dsh", "正在停止 harness…", Some(10));
@@ -108,6 +118,8 @@ pub async fn apply_harness_update<R: Runtime>(
     install::force_install_dsh(app).await?;
 
     progress::emit_progress(app, "update-dsh", "正在重新启动 harness…", Some(92));
+    let plan = crate::supervise::LaunchPlan::hosted(app)?;
+    supervise::set_pending_launch(state, plan)?;
     let (port, url) = supervise::spawn_and_wait_healthy(app, state).await?;
     progress::emit_progress(
         app,

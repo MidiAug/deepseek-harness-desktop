@@ -13,6 +13,7 @@ import type { WinAction } from "./titlebarTypes";
 
 type Props = {
   maximized: boolean;
+  hideSettings?: boolean;
   onOpenSettings: () => void;
   onWin: (action: WinAction) => void;
 };
@@ -20,6 +21,7 @@ type Props = {
 /** 设置齿轮 + 最小化 / 最大化·还原 / 关闭 */
 export function WindowControls({
   maximized,
+  hideSettings = false,
   onOpenSettings,
   onWin,
 }: Props) {
@@ -27,16 +29,18 @@ export function WindowControls({
 
   return (
     <>
-      <ShellTooltip label={t("settings.title")}>
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label={t("settings.title")}
-          onClick={onOpenSettings}
-        >
-          <IconSettingsOutline14 size={14} />
-        </button>
-      </ShellTooltip>
+      {!hideSettings && (
+        <ShellTooltip label={t("settings.title")}>
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label={t("settings.title")}
+            onClick={onOpenSettings}
+          >
+            <IconSettingsOutline14 size={14} />
+          </button>
+        </ShellTooltip>
+      )}
       <ShellTooltip label={t("chrome.minimize")}>
         <button
           type="button"

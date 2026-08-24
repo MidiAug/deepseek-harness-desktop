@@ -24,6 +24,7 @@
     "window-state:default",
     "log:default",
     "opener:allow-reveal-item-in-dir",
+    "dialog:default",
     "autostart:allow-enable",
     "autostart:allow-disable",
     "autostart:allow-is-enabled"

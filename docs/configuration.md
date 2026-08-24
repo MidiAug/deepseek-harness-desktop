@@ -15,7 +15,7 @@
 
 | 文件 | 内容 |
 |------|------|
-| `settings.json` | 镜像、代理、`DSH_HOME`、关闭行为、首选端口、CLI 开关 |
+| `settings.json` | 镜像、代理、`DSH_HOME`、关闭行为、首选端口、CLI 开关、运行时来源、首跑完成标记 |
 | `ui.json` | 简洁模式、Session log 顶栏代理、选择洁净 |
 | `~/.dsh/settings.yaml` | 与 DSH 共用：`locale.preference`（zh/en）、`ui-theme.preference`（light/dark/system） |
 
@@ -42,20 +42,33 @@
 
 ## Harness 来源与更新
 
-本应用 **仅使用壳托管的 harness**（安装到应用数据目录，由本壳获取、监督与更新）。  
-不提供「指向本机已有 `dsh`」的自带（BYO）模式。
+默认 **自动** 选择运行时（首跑向导可改）：
+
+1. 探测本机 Node + 全局 `@deepseek-ai/dsh` → 有则直接启动（系统运行时）  
+2. 否则由壳下载安装到 AppData（托管运行时）  
+
+**首跑向导**（`onboardingDone` 未完成时）：
+
+| 选项 | 运行时 | 默认 DSH_HOME |
+|------|--------|---------------|
+| 沿用本机 | `auto` | `~/.dsh`（可改路径） |
+| 由壳全新准备 | `hosted` | `%AppData%\com.deepseek.harness.desktop\dsh-home`（独立 profile，可改） |
+
+可在 **设置 → 本地服务 → 运行时来源** 强制「本机」或「托管」。  
+设置 → **关于 → 高级** 可「重新显示首跑向导」（需重启应用）。
 
 壳设置 → **关于**：
 
 | 项 | 说明 |
 |----|------|
-| 版本三元组 | 壳版本 · harness 版本 · digest（package.json SHA-256 前 16 hex） |
+| 版本三元组 | 壳版本 · harness 版本 · digest（托管包；系统模式以能解析为准） |
+| 运行时来源 | 本地服务区可见当前生效：本机 / 托管 |
 | 打开 DeepSeek API 平台 | 主窗口顶栏下子 WebView 打开 `https://platform.deepseek.com`（帮助菜单同入口；顶栏「返回」回官方 UI）。站点禁止 iframe 嵌套，故不用 iframe。 |
-| 检查 harness 更新 | 按当前镜像/代理查询 npm registry `latest` |
-| 更新并重启 | 强制重装 `@deepseek-ai/dsh@latest` 并重启托管进程 |
+| 检查 harness 更新 | **托管模式**：按镜像/代理查 npm；**系统模式**：不改写全局包 |
+| 更新并重启 | 仅托管模式强制重装 AppData 内 `@deepseek-ai/dsh@latest` |
 | 壳更新 | 启动后与每 6 小时自动检查；后台下载后提示「立即重启安装」。详见 [releases.md](releases.md) |
 
-若你以前用过官方 CLI：默认仍共用 `~/.dsh`，其中的会话与已装插件可被本壳启动的 harness 复用；**程序本身**仍是壳管理的那一份。
+若你以前用过官方 CLI：会话与插件在 `~/.dsh`；程序可直接用本机那份，或继续用壳托管的一份。
 
 ## 数据目录
 

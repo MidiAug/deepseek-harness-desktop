@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { BootPanel } from "./components/boot/BootPanel";
+import { OnboardingWizard } from "./components/boot/OnboardingWizard";
 import { CloseAskDialog } from "./components/chrome/CloseAskDialog";
 import {
   SettingsModal,
@@ -111,6 +112,9 @@ export default function App() {
     SettingsSection | undefined
   >(undefined);
   const [closeAskOpen, setCloseAskOpen] = useState(false);
+  const [onboardingGate, setOnboardingGate] = useState<
+    "loading" | "wizard" | "ready"
+  >("loading");
   const [sessionLogAvailable, setSessionLogAvailable] = useState(false);
   const sessionLogDownloadPending = useRef(false);
   const sessionLogDownloadTimer = useRef<number | null>(null);
@@ -130,6 +134,20 @@ export default function App() {
   }, []);
   const backFromPlatform = useCallback(() => {
     setBodyView("harness");
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void shellApi.getShellSettings().then((s) => {
+      if (cancelled) return;
+      setOnboardingGate(s.onboardingDone ? "ready" : "wizard");
+    }).catch((e) => {
+      shellLog.error("app", "onboarding gate", e);
+      if (!cancelled) setOnboardingGate("ready");
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -268,6 +286,8 @@ export default function App() {
 
   const shellOverlay = chrome.titlebarCompact && bodyView === "harness";
   const shellBackdropOpen = settingsOpen || closeAskOpen;
+  const showBootChrome = onboardingGate === "ready";
+  const onboardingActive = onboardingGate !== "ready";
   const showHarness =
     session.showIframe && !!session.serviceUrl;
   const harnessVisible = bodyView === "harness";
@@ -334,6 +354,8 @@ export default function App() {
       <ShellTitleBar
         port={session.port}
         conn={session.titleConn}
+        hideConnStatus={!showBootChrome}
+        minimal={onboardingActive}
         chrome={chrome}
         sidebarWidthPx={sidebarWidthPx}
         bodyView={bodyView}
@@ -371,10 +393,18 @@ export default function App() {
         }}
       />
 
-      <ShellUpdateBanner />
+      {!onboardingActive && <ShellUpdateBanner />}
 
       <div className="shell-body" ref={shellBodyRef}>
-        {bodyView === "harness" && session.showBootPanel && (
+        {onboardingGate === "loading" && (
+          <ShellProgressBubble message={t("onboarding.loading")} />
+        )}
+        {onboardingGate === "wizard" && (
+          <OnboardingWizard onComplete={() => setOnboardingGate("ready")} />
+        )}
+        {bodyView === "harness" &&
+          onboardingGate === "ready" &&
+          session.showBootPanel && (
           <BootPanel
             key={session.bootKey}
             startCommand={session.startCommand}
@@ -411,7 +441,7 @@ export default function App() {
           />
         )}
 
-        {bodyView === "harness" && bubbleVisible && (
+        {bodyView === "harness" && showBootChrome && bubbleVisible && (
           <ShellProgressBubble
             message={session.bubbleMessage}
             leaving={bubbleLeaving}

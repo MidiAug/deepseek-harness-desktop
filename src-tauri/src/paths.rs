@@ -1,8 +1,10 @@
 //! 运行时路径：AppData 放程序，默认 `$DSH_HOME=~/.dsh` 放用户数据。
 
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
-use tauri::{AppHandle, Manager, Runtime};
+use serde::Serialize;
+use tauri::{AppHandle, Runtime};
 
 pub const NODE_VERSION: &str = "v22.22.0";
 pub const NODE_DIST_NAME: &str = "node-v22.22.0-win-x64";
@@ -12,11 +14,47 @@ pub const DSH_ENTRY_RELATIVE: &str = "node_modules/@deepseek-ai/dsh/lib/bin.js";
 pub const PID_FILE_NAME: &str = ".harness.pid";
 /// 跨进程改盘互斥（壳更新 / harness 更新 / reset / ensure）
 pub const RUNTIME_LOCK_FILE_NAME: &str = ".runtime.lock";
+/// 与 tauri.conf identifier 对齐；Roaming 下默认目录名。
+pub const APP_DATA_BUNDLE_DIR: &str = "com.deepseek.harness.desktop";
+pub const HOSTED_DSH_HOME_DIR: &str = "dsh-home";
+
+static RESOLVED_APP_DATA: OnceLock<PathBuf> = OnceLock::new();
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DirResolveResult {
+    pub path: String,
+    pub adjusted: bool,
+    pub conflict_path: Option<String>,
+    /// 用户显式选择的路径不可用（非空且非本应用数据）
+    pub occupied: bool,
+}
 
 pub fn base_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
-    app.path()
-        .app_data_dir()
-        .map_err(|e| format!("resolve app data dir: {e}"))
+    let _ = app;
+    Ok(RESOLVED_APP_DATA
+        .get_or_init(resolve_app_data_dir)
+        .clone())
+}
+
+/// Roaming 根（Windows `%APPDATA%`）。
+pub fn roaming_data_root() -> PathBuf {
+    dirs::data_dir().unwrap_or_else(|| PathBuf::from("."))
+}
+
+/// Tauri 默认 AppData 路径（未做冲突避让）。
+pub fn default_tauri_app_data_dir() -> PathBuf {
+    roaming_data_root().join(APP_DATA_BUNDLE_DIR)
+}
+
+pub fn resolve_app_data_dir() -> PathBuf {
+    PathBuf::from(resolve_app_data_dir_with_meta().path)
+}
+
+pub fn resolve_app_data_dir_with_meta() -> DirResolveResult {
+    let root = roaming_data_root();
+    let primary = root.join(APP_DATA_BUNDLE_DIR);
+    resolve_directory_slot(&primary, is_our_app_data_dir, app_data_suffixes())
 }
 
 pub fn runtime_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
@@ -73,6 +111,86 @@ pub fn dsh_home<R: Runtime>(_app: &AppHandle<R>, override_path: Option<&str>) ->
     resolve_dsh_home(override_path)
 }
 
+/// 「壳来准备」默认独立 profile（不与 CLI ~/.dsh 混用）；目录非空且非本壳时自动加后缀。
+pub fn hosted_dsh_home<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
+    Ok(PathBuf::from(resolve_hosted_dsh_home_with_meta(app)?.path))
+}
+
+pub fn resolve_hosted_dsh_home_with_meta<R: Runtime>(
+    app: &AppHandle<R>,
+) -> Result<DirResolveResult, String> {
+    let slot = hosted_dsh_home_primary(app)?;
+    Ok(resolve_hosted_dsh_home_slot_with_meta(&slot))
+}
+
+pub fn hosted_dsh_home_primary<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
+    Ok(base_dir(app)?.join(HOSTED_DSH_HOME_DIR))
+}
+
+/// 首跑：是否可复用已有托管 DSH_HOME（本壳曾写入的数据）。
+pub fn hosted_dsh_home_reuse_meta(
+    primary: &Path,
+    resolved_path: &str,
+) -> (bool, Option<String>) {
+    if is_our_dsh_home(primary) {
+        return (true, Some(primary.to_string_lossy().into_owned()));
+    }
+    let resolved = PathBuf::from(resolved_path);
+    if resolved != primary && is_our_dsh_home(&resolved) {
+        return (true, Some(resolved_path.to_owned()));
+    }
+    (false, None)
+}
+
+pub fn resolve_hosted_dsh_home_slot_with_meta(primary: &Path) -> DirResolveResult {
+    evaluate_hosted_dsh_home_slot(primary, true)
+}
+
+pub fn evaluate_hosted_dsh_home_slot(primary: &Path, auto_adjust: bool) -> DirResolveResult {
+    if can_use_directory(primary, is_our_dsh_home) {
+        return DirResolveResult {
+            path: primary.to_string_lossy().into_owned(),
+            adjusted: false,
+            conflict_path: None,
+            occupied: false,
+        };
+    }
+    if auto_adjust {
+        return resolve_directory_slot(primary, is_our_dsh_home, dsh_home_suffixes());
+    }
+    DirResolveResult {
+        path: primary.to_string_lossy().into_owned(),
+        adjusted: false,
+        conflict_path: None,
+        occupied: true,
+    }
+}
+
+/// 首跑 / 设置：按模式解析 DSH_HOME 候选路径。
+pub fn resolve_dsh_home_for_mode(
+    path: &str,
+    mode: &str,
+    auto_adjust: bool,
+) -> Result<DirResolveResult, String> {
+    let trimmed = path.trim();
+    if trimmed.is_empty() {
+        return Err("路径不能为空".into());
+    }
+    let primary = PathBuf::from(trimmed);
+    let result = if mode == "local" {
+        // 沿用本机：允许复用已有 ~/.dsh（含数据）
+        DirResolveResult {
+            path: primary.to_string_lossy().into_owned(),
+            adjusted: false,
+            conflict_path: None,
+            occupied: false,
+        }
+    } else {
+        evaluate_hosted_dsh_home_slot(&primary, auto_adjust)
+    };
+    Ok(result)
+}
+
 pub fn pid_file<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
     Ok(base_dir(app)?.join(PID_FILE_NAME))
 }
@@ -112,9 +230,98 @@ pub fn is_file(path: &Path) -> bool {
     path.is_file()
 }
 
+pub fn is_dir_nonempty(path: &Path) -> bool {
+    if !path.exists() {
+        return false;
+    }
+    if path.is_file() {
+        return true;
+    }
+    std::fs::read_dir(path)
+        .map(|mut rd| rd.next().is_some())
+        .unwrap_or(true)
+}
+
+fn can_use_directory(path: &Path, is_ours: fn(&Path) -> bool) -> bool {
+    !is_dir_nonempty(path) || is_ours(path)
+}
+
+fn resolve_directory_slot(
+    primary: &Path,
+    is_ours: fn(&Path) -> bool,
+    suffixes: &[&str],
+) -> DirResolveResult {
+    if can_use_directory(primary, is_ours) {
+        return DirResolveResult {
+            path: primary.to_string_lossy().into_owned(),
+            adjusted: false,
+            conflict_path: None,
+            occupied: false,
+        };
+    }
+
+    let parent = primary.parent().unwrap_or_else(|| Path::new("."));
+    let stem = primary
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or(HOSTED_DSH_HOME_DIR);
+
+    for suffix in suffixes {
+        let alt = parent.join(format!("{stem}{suffix}"));
+        if can_use_directory(&alt, is_ours) {
+            return DirResolveResult {
+                path: alt.to_string_lossy().into_owned(),
+                adjusted: true,
+                conflict_path: Some(primary.to_string_lossy().into_owned()),
+                occupied: false,
+            };
+        }
+    }
+
+    DirResolveResult {
+        path: primary.to_string_lossy().into_owned(),
+        adjusted: false,
+        conflict_path: None,
+        occupied: true,
+    }
+}
+
+fn app_data_suffixes() -> &'static [&'static str] {
+    &["-shell", "-desktop", "-2", "-3", "-4", "-5"]
+}
+
+fn dsh_home_suffixes() -> &'static [&'static str] {
+    &["-desktop", "-2", "-3", "-4", "-5"]
+}
+
+/// Roaming 目录是否为本壳数据（settings / runtime / harness 等）。
+pub fn is_our_app_data_dir(path: &Path) -> bool {
+    if !path.is_dir() {
+        return false;
+    }
+    path.join("settings.json").is_file()
+        || path.join("harness").is_dir()
+        || path.join("runtime").is_dir()
+        || path.join(PID_FILE_NAME).is_file()
+        || path.join(RUNTIME_LOCK_FILE_NAME).is_file()
+        || path.join("logs").is_dir()
+}
+
+/// DSH_HOME 槽位是否已有本应用/DSH 数据。
+pub fn is_our_dsh_home(path: &Path) -> bool {
+    if !path.is_dir() {
+        return false;
+    }
+    path.join("settings.yaml").is_file()
+        || path.join("conversations").is_dir()
+        || path.join("plugins").is_dir()
+        || path.join("sessions").is_dir()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
 
     #[test]
     fn service_url_format() {
@@ -141,5 +348,71 @@ mod tests {
             PathBuf::from(r"D:\custom-dsh")
         );
     }
-}
 
+    #[test]
+    fn empty_dir_is_available() {
+        let tmp = std::env::temp_dir().join(format!(
+            "dsh-path-test-empty-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&tmp);
+        assert!(!is_dir_nonempty(&tmp));
+        let r = resolve_directory_slot(&tmp, is_our_dsh_home, dsh_home_suffixes());
+        assert!(!r.adjusted);
+        assert_eq!(r.path, tmp.to_string_lossy());
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn foreign_nonempty_gets_suffix() {
+        let base = std::env::temp_dir().join(format!(
+            "dsh-path-test-foreign-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&base);
+        fs::create_dir_all(&base).unwrap();
+        fs::write(base.join("foreign.txt"), b"x").unwrap();
+        let r = resolve_directory_slot(&base, is_our_dsh_home, dsh_home_suffixes());
+        assert!(r.adjusted);
+        assert!(r.path.ends_with("-desktop"));
+        let _ = fs::remove_dir_all(&base);
+        let _ = fs::remove_dir_all(PathBuf::from(&r.path));
+    }
+
+    #[test]
+    fn our_app_data_dir_is_reused() {
+        let base = std::env::temp_dir().join(format!(
+            "dsh-path-test-ours-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&base);
+        fs::create_dir_all(&base).unwrap();
+        fs::write(base.join("settings.json"), b"{}").unwrap();
+        let r = resolve_directory_slot(&base, is_our_app_data_dir, app_data_suffixes());
+        assert!(!r.adjusted);
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn local_mode_keeps_nonempty_path() {
+        let p = r"C:\Users\me\.dsh";
+        let r = resolve_dsh_home_for_mode(p, "local", true).unwrap();
+        assert!(!r.adjusted);
+        assert!(!r.occupied);
+        assert_eq!(r.path, p);
+    }
+
+    #[test]
+    fn hosted_explicit_pick_occupied() {
+        let base = std::env::temp_dir().join(format!(
+            "dsh-path-test-explicit-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&base);
+        fs::create_dir_all(&base).unwrap();
+        fs::write(base.join("foreign.txt"), b"x").unwrap();
+        let r = evaluate_hosted_dsh_home_slot(&base, false);
+        assert!(r.occupied);
+        let _ = fs::remove_dir_all(&base);
+    }
+}

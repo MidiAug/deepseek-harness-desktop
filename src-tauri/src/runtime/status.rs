@@ -19,9 +19,20 @@ pub fn build_runtime_status_json<R: Runtime>(
     let harness_ready = paths::is_file(&entry);
     let clean_profile_active = supervise::is_clean_profile_active(state);
     let effective_dsh_home = supervise::effective_dsh_home(app, state, &cfg);
+    let active_runtime = state
+        .active_runtime
+        .lock()
+        .ok()
+        .and_then(|g| *g)
+        .map(|k| match k {
+            crate::system_runtime::ActiveRuntimeKind::System => "system",
+            crate::system_runtime::ActiveRuntimeKind::Hosted => "hosted",
+        });
+    let system = crate::system_runtime::resolve_system_runtime();
     Ok(serde_json::json!({
-        "nodeReady": paths::is_file(&node),
-        "harnessReady": harness_ready,
+        "nodeReady": paths::is_file(&node) || system.as_ref().map(|s| s.node.is_file()).unwrap_or(false),
+        "harnessReady": harness_ready
+            || system.as_ref().map(|s| s.entry.is_file()).unwrap_or(false),
         "harnessPartial": !harness_ready && is_harness_partial(app),
         "port": port,
         "dshHome": paths::dsh_home(app, Some(cfg.dsh_home_override.as_str())).to_string_lossy(),
@@ -32,6 +43,10 @@ pub fn build_runtime_status_json<R: Runtime>(
         "proxyMode": cfg.proxy_mode,
         "dshHomeOverride": cfg.dsh_home_override,
         "closeToTray": cfg.close_to_tray,
+        "runtimeSource": cfg.runtime_source,
+        "activeRuntime": active_runtime,
+        "systemRuntimeDetected": system.is_some(),
+        "systemEntry": system.as_ref().map(|s| s.entry.to_string_lossy().into_owned()),
         "harnessVersion": meta.version,
         "harnessDigest": meta.digest,
         "shellVersion": env!("CARGO_PKG_VERSION"),

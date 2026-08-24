@@ -3,6 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::paths;
+use crate::system_runtime::RuntimeSource;
 use super::proxy::read_windows_system_proxy;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -62,6 +63,12 @@ pub struct RuntimeSettings {
     pub preferred_port: u16,
     #[serde(default)]
     pub cli_link_enabled: bool,
+    /// auto：本机可用则系统，否则托管；system / hosted 强制
+    #[serde(default)]
+    pub runtime_source: RuntimeSource,
+    /// 首跑向导已完成
+    #[serde(default)]
+    pub onboarding_done: bool,
 }
 
 /// 纯壳 UI chrome（主题不在此：真源 DSH settings.yaml）
@@ -95,6 +102,10 @@ pub struct ShellSettings {
     pub preferred_port: u16,
     #[serde(default)]
     pub cli_link_enabled: bool,
+    #[serde(default)]
+    pub runtime_source: RuntimeSource,
+    #[serde(default)]
+    pub onboarding_done: bool,
     /// 前端聚合字段；Rust `load` 不写（由 ChromeProvider 拉 DSH）
     #[serde(default)]
     pub shell_theme: ShellTheme,
@@ -124,6 +135,8 @@ impl Default for RuntimeSettings {
             close_pref_set: false,
             preferred_port: 0,
             cli_link_enabled: false,
+            runtime_source: RuntimeSource::Auto,
+            onboarding_done: false,
         }
     }
 }
@@ -155,6 +168,8 @@ impl ShellSettings {
             close_pref_set: runtime.close_pref_set,
             preferred_port: runtime.preferred_port,
             cli_link_enabled: runtime.cli_link_enabled,
+            runtime_source: runtime.runtime_source,
+            onboarding_done: runtime.onboarding_done,
             shell_theme: ShellTheme::System,
             shell_locale: ShellLocale::Zh,
             titlebar_compact: ui.titlebar_compact,
@@ -173,6 +188,8 @@ impl ShellSettings {
             close_pref_set: self.close_pref_set,
             preferred_port: self.preferred_port,
             cli_link_enabled: self.cli_link_enabled,
+            runtime_source: self.runtime_source,
+            onboarding_done: self.onboarding_done,
         }
     }
 

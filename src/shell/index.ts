@@ -1,5 +1,6 @@
 export type {
   ConnState,
+  EnvironmentProbe,
   HarnessUpdateCheck,
   KnownPath,
   ProgressPayload,
@@ -53,4 +54,8 @@ export {
 } from "./contexts/ShellToastProvider";
 export type { ShellToastAction, ShowToastOptions } from "./contexts/ShellToastProvider";
 export { shellLog } from "./logger";
-export { PLATFORM_URL } from "./settings";
+export {
+  PLATFORM_URL,
+  normalizeShellSettings,
+  runtimeFromSettings,
+} from "./settings";

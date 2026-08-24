@@ -101,7 +101,7 @@ export function ShellUpdateProvider({ children }: { children: ReactNode }) {
       apply({
         phase: "checking",
         manual,
-        message: manual ? "正在检查壳更新…" : null,
+        message: manual ? "正在检查应用更新…" : null,
         percent: null,
       });
       lastCheckedRef.current = Date.now();
@@ -114,7 +114,7 @@ export function ShellUpdateProvider({ children }: { children: ReactNode }) {
             phase: "upToDate",
             version: null,
             notes: null,
-            message: manual ? "壳已是最新。" : null,
+            message: manual ? "应用已是最新。" : null,
             percent: null,
           });
           return;
@@ -126,12 +126,12 @@ export function ShellUpdateProvider({ children }: { children: ReactNode }) {
           currentVersion: update.currentVersion,
           version: update.version,
           notes: update.body ?? null,
-          message: `发现壳新版本 ${update.version}`,
+          message: `发现应用新版本 ${update.version}`,
           percent: 0,
         });
 
         // 有更新即后台下载，装前等用户确认
-        apply({ phase: "downloading", message: `正在下载壳 ${update.version}…` });
+        apply({ phase: "downloading", message: `正在下载应用 ${update.version}…` });
         let downloaded = 0;
         let contentLength = 0;
         await update.download((event) => {
@@ -147,7 +147,7 @@ export function ShellUpdateProvider({ children }: { children: ReactNode }) {
             apply({
               phase: "downloading",
               percent: pct,
-              message: `正在下载壳 ${update.version}…`,
+              message: `正在下载应用 ${update.version}…`,
             });
           } else if (event.event === "Finished") {
             apply({ phase: "downloading", percent: 100 });
@@ -157,7 +157,7 @@ export function ShellUpdateProvider({ children }: { children: ReactNode }) {
         apply({
           phase: "downloaded",
           percent: 100,
-          message: `壳 ${update.version} 已下载，可重启安装`,
+          message: `应用 ${update.version} 已下载，可重启安装`,
         });
       } catch (e) {
         const msg = typeof e === "string" ? e : String(e);
@@ -169,7 +169,7 @@ export function ShellUpdateProvider({ children }: { children: ReactNode }) {
         apply({
           phase: unsupported ? "unsupported" : "error",
           message: unsupported
-            ? "壳更新通道仅在已签名的发行构建中可用。"
+            ? "应用更新通道仅在已签名的发行构建中可用。"
             : msg,
           percent: null,
         });
@@ -190,11 +190,11 @@ export function ShellUpdateProvider({ children }: { children: ReactNode }) {
   const installAndRelaunch = useCallback(async () => {
     const update = updateRef.current;
     if (!update || state.phase !== "downloaded") return;
-    apply({ phase: "installing", message: "正在停止托管进程并安装壳更新…" });
+    apply({ phase: "installing", message: "正在停止托管进程并安装应用更新…" });
     try {
       // 先杀树再装，避免 DSH 未关导致更新失败
       await prepareShellUpdate();
-      apply({ phase: "installing", message: "正在安装壳更新并重启…" });
+      apply({ phase: "installing", message: "正在安装应用更新并重启…" });
       await update.install();
       await relaunch();
     } catch (e) {
@@ -216,7 +216,7 @@ export function ShellUpdateProvider({ children }: { children: ReactNode }) {
     if (import.meta.env.DEV) {
       apply({
         phase: "unsupported",
-        message: "壳更新通道仅在已签名的发行构建中可用。",
+        message: "应用更新通道仅在已签名的发行构建中可用。",
       });
       return;
     }

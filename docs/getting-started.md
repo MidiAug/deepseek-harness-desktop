@@ -10,9 +10,10 @@
 
 1. 从 [GitHub Releases](https://github.com/MidiAug/deepseek-harness-desktop/releases/latest) 下载 MSI / 安装包并安装  
 2. 打开 deepseek-harness-desktop  
-3. 等待壳下载 / 安装托管运行时（首次有步骤与日志；已装好时仅顶中气泡提示）  
-4. 主区 iframe 打开官方 Web UI（官方自带进入等待页）  
-5. 需要代理或镜像时，点顶栏齿轮或「视图 → 壳设置」  
+3. **首次启动**：选择「沿用本机 Harness」或「由壳全新准备」，并确认 **DSH_HOME** 数据目录  
+4. 等待壳安装/启动运行时（已有本机 dsh 时通常很快）  
+5. 主区 iframe 打开官方 Web UI  
+6. 需要代理或镜像时，点顶栏齿轮或「视图 → 壳设置」  
 
 关闭应用后，由本壳托管的 `node` / `dsh` 进程应被回收；若曾异常退出，下次启动会做清扫。
 

@@ -342,6 +342,17 @@
   min-width: 0;
 }
 
+.settings-control:focus,
+.settings-control:focus-visible {
+  outline: none;
+  border-color: color-mix(
+    in srgb,
+    var(--color-accent, #3b82f6) 45%,
+    var(--color-line-strong)
+  );
+  box-shadow: none;
+}
+
 /* 自绘下拉：对齐 DSH PermissionRow 胶囊 + ModelSelect 菜单 */
 .shell-select {
   position: relative;
