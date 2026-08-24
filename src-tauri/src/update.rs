@@ -8,7 +8,8 @@ use crate::install;
 use crate::net::http::http_client;
 use crate::paths::DSH_PACKAGE;
 use crate::progress::{self, ReadyPayload};
-use crate::runtime::package::read_harness_meta;
+use crate::runtime::package::resolve_effective_harness_meta;
+use crate::runtime::{upgrade_system_harness, uses_system_harness};
 use crate::runtime_lock::{self, LockPurpose};
 use crate::settings;
 use crate::supervise::{self, HarnessState};
@@ -24,9 +25,10 @@ pub struct HarnessUpdateCheck {
 /// 查询 registry latest，与本地 package.json version 对比。
 pub async fn check_harness_update<R: Runtime>(
     app: &AppHandle<R>,
+    state: &supervise::HarnessState,
 ) -> Result<HarnessUpdateCheck, String> {
     let cfg = settings::load(app);
-    let local = read_harness_meta(app).version;
+    let local = resolve_effective_harness_meta(app, state).version;
     let registry = cfg.npm_registry().trim_end_matches('/');
     // `@scope/name` → `@scope%2Fname`
     let encoded = DSH_PACKAGE.replace('/', "%2F");
@@ -91,15 +93,8 @@ pub async fn apply_harness_update<R: Runtime>(
         Some(5),
     );
     let _guard = state.boot_lock.lock().await;
-    let active = state
-        .active_runtime
-        .lock()
-        .ok()
-        .and_then(|g| *g);
-    if active == Some(crate::system_runtime::ActiveRuntimeKind::System) {
-        return Err(String::from(HostError::install(
-            "当前使用本机 dsh，壳不会改写全局 npm 包。请用 npm 自行升级，或将「运行时来源」改为托管后再用壳更新。",
-        )));
+    if uses_system_harness(app, state) {
+        return upgrade_system_harness(app, state).await;
     }
     let _rt_lock = runtime_lock::acquire(app, LockPurpose::HarnessUpdate)?;
 

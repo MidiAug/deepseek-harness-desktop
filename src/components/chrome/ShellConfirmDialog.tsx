@@ -5,6 +5,7 @@ type Props = {
   open: boolean;
   titleKey: LocaleKey;
   bodyKey: LocaleKey;
+  bodyParams?: Record<string, string>;
   confirmKey?: LocaleKey;
   cancelKey?: LocaleKey;
   busy?: boolean;
@@ -17,6 +18,7 @@ export function ShellConfirmDialog({
   open,
   titleKey,
   bodyKey,
+  bodyParams,
   confirmKey = "chrome.confirm.ok",
   cancelKey = "chrome.confirm.cancel",
   busy = false,
@@ -42,7 +44,7 @@ export function ShellConfirmDialog({
         </h2>
       </header>
       <p id="shell-confirm-body" className="shell-dialog__body">
-        {t(bodyKey)}
+        {t(bodyKey, bodyParams)}
       </p>
       <footer className="shell-dialog__footer">
         <button

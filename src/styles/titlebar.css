@@ -107,6 +107,18 @@
   pointer-events: auto;
 }
 
+/* 简洁叠层：进行中状态居中（不显示产品名） */
+.titlebar-compact-activity {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--titlebar-compact-right-h) / 2);
+  transform: translate(-50%, -50%);
+  z-index: 0;
+  max-width: min(360px, calc(100% - 11rem));
+  pointer-events: none;
+  text-align: center;
+}
+
 /*
  * 拖窗第一性：mousedown 后 OS/WebView 会清掉 :hover。
  * 必须在按下时采样并冻结显隐，禁止再靠 :hover，也禁止「拖就强制藏」。
@@ -208,6 +220,108 @@ body.suppress-hover .titlebar-compact.is-menu-open .titlebar-left-reveal {
   line-height: 20px;
   font-weight: 500;
   color: var(--color-muted);
+}
+
+.titlebar-product.is-activity {
+  display: block;
+  max-width: min(420px, calc(100% - 10rem));
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 400;
+  color: var(--color-muted);
+}
+
+.titlebar-activity-text {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: linear-gradient(
+    90deg,
+    var(--color-muted) 0%,
+    var(--color-muted) 38%,
+    rgba(103, 158, 254, 0.92) 50%,
+    var(--color-muted) 62%,
+    var(--color-muted) 100%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: titlebar-activity-shimmer 2.6s ease-in-out infinite;
+}
+
+@keyframes titlebar-activity-shimmer {
+  0% {
+    background-position: 120% 0;
+  }
+  100% {
+    background-position: -120% 0;
+  }
+}
+
+.titlebar-minimal .titlebar-product.is-activity {
+  max-width: calc(100% - 8rem);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .titlebar-activity-text {
+    animation: none;
+    color: var(--color-muted);
+    background: none;
+    -webkit-background-clip: unset;
+    background-clip: unset;
+  }
+
+  .titlebar-activity-text.is-error {
+    color: #f25a5a;
+  }
+
+  .titlebar-activity-mark {
+    animation: none;
+  }
+}
+
+.titlebar-activity-text.is-error {
+  background: linear-gradient(
+    90deg,
+    #f25a5a 0%,
+    #f25a5a 38%,
+    #ff9a9a 50%,
+    #f25a5a 62%,
+    #f25a5a 100%
+  );
+  background-size: 220% 100%;
+  animation: titlebar-activity-shimmer 2.6s ease-in-out infinite;
+}
+
+.titlebar.is-error .titlebar-product.is-activity {
+  color: #f25a5a;
+}
+
+.titlebar-activity-mark {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 50%;
+  vertical-align: 1px;
+  background: #f25a5a;
+  box-shadow: 0 0 0 2px rgba(242, 90, 90, 0.22);
+  animation: titlebar-err-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes titlebar-err-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 2px rgba(242, 90, 90, 0.22);
+  }
+  50% {
+    opacity: 0.75;
+    box-shadow: 0 0 0 5px rgba(242, 90, 90, 0);
+  }
 }
 
 .titlebar-dot {

@@ -78,7 +78,11 @@ export type ProgressPayload = {
   percent: number | null;
 };
 
-export type StartCommand = "ensure_and_start" | "restart_harness";
+/** external_op：设置页等外部 IPC 已发起 ensure/reset，BootPanel 勿再 auto-start */
+export type StartCommand =
+  | "ensure_and_start"
+  | "restart_harness"
+  | "external_op";
 
 export type KnownPath = "dshHome" | "appData" | "logs";
 

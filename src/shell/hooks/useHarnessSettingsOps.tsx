@@ -55,7 +55,7 @@ function useHarnessSettingsOpsImpl({
       const r = await shellApi.checkHarnessUpdate();
       setUpdateCheck(r);
       if (!r.updateAvailable) {
-        showToast(t("settings.about.upToDate"));
+        showToast(t("settings.about.upToDateToast"));
       } else {
         showToast(
           `${t("settings.about.updateFound")} ${r.latest ?? "?"} (${r.local ?? "?"})`,

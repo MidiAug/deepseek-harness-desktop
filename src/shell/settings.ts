@@ -21,7 +21,7 @@ export type ShellSettings = {
   closePrefSet: boolean;
   preferredPort: number;
   cliLinkEnabled: boolean;
-  /** auto：本机可用则系统，否则托管 */
+  /** system：本机 npm 全局包；hosted：AppData 托管（legacy auto 由 Rust 迁移） */
   runtimeSource: RuntimeSource;
   /** 首跑向导已完成 */
   onboardingDone: boolean;
@@ -93,7 +93,7 @@ export const defaultShellSettings: ShellSettings = {
   closePrefSet: false,
   preferredPort: 0,
   cliLinkEnabled: false,
-  runtimeSource: "auto",
+  runtimeSource: "hosted",
   onboardingDone: false,
   shellTheme: "system",
   shellLocale: "zh",
@@ -119,8 +119,10 @@ export function chromeFromSettings(s: ShellSettings): ChromePrefs {
 }
 
 export function normalizeRuntimeSource(v: unknown): RuntimeSource {
-  if (v === "auto" || v === "system" || v === "hosted") return v;
-  return "auto";
+  if (v === "system" || v === "hosted") return v;
+  // legacy auto：前端兜底；真源迁移在 Rust settings::load
+  if (v === "auto") return "hosted";
+  return "hosted";
 }
 
 export function normalizeShellSettings(

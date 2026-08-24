@@ -1,4 +1,5 @@
 import type { LocaleKey } from "../locale";
+import type { InstallMode } from "../runtime/installMode.ts";
 
 export type FaultPrefix =
   | "INSTALL_FAILED"
@@ -7,9 +8,16 @@ export type FaultPrefix =
   | "NODE_MISSING"
   | "HARNESS_NOT_FOUND"
   | "PLUGIN_LOAD_FAILED"
+  | "DSH_HOME_IN_USE"
   | "DEFAULT";
 
-export type FaultCta = "retry" | "network" | "logs" | "reset" | "cleanProfile";
+export type FaultCta =
+  | "retry"
+  | "network"
+  | "logs"
+  | "cleanProfile"
+  | "resetConfig"
+  | "reinstallDsh";
 
 export type RecoveryPlan = {
   prefix: FaultPrefix;
@@ -26,6 +34,7 @@ const KNOWN_PREFIXES: FaultPrefix[] = [
   "NODE_MISSING",
   "HARNESS_NOT_FOUND",
   "PLUGIN_LOAD_FAILED",
+  "DSH_HOME_IN_USE",
 ];
 
 const MATRIX: Record<FaultPrefix, Omit<RecoveryPlan, "prefix">> = {
@@ -39,31 +48,37 @@ const MATRIX: Record<FaultPrefix, Omit<RecoveryPlan, "prefix">> = {
     titleKey: "boot.fault.health.title",
     bodyKey: "boot.fault.health.body",
     primary: "retry",
-    secondary: ["cleanProfile", "logs", "reset"],
+    secondary: ["cleanProfile", "logs", "resetConfig", "reinstallDsh"],
   },
   SPAWN_FAILED: {
     titleKey: "boot.fault.spawn.title",
     bodyKey: "boot.fault.spawn.body",
     primary: "retry",
-    secondary: ["reset"],
+    secondary: ["reinstallDsh"],
   },
   NODE_MISSING: {
     titleKey: "boot.fault.node.title",
     bodyKey: "boot.fault.node.body",
     primary: "retry",
-    secondary: ["reset"],
+    secondary: ["reinstallDsh"],
   },
   HARNESS_NOT_FOUND: {
     titleKey: "boot.fault.harness.title",
     bodyKey: "boot.fault.harness.body",
-    primary: "reset",
+    primary: "reinstallDsh",
     secondary: ["logs"],
   },
   PLUGIN_LOAD_FAILED: {
     titleKey: "boot.fault.plugin.title",
     bodyKey: "boot.fault.plugin.body",
-    primary: "cleanProfile",
-    secondary: ["retry", "logs", "reset"],
+    primary: "retry",
+    secondary: ["logs", "cleanProfile", "resetConfig", "reinstallDsh"],
+  },
+  DSH_HOME_IN_USE: {
+    titleKey: "boot.fault.dshHomeInUse.title",
+    bodyKey: "boot.fault.dshHomeInUse.body",
+    primary: "retry",
+    secondary: ["logs"],
   },
   DEFAULT: {
     titleKey: "boot.fault.default.title",
@@ -90,6 +105,25 @@ export const CTA_LABEL_KEYS: Record<FaultCta, LocaleKey> = {
   retry: "boot.cta.retry",
   network: "boot.cta.network",
   logs: "boot.cta.logs",
-  reset: "boot.cta.reset",
   cleanProfile: "boot.cta.cleanProfile",
+  resetConfig: "boot.cta.resetConfig",
+  reinstallDsh: "boot.cta.reinstallDsh",
 };
+
+export const CTA_DESC_KEYS: Record<FaultCta, LocaleKey> = {
+  retry: "boot.cta.retry.desc",
+  network: "boot.cta.network.desc",
+  logs: "boot.cta.logs.desc",
+  cleanProfile: "boot.cta.cleanProfile.desc",
+  resetConfig: "boot.cta.resetConfig.desc",
+  reinstallDsh: "boot.cta.reinstallDsh.hosted.desc",
+};
+
+const REINSTALL_DESC_KEYS: Record<InstallMode, LocaleKey> = {
+  system: "boot.cta.reinstallDsh.system.desc",
+  hosted: "boot.cta.reinstallDsh.hosted.desc",
+};
+
+export function reinstallCtaDescKey(mode: InstallMode): LocaleKey {
+  return REINSTALL_DESC_KEYS[mode];
+}

@@ -1,5 +1,10 @@
-import type { Dispatch, SetStateAction } from "react";
+﻿import type { Dispatch, SetStateAction } from "react";
+import { useEffect, useState } from "react";
 import type { ShellSettings } from "../../shell/settings";
+import {
+  runtimeFromSettings,
+  type RuntimeSource,
+} from "../../shell/settings";
 import {
   shellApi,
   useAppToast,
@@ -11,12 +16,29 @@ import type { CliLinkStatus } from "../../shell/api/shellApi";
 import { SettingsGroup } from "./SettingsGroup";
 import { SettingsPrefRow } from "./SettingsPrefRow";
 import { ShellSelect } from "../chrome/ShellSelect";
-import type { RuntimeSource } from "../../shell/settings";
+import { ShellConfirmDialog } from "../chrome/ShellConfirmDialog";
+import { ShellTooltip } from "../chrome/ShellTooltip";
+import { IconWarningCircleOutline16 } from "../chrome/DshIcons";
+import type { InstallMode } from "../../shell/runtime/installMode";
+
+function preferredInstallMode(
+  runtimeSource: ShellSettings["runtimeSource"],
+): InstallMode {
+  if (runtimeSource === "system" || runtimeSource === "hosted") {
+    return runtimeSource;
+  }
+  return "hosted";
+}
+
+function installModeLabel(mode: InstallMode, t: (key: "settings.harnessInstall.system" | "settings.harnessInstall.hosted") => string) {
+  return mode === "system"
+    ? t("settings.harnessInstall.system")
+    : t("settings.harnessInstall.hosted");
+}
 
 type Props = {
   settings: ShellSettings;
   runtime: RuntimeStatus | null;
-  cliStatus: CliLinkStatus | null;
   portDraft: string;
   setPortDraft: Dispatch<SetStateAction<string>>;
   locked: boolean;
@@ -26,7 +48,6 @@ type Props = {
   ) => void;
   setError: (error: string | null, retry?: () => void | Promise<void>) => void;
   setSettings: Dispatch<SetStateAction<ShellSettings>>;
-  setCliStatus: Dispatch<SetStateAction<CliLinkStatus | null>>;
   refreshRuntime: () => void;
   onStopHarness?: () => void;
 };
@@ -34,29 +55,93 @@ type Props = {
 export function SettingsSectionRuntime({
   settings,
   runtime,
-  cliStatus,
   portDraft,
   setPortDraft,
   locked,
   patchRuntime,
   setError,
   setSettings,
-  setCliStatus,
   refreshRuntime,
   onStopHarness,
 }: Props) {
   const { t } = useLocale();
   const { showToast } = useAppToast();
   const { onApplyNetworkRestart } = useHarnessSettingsOps();
+  const [cliStatus, setCliStatus] = useState<CliLinkStatus | null>(null);
+  const [pendingSource, setPendingSource] = useState<RuntimeSource | null>(null);
+  const [restartConfirmOpen, setRestartConfirmOpen] = useState(false);
+  const [restartConfirmBusy, setRestartConfirmBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void shellApi
+      .getCliLinkStatus()
+      .then((st) => {
+        if (!cancelled) setCliStatus(st);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const ready = !!runtime?.harnessReady && !!runtime?.port;
+  const preferred = preferredInstallMode(settings.runtimeSource);
+  const running = runtime?.activeRuntime ?? null;
+  const runningLabel =
+    running === "system" || running === "hosted"
+      ? installModeLabel(running, t)
+      : null;
+  const preferredLabel = installModeLabel(preferred, t);
+  const runtimeMismatch =
+    running != null && running !== preferred;
   const sourceOptions: { value: RuntimeSource; label: string }[] = [
-    { value: "auto", label: t("settings.runtimeSource.auto") },
-    { value: "system", label: t("settings.runtimeSource.system") },
-    { value: "hosted", label: t("settings.runtimeSource.hosted") },
+    { value: "system", label: t("settings.harnessInstall.system") },
+    { value: "hosted", label: t("settings.harnessInstall.hosted") },
   ];
+  const effectiveSource =
+    settings.runtimeSource === "auto" ? preferred : settings.runtimeSource;
+  const selectValue = pendingSource ?? effectiveSource;
+
+  function applyPendingSource() {
+    if (!pendingSource) return;
+    patchRuntime({ runtimeSource: pendingSource });
+    setPendingSource(null);
+    setRestartConfirmOpen(false);
+  }
+
+  async function applyPendingSourceAndRestart() {
+    if (!pendingSource || restartConfirmBusy) return;
+    const nextSource = pendingSource;
+    setRestartConfirmBusy(true);
+    try {
+      const next = { ...settings, runtimeSource: nextSource };
+      setSettings(next);
+      await shellApi.saveRuntimeSettings(runtimeFromSettings(next));
+      setPendingSource(null);
+      setRestartConfirmOpen(false);
+      await onApplyNetworkRestart();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setRestartConfirmBusy(false);
+    }
+  }
 
   return (
     <div className="settings-section">
+      <ShellConfirmDialog
+        open={restartConfirmOpen}
+        titleKey="settings.harnessInstall.restartConfirmTitle"
+        bodyKey="settings.harnessInstall.restartConfirmBody"
+        confirmKey="settings.harnessInstall.restartNow"
+        cancelKey="settings.harnessInstall.restartLater"
+        busy={restartConfirmBusy}
+        onCancel={() => {
+          if (restartConfirmBusy) return;
+          applyPendingSource();
+        }}
+        onConfirm={() => void applyPendingSourceAndRestart()}
+      />
       <SettingsGroup title={t("settings.group.status")}>
         <div className="settings-status-block">
           <div className="settings-status-block__row">
@@ -78,10 +163,6 @@ export function SettingsSectionRuntime({
           </div>
           <dl className="settings-status-block__meta">
             <div>
-              <dt>{t("settings.port.current")}</dt>
-              <dd className="mono">{runtime?.port ?? "—"}</dd>
-            </div>
-            <div>
               <dt>{t("settings.about.node")}</dt>
               <dd>
                 {runtime?.nodeReady ? (
@@ -96,38 +177,63 @@ export function SettingsSectionRuntime({
               </dd>
             </div>
             <div>
-              <dt>{t("settings.runtimeSource.active")}</dt>
-              <dd>
-                {runtime?.activeRuntime === "system"
-                  ? t("settings.runtimeSource.activeSystem")
-                  : runtime?.activeRuntime === "hosted"
-                    ? t("settings.runtimeSource.activeHosted")
-                    : "—"}
+              <dt>{t("settings.harnessInstall.source")}</dt>
+              <dd className="settings-status-block__source">
+                <span>{runningLabel ?? preferredLabel}</span>
+                {runtimeMismatch ? (
+                  <ShellTooltip
+                    label={t("settings.harnessInstall.switchedRestart")}
+                    side="top"
+                    delayMs={300}
+                  >
+                    <span
+                      className="settings-status-warn-icon"
+                      tabIndex={0}
+                      role="img"
+                      aria-label={t("settings.harnessInstall.switchedRestart")}
+                    >
+                      <IconWarningCircleOutline16 size={16} />
+                    </span>
+                  </ShellTooltip>
+                ) : null}
               </dd>
             </div>
           </dl>
         </div>
       </SettingsGroup>
 
-      <SettingsGroup title={t("settings.group.runtimeSource")}>
+      <SettingsGroup title={t("settings.group.harnessInstall")}>
         <SettingsPrefRow
-          title={t("settings.runtimeSource.title")}
-          description={`${t("settings.runtimeSource.description")} ${
+          title={t("settings.harnessInstall.title")}
+          description={`${t("settings.harnessInstall.description")} ${
             runtime?.systemRuntimeDetected
-              ? t("settings.runtimeSource.detected")
-              : t("settings.runtimeSource.notDetected")
+              ? t("settings.harnessInstall.detected")
+              : t("settings.harnessInstall.notDetected")
           }`}
         >
           <ShellSelect
-            aria-label={t("settings.runtimeSource.aria")}
-            value={settings.runtimeSource}
+            aria-label={t("settings.harnessInstall.aria")}
+            value={selectValue}
             options={sourceOptions}
-            disabled={locked}
+            disabled={locked || restartConfirmBusy}
             onChange={(value) => {
-              patchRuntime(
-                { runtimeSource: value as RuntimeSource },
-                { softHint: t("settings.runtimeSource.restartHint") },
-              );
+              const next = value as RuntimeSource;
+              if (next === effectiveSource) {
+                setPendingSource(null);
+                setRestartConfirmOpen(false);
+                return;
+              }
+              const needsRestart =
+                (running === "system" || running === "hosted") &&
+                next !== running;
+              if (!needsRestart) {
+                patchRuntime({ runtimeSource: next });
+                setPendingSource(null);
+                setRestartConfirmOpen(false);
+                return;
+              }
+              setPendingSource(next);
+              setRestartConfirmOpen(true);
             }}
           />
         </SettingsPrefRow>

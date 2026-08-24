@@ -27,6 +27,7 @@ export function mapStage(stage: string | null): BootStageId | null {
   if (stage.startsWith("verify-node")) return "verify-node";
   if (stage.startsWith("extract-node")) return "extract-node";
   if (stage === "check-update") return "detect";
+  if (stage.startsWith("reset")) return "detect";
   if (stage.startsWith("start")) return "start";
   if (stage.startsWith("detect")) return "detect";
   const hit = BOOT_STAGES.find(

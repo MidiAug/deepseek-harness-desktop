@@ -7,7 +7,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Runtime};
 
 use crate::paths;
-use crate::runtime::package::{read_harness_meta, HarnessMeta};
+use crate::runtime::package::{read_harness_meta, read_harness_meta_from_system_entry, HarnessMeta};
 use crate::system_runtime;
 
 #[derive(Debug, Clone, Serialize)]
@@ -44,7 +44,7 @@ pub fn probe_environment<R: Runtime>(app: &AppHandle<R>) -> Result<EnvironmentPr
     let system_runtime_detected = system.is_some();
     let (system_node, system_node_version, system_entry, harness_version, harness_digest) =
         if let Some(ref rt) = system {
-            let meta = meta_from_entry(&rt.entry);
+            let meta = read_harness_meta_from_system_entry(&rt.entry);
             (
                 Some(rt.node.to_string_lossy().into_owned()),
                 node_version(&rt.node),
@@ -81,17 +81,6 @@ pub fn probe_environment<R: Runtime>(app: &AppHandle<R>) -> Result<EnvironmentPr
         harness_version,
         harness_digest,
     })
-}
-
-fn meta_from_entry(entry: &Path) -> HarnessMeta {
-    let Some(pkg) = entry
-        .parent()
-        .and_then(|lib| lib.parent())
-        .map(|dsh| dsh.join("package.json"))
-    else {
-        return HarnessMeta::default();
-    };
-    crate::runtime::package::read_harness_meta_at_pkg(&pkg)
 }
 
 #[cfg(windows)]

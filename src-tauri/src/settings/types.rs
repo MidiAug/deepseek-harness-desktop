@@ -135,7 +135,7 @@ impl Default for RuntimeSettings {
             close_pref_set: false,
             preferred_port: 0,
             cli_link_enabled: false,
-            runtime_source: RuntimeSource::Auto,
+            runtime_source: RuntimeSource::Hosted,
             onboarding_done: false,
         }
     }

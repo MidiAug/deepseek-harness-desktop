@@ -114,7 +114,7 @@ export function ShellUpdateProvider({ children }: { children: ReactNode }) {
             phase: "upToDate",
             version: null,
             notes: null,
-            message: manual ? "应用已是最新。" : null,
+            message: manual ? "暂无可用更新" : null,
             percent: null,
           });
           return;

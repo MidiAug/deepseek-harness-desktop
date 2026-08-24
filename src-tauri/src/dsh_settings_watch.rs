@@ -24,14 +24,14 @@ fn settings_yaml_hit(paths: &[std::path::PathBuf]) -> bool {
     })
 }
 
-fn read_prefs(home: &Path) -> (String, String) {
+fn read_prefs(home: &Path) -> (String, Option<String>) {
     (
         dsh_theme::preference_from_home(home),
-        dsh_locale::resolved_preference_from_home(home),
+        dsh_locale::explicit_preference_from_home(home).map(str::to_string),
     )
 }
 
-fn read_prefs_settled(home: &Path) -> (String, String) {
+fn read_prefs_settled(home: &Path) -> (String, Option<String>) {
     let first = read_prefs(home);
     std::thread::sleep(Duration::from_millis(100));
     let second = read_prefs(home);
@@ -98,7 +98,9 @@ pub fn spawn_watch<R: Runtime>(app: &AppHandle<R>) {
                 }
                 if locale_changed {
                     last_locale = locale.clone();
-                    let _ = app.emit(dsh_locale::CHANGED_EVENT, locale);
+                    if let Some(ref pref) = locale {
+                        let _ = app.emit(dsh_locale::CHANGED_EVENT, pref.clone());
+                    }
                 }
             }
             let _ = watcher;

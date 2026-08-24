@@ -11,11 +11,12 @@ use tauri::{AppHandle, Runtime};
 
 use crate::error::HostError;
 use crate::install;
+use crate::paths;
 use crate::progress::{self, ReadyPayload};
 use crate::runtime_lock::{self, LockPurpose};
 use crate::settings;
 use crate::supervise::{self, HarnessState, LaunchPlan};
-use crate::system_runtime::{self, ActiveRuntimeKind, RuntimeSource};
+use crate::system_runtime::{self, RuntimeSource};
 
 async fn ensure_hosted_then_plan<R: Runtime>(app: &AppHandle<R>) -> Result<LaunchPlan, String> {
     install::ensure_runtime_installed(app).await?;
@@ -27,9 +28,50 @@ fn system_plan_or_err() -> Result<LaunchPlan, String> {
         .map(LaunchPlan::system)
         .ok_or_else(|| {
             String::from(HostError::install(
-                "未检测到本机可用的 Node / @deepseek-ai/dsh。可改设置「运行时来源」为自动或托管，或先安装官方 CLI。",
+                "未检测到本机可用的 Node / @deepseek-ai/dsh。可在设置将「Harness 安装」改为应用内安装，或先安装官方 CLI。",
             ))
         })
+}
+
+/// 当前配置/运行态是否走本机 dsh（用于更新与元数据口径）。
+pub fn uses_system_harness<R: Runtime>(app: &AppHandle<R>, state: &HarnessState) -> bool {
+    if let Ok(guard) = state.active_runtime.lock() {
+        if let Some(kind) = *guard {
+            return kind == system_runtime::ActiveRuntimeKind::System;
+        }
+    }
+    let cfg = settings::load(app);
+    match cfg.runtime_source {
+        RuntimeSource::Hosted => false,
+        RuntimeSource::System => system_runtime::resolve_system_runtime().is_some(),
+        RuntimeSource::Auto => system_runtime::resolve_system_runtime().is_some(),
+    }
+}
+
+/// 本机 dsh：npm 全局升级到 latest 并重启（与托管 force_install 对称）。
+pub async fn upgrade_system_harness<R: Runtime>(
+    app: &AppHandle<R>,
+    state: &HarnessState,
+) -> Result<ReadyPayload, String> {
+    let _guard = state.boot_lock.lock().await;
+    let _rt_lock = runtime_lock::acquire(app, LockPurpose::HarnessUpdate)?;
+    progress::emit_progress(app, "update-dsh", "正在停止 harness…", Some(10));
+    supervise::stop_and_clear_pid(app, state);
+    tokio::time::sleep(std::time::Duration::from_millis(1200)).await;
+
+    install::npm_install_dsh_global(app).await?;
+    system_runtime::invalidate_system_runtime_cache();
+
+    let plan = system_plan_or_err()?;
+    supervise::set_pending_launch(state, plan)?;
+    let (port, url) = supervise::spawn_and_wait_healthy(app, state).await?;
+    progress::emit_progress(
+        app,
+        "update-dsh",
+        &format!("更新完成 · 端口 {port}"),
+        Some(100),
+    );
+    Ok(ReadyPayload { url, port })
 }
 
 /// 冷启动：清扫 →（系统或托管）→ spawn → 健康。
@@ -49,23 +91,7 @@ pub async fn ensure_and_start<R: Runtime>(
     progress::emit_progress(app, "detect", "检查运行时…", Some(5));
 
     let cfg = settings::load(app);
-    let plan = match cfg.runtime_source {
-        RuntimeSource::Hosted => ensure_hosted_then_plan(app).await?,
-        RuntimeSource::System => system_plan_or_err()?,
-        RuntimeSource::Auto => {
-            if let Some(rt) = system_runtime::resolve_system_runtime() {
-                LaunchPlan::system(rt)
-            } else {
-                progress::emit_progress(
-                    app,
-                    "detect",
-                    "未检测到本机 dsh，改用托管安装…",
-                    Some(8),
-                );
-                ensure_hosted_then_plan(app).await?
-            }
-        }
-    };
+    let plan = resolve_launch_plan(app, &cfg).await?;
     log::info!(
         target: "shell::runtime",
         "launch plan kind={:?} node={} entry={}",
@@ -149,6 +175,121 @@ pub async fn exit_clean_profile<R: Runtime>(
     Ok(ReadyPayload { url, port })
 }
 
+/// 清空 `DSH_HOME` 后在同一路径冷启动 harness（等价于删数据后首次 `dsh web`）。
+pub async fn reset_dsh_home<R: Runtime>(
+    app: &AppHandle<R>,
+    state: &HarnessState,
+) -> Result<ReadyPayload, String> {
+    log::info!(target: "shell::runtime", "reset_dsh_home begin");
+    let _guard = state.boot_lock.lock().await;
+    let _rt_lock = runtime_lock::acquire(app, LockPurpose::Reset)?;
+    if supervise::is_clean_profile_active(state) {
+        supervise::deactivate_clean_profile_session(app, state);
+    }
+    progress::emit_progress(app, "reset", "正在停止 harness…", Some(5));
+    supervise::stop_and_clear_pid(app, state);
+    tokio::time::sleep(std::time::Duration::from_millis(1200)).await;
+
+    let cfg = settings::load(app);
+    let home = paths::dsh_home(app, Some(cfg.dsh_home_override.as_str()));
+    paths::validate_dsh_home_reset_target(app, &home)?;
+    progress::emit_progress(
+        app,
+        "reset",
+        &format!("正在清空数据目录 {}…", home.display()),
+        Some(25),
+    );
+    progress::append_shell_log(
+        app,
+        &format!("reset_dsh_home wipe {}", home.display()),
+    );
+    if home.exists() {
+        fs_remove_dsh_home_retry(&home).await?;
+    }
+    std::fs::create_dir_all(&home).map_err(|e| {
+        String::from(HostError::install(format!("mkdir DSH_HOME: {e}")))
+    })?;
+
+    let plan = resolve_launch_plan(app, &cfg).await?;
+    supervise::set_pending_launch(state, plan)?;
+    let (port, url) = supervise::spawn_and_wait_healthy(app, state).await?;
+    progress::emit_progress(
+        app,
+        "ready",
+        &format!("配置已重置 · {url}"),
+        Some(100),
+    );
+    Ok(ReadyPayload { url, port })
+}
+
+/// 按首跑/设置记录的 Harness 安装方式重装 dsh 包（不删 DSH_HOME）。
+pub async fn reinstall_dsh<R: Runtime>(
+    app: &AppHandle<R>,
+    state: &HarnessState,
+) -> Result<ReadyPayload, String> {
+    let cfg = settings::load(app);
+    match cfg.runtime_source {
+        RuntimeSource::System => reinstall_system_dsh(app, state).await,
+        RuntimeSource::Hosted => reset_hosted_runtime(app, state).await,
+        RuntimeSource::Auto => {
+            if system_runtime::resolve_system_runtime().is_some() {
+                reinstall_system_dsh(app, state).await
+            } else {
+                reset_hosted_runtime(app, state).await
+            }
+        }
+    }
+}
+
+async fn reinstall_system_dsh<R: Runtime>(
+    app: &AppHandle<R>,
+    state: &HarnessState,
+) -> Result<ReadyPayload, String> {
+    log::info!(target: "shell::runtime", "reinstall_system_dsh begin");
+    let _guard = state.boot_lock.lock().await;
+    let _rt_lock = runtime_lock::acquire(app, LockPurpose::Reset)?;
+    progress::emit_progress(app, "reset", "正在停止 harness…", Some(5));
+    supervise::stop_and_clear_pid(app, state);
+    tokio::time::sleep(std::time::Duration::from_millis(1200)).await;
+
+    install::npm_install_dsh_global(app).await?;
+    system_runtime::invalidate_system_runtime_cache();
+
+    let plan = system_plan_or_err()?;
+    supervise::set_pending_launch(state, plan)?;
+    let (port, url) = supervise::spawn_and_wait_healthy(app, state).await?;
+    progress::emit_progress(
+        app,
+        "ready",
+        &format!("本机 dsh 已重装 · {url}"),
+        Some(100),
+    );
+    Ok(ReadyPayload { url, port })
+}
+
+async fn resolve_launch_plan<R: Runtime>(
+    app: &AppHandle<R>,
+    cfg: &settings::ShellSettings,
+) -> Result<LaunchPlan, String> {
+    match cfg.runtime_source {
+        RuntimeSource::Hosted => ensure_hosted_then_plan(app).await,
+        RuntimeSource::System => system_plan_or_err(),
+        RuntimeSource::Auto => {
+            if let Some(rt) = system_runtime::resolve_system_runtime() {
+                Ok(LaunchPlan::system(rt))
+            } else {
+                progress::emit_progress(
+                    app,
+                    "detect",
+                    "未检测到本机 dsh，改用托管安装…",
+                    Some(8),
+                );
+                ensure_hosted_then_plan(app).await
+            }
+        }
+    }
+}
+
 /// 重置托管 harness（保留 Node runtime；不碰 `$DSH_HOME`）→ 再 ensure。
 pub async fn reset_hosted_runtime<R: Runtime>(
     app: &AppHandle<R>,
@@ -156,15 +297,10 @@ pub async fn reset_hosted_runtime<R: Runtime>(
 ) -> Result<ReadyPayload, String> {
     log::info!(target: "shell::runtime", "reset_hosted_runtime begin");
     let _guard = state.boot_lock.lock().await;
-    let active = state
-        .active_runtime
-        .lock()
-        .ok()
-        .and_then(|g| *g)
-        .unwrap_or(ActiveRuntimeKind::Hosted);
-    if active == ActiveRuntimeKind::System {
+    let cfg = settings::load(app);
+    if cfg.runtime_source == RuntimeSource::System {
         return Err(String::from(HostError::install(
-            "当前使用本机 dsh，重置托管运行时不会改动全局包。请先在设置将「运行时来源」改为托管，或自行用 npm 管理本机 dsh。",
+            "当前设置为「本机已安装」，请使用「重装 DSH」或改为应用内安装。",
         )));
     }
     let _rt_lock = runtime_lock::acquire(app, LockPurpose::Reset)?;
@@ -190,16 +326,58 @@ pub async fn reset_hosted_runtime<R: Runtime>(
     Ok(ReadyPayload { url, port })
 }
 
+fn is_path_in_use_error(err: &std::io::Error) -> bool {
+    #[cfg(windows)]
+    if let Some(code) = err.raw_os_error() {
+        // ERROR_SHARING_VIOLATION / ERROR_LOCK_VIOLATION
+        if code == 32 || code == 33 {
+            return true;
+        }
+    }
+    matches!(
+        err.kind(),
+        std::io::ErrorKind::PermissionDenied | std::io::ErrorKind::WouldBlock
+    )
+}
+
 async fn fs_remove_dir_all_retry(path: &std::path::Path) -> Result<(), String> {
+    fs_remove_dir_all_retry_for(path, |e| {
+        String::from(HostError::install(format!(
+            "无法删除 {}: {e}",
+            path.display()
+        )))
+    })
+    .await
+}
+
+async fn fs_remove_dsh_home_retry(path: &std::path::Path) -> Result<(), String> {
+    fs_remove_dir_all_retry_for(path, |e| {
+        if is_path_in_use_error(e) {
+            String::from(HostError::dsh_home_in_use(format!(
+                "无法清空 {}：目录可能被其他 dsh 或终端占用。请关闭占用进程后重试。",
+                path.display()
+            )))
+        } else {
+            String::from(HostError::install(format!(
+                "无法清空 {}: {e}",
+                path.display()
+            )))
+        }
+    })
+    .await
+}
+
+async fn fs_remove_dir_all_retry_for(
+    path: &std::path::Path,
+    map_final_err: impl Fn(&std::io::Error) -> String,
+) -> Result<(), String> {
     for attempt in 1u8..=6 {
         match std::fs::remove_dir_all(path) {
             Ok(()) => return Ok(()),
-            Err(e) if attempt == 6 => {
-                return Err(String::from(HostError::install(format!(
-                    "无法删除 harness {}: {e}",
-                    path.display()
-                ))));
+            Err(e) if is_path_in_use_error(&e) => {
+                return Err(map_final_err(&e));
             }
+            Err(e) if attempt == 6 => return Err(map_final_err(&e)),
             Err(_) => {
                 tokio::time::sleep(std::time::Duration::from_millis(400 * u64::from(attempt)))
                     .await;

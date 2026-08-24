@@ -4,12 +4,15 @@ import type { TitleConn } from "../../shell";
 export type ShellBodyView = "harness" | "platform";
 
 export type ShellTitleBarProps = {
-  port: number | null;
   conn: TitleConn;
   /** 首跑向导等阶段隐藏顶栏「准备中」状态，避免与全屏引导重复 */
   hideConnStatus?: boolean;
   /** 首跑引导：仅标题 + 窗控 */
   minimal?: boolean;
+  /** 启动/嵌入等进行中：替换居中产品名，并隐藏尾随 conn */
+  titleActivity?: string | null;
+  /** 顶栏活动文案色调：进行中 / 失败 */
+  titleActivityTone?: "busy" | "error";
   chrome: ChromePrefs;
   /** 简洁叠层：官方 UI 侧栏宽（px），由 WebView 注入上报 */
   sidebarWidthPx: number;

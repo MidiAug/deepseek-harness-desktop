@@ -19,7 +19,6 @@ export {
 export { useShellSession } from "./hooks/useShellSession";
 export { useSidebarLayout, SIDEBAR_FALLBACK_PX } from "./hooks/useSidebarLayout";
 export { useHarnessContextMenu } from "./hooks/useHarnessContextMenu";
-export { useShellProgressBubble } from "./hooks/useShellProgressBubble";
 export { usePlatformWebview } from "./hooks/usePlatformWebview";
 export { ChromeProvider, useChrome } from "./contexts/ChromeProvider";
 export { LocaleProvider, useLocale, useSectionLabels } from "./locale";
@@ -43,11 +42,16 @@ export {
   type BootStageId,
 } from "./hostProgressMap";
 export {
+  CTA_DESC_KEYS,
+  CTA_LABEL_KEYS,
   getRecoveryPlan,
+  parseFaultDisplay,
   parseHostErrorPrefix,
   type FaultCta,
+  type FaultDisplay,
   type FaultPrefix,
-} from "./errors/recoveryMatrix";
+  type RecoveryPlan,
+} from "./errors";
 export {
   ShellToastProvider,
   useAppToast,

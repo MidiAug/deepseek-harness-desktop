@@ -22,6 +22,8 @@ import type { WinAction } from "./titlebarTypes";
 type Props = {
   sidebarWidthPx: number;
   maximized: boolean;
+  titleActivity?: string | null;
+  titleActivityTone?: "busy" | "error";
   showSessionLog: boolean;
   onSessionLog: () => void;
   onOpenSettings: () => void;
@@ -44,6 +46,8 @@ type DragPin = {
 export function CompactTitleBar({
   sidebarWidthPx,
   maximized,
+  titleActivity = null,
+  titleActivityTone = "busy",
   showSessionLog,
   onSessionLog,
   onOpenSettings,
@@ -138,6 +142,9 @@ export function CompactTitleBar({
     return <div className="titlebar-left-reveal">{menus}</div>;
   }, []);
 
+  const activity = titleActivity?.trim() || null;
+  const isError = titleActivityTone === "error";
+
   const compactClass = [
     "titlebar",
     "titlebar-compact",
@@ -146,6 +153,8 @@ export function CompactTitleBar({
     dragPin?.right === "shown" ? "is-drag-pin-right-shown" : "",
     dragPin?.right === "hidden" ? "is-drag-pin-right-hidden" : "",
     menuOpen ? "is-menu-open" : "",
+    activity ? "is-active" : "",
+    isError ? "is-error" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -231,6 +240,23 @@ export function CompactTitleBar({
           />
         </div>
       </div>
+      {activity && (
+        <div
+          className="titlebar-compact-activity"
+          title={activity}
+          aria-live="polite"
+          aria-busy={!isError}
+        >
+          <span
+            className={`titlebar-activity-text${isError ? " is-error" : ""}`}
+          >
+            {isError ? (
+              <span className="titlebar-activity-mark" aria-hidden />
+            ) : null}
+            {activity}
+          </span>
+        </div>
+      )}
     </header>
   );
 }

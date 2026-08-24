@@ -217,6 +217,37 @@ pub fn clean_profile_session_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathB
     Ok(base_dir(app)?.join("clean-profile-session"))
 }
 
+/// 「重置配置」目标校验：仅允许删用户选定的 DSH_HOME，禁止盘符根 / 用户主目录 / 壳程序目录。
+pub fn validate_dsh_home_reset_target<R: Runtime>(
+    app: &AppHandle<R>,
+    home: &Path,
+) -> Result<(), String> {
+    if !home.is_absolute() {
+        return Err("DSH_HOME 须为绝对路径".into());
+    }
+    let home = home.canonicalize().unwrap_or_else(|_| home.to_path_buf());
+    if let Some(user_home) = dirs::home_dir() {
+        let user_home = user_home.canonicalize().unwrap_or(user_home);
+        if home == user_home {
+            return Err("不能清空用户主目录".into());
+        }
+    }
+    if home.parent().is_none_or(|p| p.as_os_str().is_empty()) {
+        return Err("不能清空盘符根目录".into());
+    }
+    let app_base = base_dir(app)?;
+    let app_base = app_base.canonicalize().unwrap_or(app_base);
+    if home == app_base {
+        return Err("不能清空应用 AppData 根目录".into());
+    }
+    let clean = clean_profile_session_dir(app)?;
+    let clean = clean.canonicalize().unwrap_or(clean);
+    if home == clean {
+        return Err("不能清空临时干净 profile 目录".into());
+    }
+    Ok(())
+}
+
 /// debug 用 3081：避开官方默认 3080；若被占用则由 supervise 顺延。
 pub fn default_port() -> u16 {
     if cfg!(debug_assertions) {

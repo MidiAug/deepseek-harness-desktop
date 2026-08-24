@@ -19,7 +19,7 @@ import type {
   HarnessContextMenuOpen,
   ShellContextMenuState,
 } from "../types/context-menu";
-import { useShellToast } from "./useShellToast";
+import { useAppToast } from "../contexts/ShellToastProvider";
 
 const MSG_SOURCE = "dsh-shell-context-menu";
 
@@ -33,13 +33,7 @@ export function useHarnessContextMenu(
 ) {
   const { t } = useLocale();
   const [menu, setMenu] = useState<ShellContextMenuState>(null);
-  const {
-    showToast,
-    toastMessage,
-    toastAction,
-    toastLeaving,
-    toastVisible,
-  } = useShellToast();
+  const { showToast } = useAppToast();
 
   const close = useCallback(() => setMenu(null), []);
 
@@ -182,16 +176,12 @@ export function useHarnessContextMenu(
       }
       setMenu(null);
     },
-    [iframeRef, menu?.shellTarget, notifyCopied],
+    [iframeRef, menu?.shellTarget],
   );
 
   return {
     menu,
     close,
     selectAction,
-    copyToastMessage: toastMessage,
-    copyToastAction: toastAction,
-    copyToastLeaving: toastLeaving,
-    copyToastVisible: toastVisible || toastLeaving,
   };
 }

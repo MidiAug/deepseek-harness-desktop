@@ -13,10 +13,11 @@ import type { ShellTitleBarProps, WinAction } from "./titlebarTypes";
 export type { ShellTitleBarProps, ShellBodyView } from "./titlebarTypes";
 
 export function ShellTitleBar({
-  port,
   conn,
   hideConnStatus = false,
   minimal = false,
+  titleActivity = null,
+  titleActivityTone,
   chrome,
   sidebarWidthPx,
   bodyView,
@@ -76,7 +77,14 @@ export function ShellTitleBar({
   }
 
   if (minimal) {
-    return <MinimalTitleBar maximized={maximized} onWin={onWin} />;
+    return (
+      <MinimalTitleBar
+        maximized={maximized}
+        titleActivity={titleActivity}
+        titleActivityTone={titleActivityTone}
+        onWin={onWin}
+      />
+    );
   }
 
   if (bodyView === "platform") {
@@ -95,6 +103,8 @@ export function ShellTitleBar({
       <CompactTitleBar
         sidebarWidthPx={sidebarWidthPx}
         maximized={maximized}
+        titleActivity={titleActivity}
+        titleActivityTone={titleActivityTone}
         showSessionLog={
           chrome.sessionLogInTitlebar && sessionLogAvailable
         }
@@ -115,9 +125,10 @@ export function ShellTitleBar({
 
   return (
     <ClassicTitleBar
-      port={port}
       conn={conn}
       hideConnStatus={hideConnStatus}
+      titleActivity={titleActivity}
+      titleActivityTone={titleActivityTone}
       maximized={maximized}
       onOpenSettings={onOpenSettings}
       onRestart={onRestart}

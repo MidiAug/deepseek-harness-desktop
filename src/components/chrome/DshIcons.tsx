@@ -467,6 +467,34 @@ export function IconFolderOpenOutline16({ size = 16, className }: IconProps) {
   );
 }
 
+/** ic_ds_warning_circle_outline_16 — 圆框感叹号（状态提示） */
+export function IconWarningCircleOutline16({ size = 16, className }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      className={className}
+      viewBox="0 0 16 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden
+    >
+      <path
+        d="M8 1.25C11.4518 1.25 14.25 4.04822 14.25 7.5C14.25 10.9518 11.4518 13.75 8 13.75C4.54822 13.75 1.75 10.9518 1.75 7.5C1.75 4.04822 4.54822 1.25 8 1.25ZM8 2.625C5.30761 2.625 3.125 4.80761 3.125 7.5C3.125 10.1924 5.30761 12.375 8 12.375C10.6924 12.375 12.875 10.1924 12.875 7.5C12.875 4.80761 10.6924 2.625 8 2.625Z"
+        fill="currentColor"
+      />
+      <path
+        d="M8.625 4.75V8.25H7.375V4.75H8.625Z"
+        fill="currentColor"
+      />
+      <path
+        d="M8.625 9.75V10.875H7.375V9.75H8.625Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
 /** ic_ds_refresh_outline_16 */
 export function IconRefreshOutline16({ size = 16, className }: IconProps) {
   return (

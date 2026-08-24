@@ -10,13 +10,20 @@ import {
   type StartCommand,
 } from "../../shell";
 import { type FaultCta } from "../../shell/errors/recoveryMatrix";
+import {
+  resolveInstallMode,
+  type InstallMode,
+} from "../../shell/runtime/installMode";
 import { FaultRecoveryBlock } from "../chrome/FaultRecoveryBlock";
 import { ShellConfirmDialog } from "../chrome/ShellConfirmDialog";
 
 type Props = {
   startCommand: StartCommand;
+  forceStealth?: boolean;
+  embedding?: boolean;
+  sessionError?: string | null;
   onReady: (payload: ReadyPayload) => void;
-  onError: () => void;
+  onError: (message: string) => void;
   onBootWorking?: (coldInstall: boolean) => void;
   onOpenSettings: () => void;
   onStealthChange?: (stealth: boolean) => void;
@@ -28,6 +35,9 @@ type Props = {
  */
 export function BootPanel({
   startCommand,
+  forceStealth = false,
+  embedding = false,
+  sessionError = null,
   onReady,
   onError,
   onBootWorking,
@@ -43,9 +53,14 @@ export function BootPanel({
   const [runtimeKnown, setRuntimeKnown] = useState(false);
   const [repairing, setRepairing] = useState(false);
   const [logOpen, setLogOpen] = useState(true);
-  const [done, setDone] = useState(false);
   const [cleanProfileConfirmOpen, setCleanProfileConfirmOpen] = useState(false);
+  const [resetConfigConfirmOpen, setResetConfigConfirmOpen] = useState(false);
+  const [reinstallConfirmOpen, setReinstallConfirmOpen] = useState(false);
+  const [resetConfigBusy, setResetConfigBusy] = useState(false);
+  const [reinstallBusy, setReinstallBusy] = useState(false);
+  const [dshHomePath, setDshHomePath] = useState("");
   const [slowBoot, setSlowBoot] = useState(false);
+  const [installMode, setInstallMode] = useState<InstallMode>("hosted");
   const logBodyRef = useRef<HTMLDivElement>(null);
   const startedRef = useRef(false);
   const onStealthChangeRef = useRef(onStealthChange);
@@ -73,45 +88,80 @@ export function BootPanel({
     [],
   );
 
-  const runReset = useCallback(() => {
-    if (!window.confirm(t("boot.reset.confirm"))) {
-      return;
-    }
+  const executeReinstallDsh = useCallback(() => {
     startedRef.current = true;
     onBootWorkingRef.current?.(true);
     setFailed(false);
     setError(null);
+    setReinstallBusy(true);
     seedBootRef.current({
-      message: t("boot.msg.resetting"),
+      message: t("boot.msg.reinstalling"),
       stageId: "detect",
       percent: 5,
       clearLog: true,
     });
     void (async () => {
       try {
-        const ready = await shellApi.resetHostedRuntime();
-        const msg = `${t("boot.msg.ready")} · :${ready.port}`;
+        const ready = await shellApi.reinstallDsh();
+        setReinstallConfirmOpen(false);
         seedBootRef.current({
-          message: msg,
+          message: t("boot.msg.embedding"),
           stageId: "start",
-          percent: 100,
+          percent: null,
         });
-        setDone(true);
         onReady(ready);
       } catch (e) {
         const msg = typeof e === "string" ? e : String(e);
-        shellLog.error("boot", "reset_hosted_runtime", msg);
+        shellLog.error("boot", "reinstall_dsh", msg);
         setFailed(true);
         setError(msg);
         seedBootRef.current({
-          message: t("boot.msg.resetFailed"),
+          message: t("boot.msg.reinstallFailed"),
           stageId: "start",
         });
         startedRef.current = false;
-        onError();
+        onError(msg);
+      } finally {
+        setReinstallBusy(false);
       }
     })();
   }, [onReady, onError, t]);
+
+  const executeResetConfig = useCallback(() => {
+    startedRef.current = true;
+    onBootWorkingRef.current?.(true);
+    setFailed(false);
+    setError(null);
+    setResetConfigBusy(true);
+    life.beginOps(t("boot.msg.resettingConfig"));
+    seedBootRef.current({
+      message: t("boot.msg.resettingConfig"),
+      stageId: "detect",
+      percent: 5,
+      clearLog: true,
+    });
+    void (async () => {
+      try {
+        const ready = await shellApi.resetDshHome();
+        setResetConfigConfirmOpen(false);
+        onReady(ready);
+      } catch (e) {
+        const msg = typeof e === "string" ? e : String(e);
+        shellLog.error("boot", "reset_dsh_home", msg);
+        setFailed(true);
+        setError(msg);
+        seedBootRef.current({
+          message: t("boot.msg.resetConfigFailed"),
+          stageId: "start",
+        });
+        startedRef.current = false;
+        onError(msg);
+      } finally {
+        setResetConfigBusy(false);
+        life.endOps({ clearProgress: true });
+      }
+    })();
+  }, [life, onReady, onError, t]);
 
   const executeCleanProfile = useCallback(() => {
     startedRef.current = true;
@@ -127,13 +177,11 @@ export function BootPanel({
     void (async () => {
       try {
         const ready = await shellApi.startCleanProfile();
-        const msg = `${t("boot.msg.ready")} · :${ready.port}`;
         seedBootRef.current({
-          message: msg,
+          message: t("boot.msg.embedding"),
           stageId: "start",
-          percent: 100,
+          percent: null,
         });
-        setDone(true);
         onReady(ready);
       } catch (e) {
         const msg = typeof e === "string" ? e : String(e);
@@ -145,7 +193,7 @@ export function BootPanel({
           stageId: "start",
         });
         startedRef.current = false;
-        onError();
+        onError(msg);
       }
     })();
   }, [onReady, onError, t]);
@@ -158,7 +206,6 @@ export function BootPanel({
     async (cmd: StartCommand) => {
       setFailed(false);
       setError(null);
-      setDone(false);
       const msg =
         cmd === "restart_harness" ? t("boot.msg.restart") : t("boot.msg.ensure");
       seedBootRef.current({
@@ -170,14 +217,13 @@ export function BootPanel({
       onStatusMessageRef.current?.(msg);
       try {
         const ready = await shellApi.startHarness(cmd);
-        const readyMsg = `${t("boot.msg.ready")} · :${ready.port}`;
+        const readyMsg = t("boot.msg.embedding");
         seedBootRef.current({
           message: readyMsg,
           stageId: "start",
-          percent: 100,
+          percent: null,
         });
         onStatusMessageRef.current?.(readyMsg);
-        setDone(true);
         onReady(ready);
       } catch (e) {
         const msg = typeof e === "string" ? e : String(e);
@@ -187,7 +233,7 @@ export function BootPanel({
         seedBootRef.current({ message: t("boot.msg.failed"), stageId: "start" });
         onStatusMessageRef.current?.(t("boot.msg.failed"));
         startedRef.current = false;
-        onError();
+        onError(msg);
       }
     },
     [onReady, onError, t],
@@ -207,15 +253,18 @@ export function BootPanel({
         case "logs":
           void shellApi.openKnownPath("logs");
           break;
-        case "reset":
-          runReset();
+        case "resetConfig":
+          setResetConfigConfirmOpen(true);
+          break;
+        case "reinstallDsh":
+          setReinstallConfirmOpen(true);
           break;
         case "cleanProfile":
           runCleanProfile();
           break;
       }
     },
-    [onOpenSettings, runCleanProfile, runReset, start, startCommand],
+    [onOpenSettings, runCleanProfile, start, startCommand],
   );
 
   useEffect(() => {
@@ -223,6 +272,13 @@ export function BootPanel({
       let coldInstall = true;
       try {
         const st = await shellApi.getRuntimeStatus();
+        setInstallMode(
+          resolveInstallMode({
+            runtimeSource: st.runtimeSource,
+            activeRuntime: st.activeRuntime,
+          }),
+        );
+        setDshHomePath(st.dshHome ?? st.effectiveDshHome ?? "");
         const ready = st.nodeReady && st.harnessReady;
         const partial = Boolean(st.harnessPartial);
         setFastPath(ready);
@@ -240,6 +296,10 @@ export function BootPanel({
         setRuntimeKnown(true);
       }
       onBootWorkingRef.current?.(coldInstall);
+      if (startCommand === "external_op") {
+        setRuntimeKnown(true);
+        return;
+      }
       if (!startedRef.current) {
         startedRef.current = true;
         void start(startCommand);
@@ -257,30 +317,32 @@ export function BootPanel({
     return () => window.cancelAnimationFrame(id);
   }, [life.logLines, logOpen]);
 
-  const stealth = !runtimeKnown || (fastPath && !failed && !slowBoot);
-  const working = !failed && !done;
+  useEffect(() => {
+    if (!sessionError) return;
+    setFailed(true);
+    setError(sessionError);
+  }, [sessionError]);
+
+  const showFault = failed && !!error;
+  const stealth =
+    forceStealth ||
+    !runtimeKnown ||
+    (fastPath && !showFault && !slowBoot && !embedding);
+  const working = !showFault && !embedding;
 
   useEffect(() => {
-    if (!working || failed || done) {
+    if (forceStealth || !working || showFault) {
       setSlowBoot(false);
       return;
     }
     const id = window.setTimeout(() => setSlowBoot(true), 1800);
     return () => window.clearTimeout(id);
-  }, [working, failed, done]);
+  }, [working, showFault, forceStealth]);
 
   useEffect(() => {
-    onStealthChangeRef.current?.(stealth && !done);
+    onStealthChangeRef.current?.(stealth);
     return () => onStealthChangeRef.current?.(false);
-  }, [stealth, done]);
-
-  if (done) {
-    return null;
-  }
-
-  if (stealth) {
-    return null;
-  }
+  }, [stealth]);
 
   const { message, percent, stageId, logLines } = life;
   const activeIdx = stageIndex(stageId);
@@ -291,8 +353,8 @@ export function BootPanel({
     working &&
     (percent == null || percent === 75 || /npm install|修复安装/.test(message));
 
-  if (stealth) {
-    return (
+  const confirmDialogs = (
+    <>
       <ShellConfirmDialog
         open={cleanProfileConfirmOpen}
         titleKey="boot.cleanProfile.confirmTitle"
@@ -303,45 +365,66 @@ export function BootPanel({
           executeCleanProfile();
         }}
       />
-    );
+      <ShellConfirmDialog
+        open={resetConfigConfirmOpen}
+        titleKey="boot.resetConfig.confirmTitle"
+        bodyKey="boot.resetConfig.confirm"
+        bodyParams={{ path: dshHomePath || "—" }}
+        busy={resetConfigBusy}
+        onCancel={() => {
+          if (!resetConfigBusy) setResetConfigConfirmOpen(false);
+        }}
+        onConfirm={executeResetConfig}
+      />
+      <ShellConfirmDialog
+        open={reinstallConfirmOpen}
+        titleKey="boot.reinstallDsh.confirmTitle"
+        bodyKey={
+          installMode === "system"
+            ? "boot.reinstallDsh.confirmSystem"
+            : "boot.reinstallDsh.confirmHosted"
+        }
+        busy={reinstallBusy}
+        onCancel={() => {
+          if (!reinstallBusy) setReinstallConfirmOpen(false);
+        }}
+        onConfirm={executeReinstallDsh}
+      />
+    </>
+  );
+
+  if (stealth) {
+    return confirmDialogs;
   }
 
   return (
     <main className="boot-panel">
-      <ShellConfirmDialog
-        open={cleanProfileConfirmOpen}
-        titleKey="boot.cleanProfile.confirmTitle"
-        bodyKey="boot.cleanProfile.confirm"
-        onCancel={() => setCleanProfileConfirmOpen(false)}
-        onConfirm={() => {
-          setCleanProfileConfirmOpen(false);
-          executeCleanProfile();
-        }}
-      />
+      {confirmDialogs}
       <div className="boot-shell">
-        <div className="boot-card">
-          <header className="boot-hero">
-            <p className="boot-brand">{t("boot.brand")}</p>
-            <div className="boot-hero-row">
-              <h1 className="boot-title">
-                {repairing ? t("boot.title.repair") : t("boot.title.firstRun")}
-              </h1>
-              {working && (
-                <span className="boot-hero-meta">
-                  {barIndeterminate
-                    ? t("boot.status.working")
-                    : percent != null
-                      ? `${percent}%`
-                      : null}
-                </span>
-              )}
-            </div>
-            <p className="boot-lead">
-              {repairing ? t("boot.lead.repair") : t("boot.lead.firstRun")}
-            </p>
-          </header>
+        <div className={`boot-card${showFault ? " boot-card--failed" : ""}`}>
+          {!showFault && !embedding && (
+            <header className="boot-hero">
+              <div className="boot-hero-row">
+                <h1 className="boot-title">
+                  {repairing ? t("boot.title.repair") : t("boot.title.firstRun")}
+                </h1>
+                {working && (
+                  <span className="boot-hero-meta">
+                    {barIndeterminate
+                      ? t("boot.status.working")
+                      : percent != null
+                        ? `${percent}%`
+                        : null}
+                  </span>
+                )}
+              </div>
+              <p className="boot-lead">
+                {repairing ? t("boot.lead.repair") : t("boot.lead.firstRun")}
+              </p>
+            </header>
+          )}
 
-          {!failed && (
+          {!showFault && !embedding && (
             <ol className="boot-steps" aria-label={t("boot.steps")}>
               {BOOT_STAGES.map((s, i) => {
                 const state =
@@ -360,39 +443,47 @@ export function BootPanel({
             </ol>
           )}
 
-          <section className="boot-status" aria-live="polite">
-            <div className="boot-status-head">
-              <span className="boot-status-stage">{activeLabel}</span>
-              <span className="boot-status-hint">
-                {failed ? t("boot.status.failed") : t("boot.status.live")}
-              </span>
-            </div>
-            {failed && error ? (
-              <FaultRecoveryBlock error={error} onCta={runCta} />
-            ) : (
-              <p className="boot-status-line">{message}</p>
-            )}
-            {working && (
-              <div
-                className={`boot-bar${barIndeterminate ? " indeterminate" : ""}`}
-                role="progressbar"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={
-                  barIndeterminate ? undefined : (percent ?? undefined)
-                }
-              >
-                <div
-                  className="boot-bar-fill"
-                  style={
-                    barIndeterminate
-                      ? undefined
-                      : { width: `${percent ?? 0}%` }
-                  }
-                />
+          {showFault && error ? (
+            <FaultRecoveryBlock
+              error={error}
+              installMode={installMode}
+              onCta={runCta}
+            />
+          ) : (
+            <section className="boot-status" aria-live="polite">
+              <div className="boot-status-head">
+                <span className="boot-status-stage">
+                  {embedding ? t("boot.stage.start") : activeLabel}
+                </span>
+                <span className="boot-status-hint">
+                  {embedding ? t("boot.status.working") : t("boot.status.live")}
+                </span>
               </div>
-            )}
-          </section>
+              <p className="boot-status-line">
+                {embedding ? t("boot.msg.embedding") : message}
+              </p>
+              {(working || embedding) && (
+                <div
+                  className={`boot-bar${barIndeterminate || embedding ? " indeterminate" : ""}`}
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={
+                    barIndeterminate ? undefined : (percent ?? undefined)
+                  }
+                >
+                  <div
+                    className="boot-bar-fill"
+                    style={
+                      barIndeterminate
+                        ? undefined
+                        : { width: `${percent ?? 0}%` }
+                    }
+                  />
+                </div>
+              )}
+            </section>
+          )}
 
           <section className="boot-log">
             <button

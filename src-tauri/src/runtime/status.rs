@@ -3,7 +3,9 @@
 use tauri::{AppHandle, Runtime};
 
 use crate::paths;
-use crate::runtime::package::{is_harness_partial, read_harness_meta, resolve_dsh_entry};
+use crate::runtime::package::{
+    is_harness_partial, resolve_dsh_entry, resolve_effective_harness_meta,
+};
 use crate::settings;
 use crate::supervise::{self, HarnessState};
 
@@ -15,7 +17,7 @@ pub fn build_runtime_status_json<R: Runtime>(
     let node = paths::node_binary(app)?;
     let entry = resolve_dsh_entry(app)?;
     let cfg = settings::load(app);
-    let meta = read_harness_meta(app);
+    let meta = resolve_effective_harness_meta(app, state);
     let harness_ready = paths::is_file(&entry);
     let clean_profile_active = supervise::is_clean_profile_active(state);
     let effective_dsh_home = supervise::effective_dsh_home(app, state, &cfg);

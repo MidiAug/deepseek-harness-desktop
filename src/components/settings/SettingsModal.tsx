@@ -21,7 +21,6 @@ import {
   type ReadyPayload,
   type RuntimeStatus,
 } from "../../shell";
-import type { CliLinkStatus } from "../../shell/api/shellApi";
 import { ShellTooltip } from "../chrome/ShellTooltip";
 import { useLocale, useSectionLabels } from "../../shell/locale";
 import type { SettingsSection } from "./settingsTypes";
@@ -36,6 +35,7 @@ import { FaultRecoveryBlock } from "../chrome/FaultRecoveryBlock";
 import { ShellConfirmDialog } from "../chrome/ShellConfirmDialog";
 import { ShellDialogFrame } from "../chrome/ShellDialogFrame";
 import type { FaultCta } from "../../shell/errors/recoveryMatrix";
+import { resolveInstallMode } from "../../shell/runtime/installMode";
 
 export type { SettingsSection } from "./settingsTypes";
 
@@ -49,6 +49,8 @@ type Props = {
   onClose: () => void;
   initialSection?: SettingsSection;
   onHarnessReady?: (payload: ReadyPayload) => void;
+  onBeginHarnessOp?: () => void;
+  onHarnessOpFailed?: (message: string) => void;
   onStopHarness?: () => void;
 };
 
@@ -67,6 +69,8 @@ type PanelProps = {
   onClose: () => void;
   initialSection?: SettingsSection;
   onHarnessReady?: (payload: ReadyPayload) => void;
+  onBeginHarnessOp?: () => void;
+  onHarnessOpFailed?: (message: string) => void;
   onStopHarness?: () => void;
   runtime: RuntimeStatus | null;
   refreshRuntime: () => void;
@@ -81,6 +85,8 @@ function SettingsModalPanel({
   onClose,
   initialSection,
   onHarnessReady,
+  onBeginHarnessOp,
+  onHarnessOpFailed,
   onStopHarness,
   runtime,
   refreshRuntime,
@@ -96,7 +102,6 @@ function SettingsModalPanel({
   const [settings, setSettings] = useState<ShellSettings>(
     normalizeShellSettings(null),
   );
-  const [cliStatus, setCliStatus] = useState<CliLinkStatus | null>(null);
   const [section, setSection] = useState<SettingsSection>(() =>
     normalizeSettingsSection(initialSection),
   );
@@ -108,27 +113,41 @@ function SettingsModalPanel({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const faultRef = useRef<FaultState | null>(null);
   faultRef.current = fault;
+  const setUpdateCheckRef = useRef(setUpdateCheck);
+  setUpdateCheckRef.current = setUpdateCheck;
+  const setChromeRef = useRef(setChrome);
+  setChromeRef.current = setChrome;
+  const reportFaultRef = useRef(reportFault);
+  reportFaultRef.current = reportFault;
+  const refreshRuntimeRef = useRef(refreshRuntime);
+  refreshRuntimeRef.current = refreshRuntime;
 
   useEffect(() => {
-    setUpdateCheck(null);
+    let cancelled = false;
+    setUpdateCheckRef.current(null);
     setSection(normalizeSettingsSection(initialSection));
     void loadShellSettingsWithTheme()
       .then((next) => {
+        if (cancelled) return;
         setSettings(next);
         setPortDraft(
           next.preferredPort > 0 ? String(next.preferredPort) : "",
         );
-        setChrome({
+        setChromeRef.current({
           shellTheme: next.shellTheme,
           titlebarCompact: next.titlebarCompact,
           selectionHygiene: next.selectionHygiene,
           sessionLogInTitlebar: next.sessionLogInTitlebar,
         });
       })
-      .catch((e) => reportFault(String(e)));
-    refreshRuntime();
-    void shellApi.getCliLinkStatus().then(setCliStatus).catch(() => undefined);
-  }, [initialSection, setChrome, refreshRuntime, setUpdateCheck, reportFault]);
+      .catch((e) => {
+        if (!cancelled) reportFaultRef.current(String(e));
+      });
+    refreshRuntimeRef.current();
+    return () => {
+      cancelled = true;
+    };
+  }, [initialSection]);
 
   useEffect(() => {
     setSettings((s) =>
@@ -164,7 +183,11 @@ function SettingsModalPanel({
         case "logs":
           void shellApi.openKnownPath("logs");
           break;
-        case "reset":
+        case "resetConfig":
+          setSection("data");
+          reportFault(null);
+          break;
+        case "reinstallDsh":
           setSection("data");
           reportFault(null);
           break;
@@ -248,6 +271,11 @@ function SettingsModalPanel({
 
   const locked = life.locked;
 
+  const installMode = resolveInstallMode({
+    runtimeSource: settings.runtimeSource,
+    activeRuntime: runtime?.activeRuntime,
+  });
+
   return (
     <>
       <ShellDialogFrame
@@ -315,14 +343,12 @@ function SettingsModalPanel({
               <SettingsSectionRuntime
                 settings={settings}
                 runtime={runtime}
-                cliStatus={cliStatus}
                 portDraft={portDraft}
                 setPortDraft={setPortDraft}
                 locked={locked}
                 patchRuntime={patchRuntime}
                 setError={reportFault}
                 setSettings={setSettings}
-                setCliStatus={setCliStatus}
                 refreshRuntime={refreshRuntime}
                 onStopHarness={onStopHarness}
               />
@@ -336,6 +362,9 @@ function SettingsModalPanel({
                 setError={reportFault}
                 refreshRuntime={refreshRuntime}
                 onHarnessReady={onHarnessReady}
+                onCloseSettings={onClose}
+                onBeginHarnessOp={onBeginHarnessOp}
+                onHarnessOpFailed={onHarnessOpFailed}
                 onDiagnosticsExported={(path) => {
                   showToast(
                     t("settings.about.exportDiagnosticsDone", { path }),
@@ -345,11 +374,19 @@ function SettingsModalPanel({
               />
             )}
             {section === "about" && (
-              <SettingsSectionAbout runtime={runtime} />
+              <SettingsSectionAbout
+                runtime={runtime}
+                fault={fault}
+                onFaultCta={handleFaultCta}
+              />
             )}
 
-            {fault && (
-              <FaultRecoveryBlock error={fault.message} onCta={handleFaultCta} />
+            {fault && section !== "about" && (
+              <FaultRecoveryBlock
+                error={fault.message}
+                installMode={installMode}
+                onCta={handleFaultCta}
+              />
             )}
           </div>
         </div>
@@ -372,15 +409,21 @@ function SettingsModalOpen({
   onClose,
   initialSection,
   onHarnessReady,
+  onBeginHarnessOp,
+  onHarnessOpFailed,
   onStopHarness,
 }: Omit<Props, "open">) {
   const [runtime, setRuntime] = useState<RuntimeStatus | null>(null);
   const [fault, setFault] = useState<FaultState | null>(null);
+  const runtimeGenRef = useRef(0);
 
   const refreshRuntime = useCallback(() => {
+    const gen = ++runtimeGenRef.current;
     void shellApi
       .getRuntimeStatus()
-      .then(setRuntime)
+      .then((st) => {
+        if (runtimeGenRef.current === gen) setRuntime(st);
+      })
       .catch(() => undefined);
   }, []);
 
@@ -406,6 +449,8 @@ function SettingsModalOpen({
         onClose={onClose}
         initialSection={initialSection}
         onHarnessReady={onHarnessReady}
+        onBeginHarnessOp={onBeginHarnessOp}
+        onHarnessOpFailed={onHarnessOpFailed}
         onStopHarness={onStopHarness}
         runtime={runtime}
         refreshRuntime={refreshRuntime}
@@ -422,6 +467,8 @@ export function SettingsModal({
   onClose,
   initialSection,
   onHarnessReady,
+  onBeginHarnessOp,
+  onHarnessOpFailed,
   onStopHarness,
 }: Props) {
   if (!open) return null;
@@ -430,6 +477,8 @@ export function SettingsModal({
       onClose={onClose}
       initialSection={initialSection}
       onHarnessReady={onHarnessReady}
+      onBeginHarnessOp={onBeginHarnessOp}
+      onHarnessOpFailed={onHarnessOpFailed}
       onStopHarness={onStopHarness}
     />
   );

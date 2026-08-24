@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import {
   shellApi,
   shellLog,
@@ -10,16 +10,35 @@ import {
   normalizeShellSettings,
   type RuntimeStatus,
 } from "../../shell";
+import type { FaultCta } from "../../shell/errors/recoveryMatrix";
+import { resolveInstallMode } from "../../shell/runtime/installMode";
 import { useLocale } from "../../shell/locale";
 import { SettingsGroup } from "./SettingsGroup";
 import { SettingsPrefRow } from "./SettingsPrefRow";
+import { SettingsUpdateRow } from "./SettingsUpdateRow";
+import { SettingsUpdateNotice } from "./SettingsUpdateNotice";
+import { SettingsUpdateProgress } from "./SettingsUpdateProgress";
+import { parseFaultDisplay, CTA_LABEL_KEYS } from "../../shell/errors";
 
 type Props = {
   runtime: RuntimeStatus | null;
+  fault: { message: string } | null;
+  onFaultCta: (cta: FaultCta) => void;
 };
 
-/** 关于与更新：身份只读 + 更新 PrefRow；忙时进度条 + 启动日志组。 */
-export function SettingsSectionAbout({ runtime }: Props) {
+function harnessVersionLabel(
+  runtime: RuntimeStatus | null,
+  locked: boolean,
+  t: (key: import("../../shell/locale").LocaleKey) => string,
+): string {
+  if (runtime?.harnessVersion) return runtime.harnessVersion;
+  if (runtime?.harnessReady) return t("settings.about.harnessRunning");
+  if (locked) return t("settings.about.installing");
+  return t("settings.about.notInstalled");
+}
+
+/** 关于与更新：身份只读 + 内联更新行（进度/错误不沉底）。 */
+export function SettingsSectionAbout({ runtime, fault, onFaultCta }: Props) {
   const { t } = useLocale();
   const { showToast } = useAppToast();
   const life = useHostLifecycle();
@@ -34,16 +53,19 @@ export function SettingsSectionAbout({ runtime }: Props) {
   const [identityAdvanced, setIdentityAdvanced] = useState(false);
 
   const locked = life.locked;
+  const opsActive = life.busyReason === "ops";
   const hasLog = life.logLines.length > 0;
-  const barIndeterminate =
-    locked && (life.percent == null || life.percent === 75);
+
+  const installMode = resolveInstallMode({
+    runtimeSource: runtime?.runtimeSource,
+    activeRuntime: runtime?.activeRuntime,
+  });
 
   const shellChecking =
     shellUpd.phase === "checking" ||
     shellUpd.phase === "downloading" ||
     shellUpd.phase === "installing";
 
-  // PrefRow 次文：只允许短句，长说明不进行内
   const shellDesc =
     shellUpd.phase === "downloaded"
       ? t("settings.about.shellUpdate.downloaded", {
@@ -59,13 +81,66 @@ export function SettingsSectionAbout({ runtime }: Props) {
               ? t("settings.about.upToDate")
               : t("settings.about.shellUpdate.descAuto");
 
-  const harnessDesc = checkingUpdate
-    ? t("settings.hint.checkingUpdate")
-    : updateCheck?.updateAvailable
-      ? `${t("settings.about.updateFound")} ${updateCheck.latest ?? "?"}`
+  const localHarnessVersion =
+    updateCheck?.local ??
+    runtime?.harnessVersion ??
+    null;
+
+  const harnessVersionLine =
+    updateCheck?.updateAvailable
+      ? t("settings.about.harnessUpdate.available", {
+          latest: updateCheck.latest ?? "?",
+          local: localHarnessVersion ?? t("settings.about.unknownVersion"),
+        })
       : updateCheck
         ? t("settings.about.upToDate")
-        : t("settings.about.harnessUpdate.descIdle");
+        : localHarnessVersion
+          ? t("settings.about.harnessUpdate.current", {
+              local: localHarnessVersion,
+            })
+          : t("settings.about.harnessUpdate.descIdle");
+
+  const harnessDesc = opsActive
+    ? life.message || t("settings.about.progress.busy")
+    : checkingUpdate
+      ? t("settings.hint.checkingUpdate")
+      : harnessVersionLine;
+
+  const faultActions = fault ? parseFaultDisplay(fault.message).actions : [];
+  const primaryFaultCta = faultActions[0];
+  const secondaryFaultCtas = faultActions.slice(1);
+
+  const showShellCheck =
+    shellUpd.phase !== "downloaded" &&
+    shellUpd.phase !== "unsupported" &&
+    !shellChecking;
+  const showShellInstall = shellUpd.phase === "downloaded";
+
+  const showHarnessCheck =
+    !fault &&
+    !updateCheck?.updateAvailable &&
+    !checkingUpdate &&
+    !locked;
+  const showHarnessInstall =
+    !!updateCheck?.updateAvailable && !locked && !fault;
+  const showHarnessRetry = !!fault && !!primaryFaultCta && !locked;
+
+  const harnessFooter =
+    opsActive || fault ? (
+      <>
+        {opsActive ? <SettingsUpdateProgress showMessage={false} /> : null}
+        {fault ? (
+          <SettingsUpdateNotice
+            error={fault.message}
+            installMode={installMode}
+            secondaryActions={secondaryFaultCtas}
+            onCta={onFaultCta}
+          />
+        ) : null}
+      </>
+    ) : null;
+
+  const harnessLabel = harnessVersionLabel(runtime, locked, t);
 
   useEffect(() => {
     if (life.logLines.length === 0) return;
@@ -83,12 +158,7 @@ export function SettingsSectionAbout({ runtime }: Props) {
       <SettingsGroup title={t("settings.group.identity")}>
         <div className="settings-about-identity">
           <div className="settings-about-brand">
-            <span className="settings-about-name">
-              {t("settings.about.name")}
-            </span>
-            <span className="settings-about-tag">
-              {t("settings.about.tag")}
-            </span>
+            <span className="settings-about-name">{t("settings.about.tag")}</span>
           </div>
           <dl className="settings-about-meta">
             <div>
@@ -101,10 +171,7 @@ export function SettingsSectionAbout({ runtime }: Props) {
               <dt>{t("settings.about.harness")}</dt>
               <dd>
                 <span className="settings-about-ver shell-copyable">
-                  {runtime?.harnessVersion ??
-                    (locked
-                      ? t("settings.about.installing")
-                      : t("settings.about.notInstalled"))}
+                  {harnessLabel}
                 </span>
                 {runtime?.harnessReady ? (
                   <span className="settings-pill ok">
@@ -135,151 +202,132 @@ export function SettingsSectionAbout({ runtime }: Props) {
           </div>
           {identityAdvanced && (
             <>
-            <dl className="settings-about-meta settings-about-meta-advanced">
-              <div>
-                <dt>{t("settings.about.digest")}</dt>
-                <dd className="mono">{runtime?.harnessDigest ?? "—"}</dd>
-              </div>
-              <div>
-                <dt>{t("settings.about.port")}</dt>
-                <dd className="mono">{runtime?.port ?? "—"}</dd>
-              </div>
-              <div>
-                <dt>{t("settings.about.node")}</dt>
-                <dd>
-                  {runtime?.nodeReady ? (
-                    <span className="settings-pill ok">
-                      {t("settings.about.ready")}
-                    </span>
-                  ) : (
-                    <span className="settings-pill warn">
-                      {t("settings.about.nodeMissing")}
-                    </span>
-                  )}
-                </dd>
-              </div>
-            </dl>
-            <div className="settings-about-advanced-actions">
-              <SettingsPrefRow
-                title={t("settings.about.resetOnboarding")}
-                description={t("settings.about.resetOnboardingDesc")}
-              >
-                <button
-                  type="button"
-                  className="btn ghost"
-                  onClick={() => {
-                    void (async () => {
-                      try {
-                        const s = normalizeShellSettings(
-                          await shellApi.getShellSettings(),
-                        );
-                        await shellApi.saveRuntimeSettings({
-                          ...runtimeFromSettings(s),
-                          onboardingDone: false,
-                        });
-                        showToast(t("settings.about.resetOnboardingDone"));
-                      } catch (e) {
-                        shellLog.error("settings", "reset onboarding", e);
-                      }
-                    })();
-                  }}
+              <dl className="settings-about-meta settings-about-meta-advanced">
+                <div>
+                  <dt>{t("settings.about.digest")}</dt>
+                  <dd className="mono">{runtime?.harnessDigest ?? "—"}</dd>
+                </div>
+                <div>
+                  <dt>{t("settings.about.port")}</dt>
+                  <dd className="mono">{runtime?.port ?? "—"}</dd>
+                </div>
+                <div>
+                  <dt>{t("settings.about.node")}</dt>
+                  <dd>
+                    {runtime?.nodeReady ? (
+                      <span className="settings-pill ok">
+                        {t("settings.about.ready")}
+                      </span>
+                    ) : (
+                      <span className="settings-pill warn">
+                        {t("settings.about.nodeMissing")}
+                      </span>
+                    )}
+                  </dd>
+                </div>
+              </dl>
+              <div className="settings-about-advanced-actions">
+                <SettingsPrefRow
+                  title={t("settings.about.resetOnboarding")}
+                  description={t("settings.about.resetOnboardingDesc")}
                 >
-                  {t("settings.about.resetOnboarding")}
-                </button>
-              </SettingsPrefRow>
-            </div>
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    onClick={() => {
+                      void (async () => {
+                        try {
+                          const s = normalizeShellSettings(
+                            await shellApi.getShellSettings(),
+                          );
+                          await shellApi.saveRuntimeSettings({
+                            ...runtimeFromSettings(s),
+                            onboardingDone: false,
+                          });
+                          showToast(t("settings.about.resetOnboardingDone"));
+                        } catch (e) {
+                          shellLog.error("settings", "reset onboarding", e);
+                        }
+                      })();
+                    }}
+                  >
+                    {t("settings.about.resetOnboardingAction")}
+                  </button>
+                </SettingsPrefRow>
+              </div>
             </>
           )}
         </div>
       </SettingsGroup>
 
       <SettingsGroup title={t("settings.group.updates")}>
-        <SettingsPrefRow
+        <SettingsUpdateRow
           title={t("settings.about.shellUpdate.rowTitle")}
           description={shellDesc}
-        >
-          <div className="settings-cell-actions">
-            <button
-              type="button"
-              className="btn ghost"
-              disabled={shellChecking || shellUpd.phase === "unsupported"}
-              onClick={() => void shellUpd.checkNow(true)}
-            >
-              {t("settings.about.shellUpdate.check")}
-            </button>
-            {shellUpd.phase === "downloaded" && (
-              <button
-                type="button"
-                className="btn primary"
-                onClick={() => void shellUpd.installAndRelaunch()}
-              >
-                {t("settings.about.shellUpdate.install")}
-              </button>
-            )}
-          </div>
-        </SettingsPrefRow>
-        <SettingsPrefRow
+          disabled={shellUpd.phase === "unsupported"}
+          actions={
+            <>
+              {showShellCheck ? (
+                <button
+                  type="button"
+                  className="btn ghost"
+                  disabled={shellChecking}
+                  onClick={() => void shellUpd.checkNow(true)}
+                >
+                  {t("settings.about.shellUpdate.check")}
+                </button>
+              ) : null}
+              {showShellInstall ? (
+                <button
+                  type="button"
+                  className="btn primary"
+                  onClick={() => void shellUpd.installAndRelaunch()}
+                >
+                  {t("settings.about.shellUpdate.install")}
+                </button>
+              ) : null}
+            </>
+          }
+        />
+        <SettingsUpdateRow
           title={t("settings.about.harnessUpdate.rowTitle")}
           description={harnessDesc}
-          disabled={locked}
-        >
-          <div className="settings-cell-actions">
-            <button
-              type="button"
-              className="btn ghost"
-              disabled={locked || checkingUpdate}
-              onClick={() => void onCheckUpdate()}
-            >
-              {t("settings.about.checkUpdate")}
-            </button>
-            {!locked && updateCheck?.updateAvailable && (
-              <button
-                type="button"
-                className="btn primary"
-                onClick={() => void onApplyUpdate()}
-              >
-                {t("settings.about.applyUpdate")}
-              </button>
-            )}
-          </div>
-        </SettingsPrefRow>
-        {locked && (
-          <div
-            className="settings-ops-progress"
-            role="status"
-            aria-live="polite"
-          >
-            <div className="settings-progress-head">
-              <span className="settings-progress-msg">
-                {life.message || t("settings.about.progress.busy")}
-              </span>
-              {life.percent != null && !barIndeterminate && (
-                <span className="settings-progress-pct">{life.percent}%</span>
-              )}
-            </div>
-            <div
-              className={`settings-progress-bar${barIndeterminate ? " indeterminate" : ""}`}
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={
-                barIndeterminate ? undefined : (life.percent ?? undefined)
-              }
-            >
-              <div
-                className="settings-progress-fill"
-                style={
-                  barIndeterminate
-                    ? undefined
-                    : { width: `${life.percent ?? 0}%` }
-                }
-              />
-            </div>
-          </div>
-        )}
-        <p className="settings-live-hint settings-live-hint-subtle settings-about-safe-hint">
-          {t("settings.about.shellUpdate.safeHint")}
-        </p>
+          disabled={locked && !opsActive}
+          actions={
+            <>
+              {showHarnessCheck ? (
+                <button
+                  type="button"
+                  className="btn ghost"
+                  disabled={locked || checkingUpdate}
+                  onClick={() => void onCheckUpdate()}
+                >
+                  {t("settings.about.checkUpdate")}
+                </button>
+              ) : null}
+              {showHarnessInstall ? (
+                <button
+                  type="button"
+                  className="btn primary"
+                  disabled={locked}
+                  onClick={() => void onApplyUpdate()}
+                >
+                  {t("settings.about.applyUpdate")}
+                </button>
+              ) : null}
+              {showHarnessRetry && primaryFaultCta ? (
+                <button
+                  type="button"
+                  className="btn primary"
+                  onClick={() => onFaultCta(primaryFaultCta)}
+                >
+                  {t(CTA_LABEL_KEYS[primaryFaultCta])}
+                </button>
+              ) : null}
+            </>
+          }
+          footer={harnessFooter}
+        />
       </SettingsGroup>
 
       <SettingsGroup title={t("settings.group.links")}>

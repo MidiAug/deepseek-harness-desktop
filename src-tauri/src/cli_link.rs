@@ -3,6 +3,7 @@
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::Mutex;
 
 use serde::Serialize;
 use tauri::{AppHandle, Runtime};
@@ -73,10 +74,20 @@ pub fn remove<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
     Ok(())
 }
 
-fn user_path_contains(dir: &PathBuf) -> bool {
-    #[cfg(windows)]
-    {
-        let dir_s = dir.to_string_lossy();
+#[cfg(windows)]
+static USER_PATH_CACHE: Mutex<Option<String>> = Mutex::new(None);
+
+#[cfg(windows)]
+fn invalidate_user_path_cache() {
+    if let Ok(mut guard) = USER_PATH_CACHE.lock() {
+        *guard = None;
+    }
+}
+
+#[cfg(windows)]
+fn read_user_path_env() -> Option<String> {
+    let mut guard = USER_PATH_CACHE.lock().ok()?;
+    if guard.is_none() {
         let out = Command::new("powershell")
             .args([
                 "-NoProfile",
@@ -84,11 +95,22 @@ fn user_path_contains(dir: &PathBuf) -> bool {
                 "[Environment]::GetEnvironmentVariable('Path','User')",
             ])
             .output()
-            .ok();
-        let Some(o) = out else {
+            .ok()?;
+        if !out.status.success() {
+            return None;
+        }
+        *guard = Some(String::from_utf8_lossy(&out.stdout).into_owned());
+    }
+    guard.clone()
+}
+
+fn user_path_contains(dir: &PathBuf) -> bool {
+    #[cfg(windows)]
+    {
+        let dir_s = dir.to_string_lossy();
+        let Some(text) = read_user_path_env() else {
             return false;
         };
-        let text = String::from_utf8_lossy(&o.stdout);
         text.split(';')
             .any(|p| p.eq_ignore_ascii_case(dir_s.as_ref()))
     }
@@ -116,6 +138,7 @@ fn register_user_path(dir: &PathBuf) -> Result<(), String> {
         if !status.success() {
             return Err("PATH register failed".into());
         }
+        invalidate_user_path_cache();
         Ok(())
     }
     #[cfg(not(windows))]
@@ -142,6 +165,7 @@ fn unregister_user_path(dir: &PathBuf) -> Result<(), String> {
         if !status.success() {
             return Err("PATH unregister failed".into());
         }
+        invalidate_user_path_cache();
         Ok(())
     }
     #[cfg(not(windows))]

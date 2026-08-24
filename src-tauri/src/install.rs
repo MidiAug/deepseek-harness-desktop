@@ -352,6 +352,119 @@ fn node_dir_for_path(node: &Path) -> PathBuf {
     node.parent().unwrap_or(Path::new(".")).to_path_buf()
 }
 
+/// 本机全局 npm 重装 `@deepseek-ai/dsh@latest`（系统运行时 / 首跑「本机已安装」）。
+#[cfg(windows)]
+pub async fn npm_install_dsh_global<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
+    use crate::system_runtime;
+
+    let rt = system_runtime::resolve_system_runtime().ok_or_else(|| {
+        String::from(HostError::install(
+            "未检测到本机 Node / npm，无法重装 dsh。请先安装官方 CLI 或改用应用内安装。",
+        ))
+    })?;
+    let node = rt.node;
+    let npm_cli = system_npm_cli_js(&node).ok_or_else(|| {
+        String::from(HostError::install(format!(
+            "未找到 npm-cli.js（与 {} 同前缀）",
+            node.display()
+        )))
+    })?;
+
+    emit_progress(
+        app,
+        "install-dsh",
+        "正在 npm 全局重装 @deepseek-ai/dsh@latest（可能需数分钟）…",
+        Some(75),
+    );
+
+    let cfg = settings::load(app);
+    let registry = cfg.npm_registry().to_string();
+    let package_arg = format!("{DSH_PACKAGE}@latest");
+    progress::append_shell_log(
+        app,
+        &format!("npm_install_dsh_global registry={registry} arg={package_arg}"),
+    );
+
+    let app_log = app.clone();
+    let node_dir = node_dir_for_path(&node);
+    let user_path = std::env::var("PATH").unwrap_or_default();
+    let output = tokio::task::spawn_blocking(move || {
+        let mut envs = settings::proxy_env_overrides(&cfg);
+        envs.insert(
+            "PATH".into(),
+            format!("{};{user_path}", node_dir.to_string_lossy()),
+        );
+        envs.insert("NODE_OPTIONS".into(), "--dns-result-order=ipv4first".into());
+        envs.insert("npm_config_fetch_timeout".into(), "300000".into());
+        envs.insert("npm_config_fetch_retries".into(), "5".into());
+        envs.insert("npm_config_progress".into(), "true".into());
+        envs.insert("npm_config_loglevel".into(), "info".into());
+
+        let args = vec![
+            OsString::from(npm_cli.as_os_str()),
+            OsString::from("install"),
+            OsString::from("-g"),
+            OsString::from(&package_arg),
+            OsString::from("--registry"),
+            OsString::from(&registry),
+            OsString::from("--no-fund"),
+            OsString::from("--no-audit"),
+            OsString::from("--loglevel"),
+            OsString::from("info"),
+        ];
+        let started = std::time::Instant::now();
+        platform::spawn_and_wait_streaming(&node, &args, None, &envs, |line| {
+            if line.starts_with('…') || line.starts_with("...") {
+                let secs = started.elapsed().as_secs();
+                progress::emit_progress(
+                    &app_log,
+                    "install-dsh",
+                    &format!("npm 全局安装进行中（已 {secs}s）…"),
+                    Some(75),
+                );
+            } else {
+                progress::emit_log_line(&app_log, "npm-log", line);
+            }
+        })
+    })
+    .await
+    .map_err(|e| String::from(HostError::install(format!("join npm global: {e}"))))?
+    .map_err(|e| String::from(HostError::install(format!("spawn npm global: {e}"))))?;
+
+    let (code, stdout, stderr) = output;
+    progress::append_shell_log(
+        app,
+        &format!(
+            "npm_install_dsh_global done code={code} stdout_len={} stderr_len={}",
+            stdout.len(),
+            stderr.len()
+        ),
+    );
+    if code != 0 {
+        return Err(String::from(
+            HostError::install(format!("npm 全局安装失败\n{stderr}\n{stdout}")),
+        ));
+    }
+    if system_runtime::resolve_system_runtime().is_none() {
+        return Err(String::from(HostError::install(
+            "npm 安装完成但未检测到可用的本机 dsh 入口",
+        )));
+    }
+    emit_progress(app, "install-dsh", "本机 dsh 重装完成", Some(90));
+    Ok(())
+}
+
+#[cfg(windows)]
+fn system_npm_cli_js(node: &Path) -> Option<PathBuf> {
+    let npm_root = node.parent()?;
+    let cli = npm_root
+        .join("node_modules")
+        .join("npm")
+        .join("bin")
+        .join("npm-cli.js");
+    cli.is_file().then_some(cli)
+}
+
 async fn download_file<R: Runtime>(
     app: &AppHandle<R>,
     settings: &ShellSettings,

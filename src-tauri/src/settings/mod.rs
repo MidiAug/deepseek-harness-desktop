@@ -69,7 +69,7 @@ mod tests {
             close_pref_set: false,
             preferred_port: 0,
             cli_link_enabled: false,
-            runtime_source: crate::system_runtime::RuntimeSource::Auto,
+            runtime_source: crate::system_runtime::RuntimeSource::Hosted,
             onboarding_done: false,
         };
         let json = serde_json::to_string(&r).unwrap();

@@ -26,10 +26,16 @@ describe("getRecoveryPlan", () => {
     assert.deepEqual(plan.secondary, ["retry", "logs"]);
   });
 
-  test("maps PLUGIN_LOAD_FAILED to cleanProfile primary", () => {
+  test("maps PLUGIN_LOAD_FAILED to retry primary", () => {
     const plan = getRecoveryPlan("PLUGIN_LOAD_FAILED: plugin hang");
     assert.equal(plan.prefix, "PLUGIN_LOAD_FAILED");
-    assert.equal(plan.primary, "cleanProfile");
+    assert.equal(plan.primary, "retry");
+  });
+
+  test("maps DSH_HOME_IN_USE to retry primary", () => {
+    const plan = getRecoveryPlan("DSH_HOME_IN_USE: folder locked");
+    assert.equal(plan.prefix, "DSH_HOME_IN_USE");
+    assert.equal(plan.primary, "retry");
   });
 
   test("maps DEFAULT to retry primary", () => {

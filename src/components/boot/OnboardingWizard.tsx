@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from "react";
 import { IconFolderOpenOutline16, IconRefreshOutline16 } from "../chrome/DshIcons";
 import { OnboardingPathIconBtn } from "./OnboardingPathIconBtn";
 import { OnboardingPathWarn } from "./OnboardingPathWarn";
-import { ShellProgressBubble } from "../chrome/ShellProgressBubble";
 import {
   shellApi,
   shellLog,
@@ -298,7 +297,7 @@ export function OnboardingWizard({ onComplete }: Props) {
       applyAutoResolve(resolved, setDshHome, setDshHomeWarning);
       const settings = normalizeShellSettings(await shellApi.getShellSettings());
       const runtimeSource: RuntimeSource =
-        choice === "local" ? "auto" : "hosted";
+        choice === "local" ? "system" : "hosted";
       await shellApi.saveRuntimeSettings({
         ...runtimeFromSettings(settings),
         runtimeSource,
@@ -375,7 +374,15 @@ export function OnboardingWizard({ onComplete }: Props) {
   }
 
   if (!probe) {
-    return <ShellProgressBubble message={t("onboarding.loading")} />;
+    return (
+      <div className="boot-panel onboarding-panel" role="dialog" aria-modal="true">
+        <div className="boot-shell onboarding-shell">
+          <div className="boot-card onboarding-card onboarding-card--loading">
+            <p className="boot-lead onboarding-loading-lead">{t("onboarding.loading")}</p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const lead = probe.systemRuntimeDetected

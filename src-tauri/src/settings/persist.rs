@@ -8,6 +8,7 @@ use serde_json::Value;
 use tauri::{AppHandle, Runtime};
 
 use crate::paths;
+use crate::system_runtime::{self, RuntimeSource};
 
 use super::types::{RuntimeSettings, ShellSettings, UiSettings};
 
@@ -97,6 +98,15 @@ pub fn load<R: Runtime>(app: &AppHandle<R>) -> ShellSettings {
             ui = legacy_ui;
             need_migrate = true;
         }
+    }
+
+    if runtime.runtime_source == RuntimeSource::Auto {
+        runtime.runtime_source = if system_runtime::resolve_system_runtime().is_some() {
+            RuntimeSource::System
+        } else {
+            RuntimeSource::Hosted
+        };
+        need_migrate = true;
     }
 
     if need_migrate {

@@ -2,12 +2,18 @@
 import type { ShellSettings } from "../../shell/settings";
 import {
   shellApi,
+  shellLog,
   type ReadyPayload,
   type RuntimeStatus,
   useAppToast,
+  useHostLifecycle,
 } from "../../shell";
+import { shortenPathForDisplay } from "../../shell/formatPathShort";
 import { useLocale } from "../../shell/locale";
+import { resolveInstallMode } from "../../shell/runtime/installMode";
+import { IconFolderOpenOutline16 } from "../chrome/DshIcons";
 import { ShellConfirmDialog } from "../chrome/ShellConfirmDialog";
+import { ShellTooltip } from "../chrome/ShellTooltip";
 import { SettingsGroup } from "./SettingsGroup";
 import { SettingsPrefRow } from "./SettingsPrefRow";
 
@@ -22,6 +28,9 @@ type Props = {
   setError: (error: string | null, retry?: () => void | Promise<void>) => void;
   refreshRuntime: () => void;
   onHarnessReady?: (payload: ReadyPayload) => void;
+  onCloseSettings?: () => void;
+  onBeginHarnessOp?: () => void;
+  onHarnessOpFailed?: (message: string) => void;
   onDiagnosticsExported?: (path: string) => void;
   onDiagnosticsError?: (
     message: string,
@@ -61,14 +70,112 @@ export function SettingsSectionData({
   setError,
   refreshRuntime,
   onHarnessReady,
+  onCloseSettings,
+  onBeginHarnessOp,
+  onHarnessOpFailed,
   onDiagnosticsExported,
   onDiagnosticsError,
 }: Props) {
   const { t } = useLocale();
   const { showToast } = useAppToast();
+  const life = useHostLifecycle();
+  const installMode = resolveInstallMode({
+    runtimeSource: settings.runtimeSource,
+    activeRuntime: runtime?.activeRuntime,
+  });
   const [cleanProfileConfirmOpen, setCleanProfileConfirmOpen] = useState(false);
   const [cleanProfileBusy, setCleanProfileBusy] = useState(false);
+  const [resetConfigConfirmOpen, setResetConfigConfirmOpen] = useState(false);
+  const [resetConfigBusy, setResetConfigBusy] = useState(false);
+  const [reinstallConfirmOpen, setReinstallConfirmOpen] = useState(false);
+  const [reinstallBusy, setReinstallBusy] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [dshHomeFocused, setDshHomeFocused] = useState(false);
+  const dshHomePath = runtime?.dshHome ?? runtime?.effectiveDshHome ?? "";
+  const dshHomeDefault =
+    settings.dshHomeOverride.trim() ||
+    dshHomePath ||
+    undefined;
+  const dshHomeDisplay =
+    dshHomeFocused || !settings.dshHomeOverride.trim()
+      ? settings.dshHomeOverride
+      : shortenPathForDisplay(settings.dshHomeOverride);
+
+  const onBrowseDshHome = useCallback(async () => {
+    if (locked) return;
+    try {
+      const picked = await shellApi.pickDirectory(dshHomeDefault);
+      if (!picked) return;
+      patchRuntime(
+        { dshHomeOverride: picked },
+        { softHint: t("settings.data.dshHome.saved") },
+      );
+    } catch (e) {
+      shellLog.error("settings", "pickDirectory", e);
+    }
+  }, [dshHomeDefault, locked, patchRuntime, t]);
+
+  const runResetConfig = useCallback(async () => {
+    setError(null);
+    setResetConfigBusy(true);
+    setResetConfigConfirmOpen(false);
+    onCloseSettings?.();
+    onBeginHarnessOp?.();
+    life.beginOps(t("boot.msg.resettingConfig"));
+    try {
+      const ready = await shellApi.resetDshHome();
+      refreshRuntime();
+      onHarnessReady?.(ready);
+      showToast(t("settings.data.resetConfig.done"));
+    } catch (e) {
+      const msg = typeof e === "string" ? e : String(e);
+      onHarnessOpFailed?.(msg);
+    } finally {
+      life.endOps({ clearProgress: true });
+      setResetConfigBusy(false);
+    }
+  }, [
+    life,
+    onBeginHarnessOp,
+    onCloseSettings,
+    onHarnessOpFailed,
+    onHarnessReady,
+    refreshRuntime,
+    setError,
+    showToast,
+    t,
+  ]);
+
+  const runReinstallDsh = useCallback(async () => {
+    setError(null);
+    setReinstallBusy(true);
+    setReinstallConfirmOpen(false);
+    onCloseSettings?.();
+    onBeginHarnessOp?.();
+    life.beginOps(t("boot.msg.reinstalling"));
+    try {
+      const ready = await shellApi.reinstallDsh();
+      refreshRuntime();
+      onHarnessReady?.(ready);
+      showToast(t("settings.data.reinstallDsh.done"));
+    } catch (e) {
+      const msg = typeof e === "string" ? e : String(e);
+      onHarnessOpFailed?.(msg);
+    } finally {
+      life.endOps({ clearProgress: true });
+      setReinstallBusy(false);
+    }
+  }, [
+    life,
+    onBeginHarnessOp,
+    onCloseSettings,
+    onHarnessOpFailed,
+    onHarnessReady,
+    refreshRuntime,
+    setError,
+    showToast,
+    t,
+  ]);
 
   const runStartCleanProfile = useCallback(async () => {
     setError(null);
@@ -116,6 +223,31 @@ export function SettingsSectionData({
         }}
         onConfirm={() => void runStartCleanProfile()}
       />
+      <ShellConfirmDialog
+        open={resetConfigConfirmOpen}
+        titleKey="boot.resetConfig.confirmTitle"
+        bodyKey="boot.resetConfig.confirm"
+        bodyParams={{ path: dshHomePath || "—" }}
+        busy={resetConfigBusy}
+        onCancel={() => {
+          if (!resetConfigBusy) setResetConfigConfirmOpen(false);
+        }}
+        onConfirm={() => void runResetConfig()}
+      />
+      <ShellConfirmDialog
+        open={reinstallConfirmOpen}
+        titleKey="boot.reinstallDsh.confirmTitle"
+        bodyKey={
+          installMode === "system"
+            ? "boot.reinstallDsh.confirmSystem"
+            : "boot.reinstallDsh.confirmHosted"
+        }
+        busy={reinstallBusy}
+        onCancel={() => {
+          if (!reinstallBusy) setReinstallConfirmOpen(false);
+        }}
+        onConfirm={() => void runReinstallDsh()}
+      />
 
       <SettingsGroup title={t("settings.group.paths")}>
         <SettingsPrefRow
@@ -123,21 +255,43 @@ export function SettingsSectionData({
           description={t("settings.data.dshHome.description")}
           layout="stack"
         >
-          <input
-            className="settings-control"
-            type="text"
-            placeholder={t("settings.data.dshHome.placeholder")}
-            value={settings.dshHomeOverride}
-            onChange={(ev) =>
-              patchRuntime(
-                { dshHomeOverride: ev.target.value },
-                {
-                  debounceMs: 350,
-                  softHint: t("settings.data.dshHome.saved"),
-                },
-              )
-            }
-          />
+          <div className="settings-path-input-wrap">
+            <input
+              className="settings-path-input mono shell-copyable"
+              type="text"
+              placeholder={t("settings.data.dshHome.placeholder")}
+              value={dshHomeDisplay}
+              disabled={locked}
+              onFocus={() => setDshHomeFocused(true)}
+              onBlur={() => setDshHomeFocused(false)}
+              onChange={(ev) =>
+                patchRuntime(
+                  { dshHomeOverride: ev.target.value },
+                  {
+                    debounceMs: 350,
+                    softHint: t("settings.data.dshHome.saved"),
+                  },
+                )
+              }
+            />
+            <div className="settings-path-input-actions">
+              <ShellTooltip
+                label={t("settings.data.dshHome.browse")}
+                side="top"
+                delayMs={300}
+              >
+                <button
+                  type="button"
+                  className="settings-path-icon-btn"
+                  aria-label={t("settings.data.dshHome.browse")}
+                  disabled={locked}
+                  onClick={() => void onBrowseDshHome()}
+                >
+                  <IconFolderOpenOutline16 size={16} />
+                </button>
+              </ShellTooltip>
+            </div>
+          </div>
         </SettingsPrefRow>
         <PathOpenRow
           which="logs"
@@ -163,11 +317,10 @@ export function SettingsSectionData({
         <SettingsPrefRow
           title={t("settings.about.exportDiagnostics")}
           description={t("settings.data.diagnostics.hint")}
-          layout="stack"
         >
           <button
             type="button"
-            className="btn"
+            className="btn ghost"
             disabled={locked || exporting}
             onClick={() => void onExportDiagnostics()}
           >
@@ -179,82 +332,73 @@ export function SettingsSectionData({
       <SettingsGroup title={t("settings.group.recovery")}>
         <SettingsPrefRow
           title={t("settings.data.cleanProfile.title")}
-          description={t("settings.data.cleanProfile.description")}
-          layout="stack"
+          description={
+            runtime?.cleanProfileActive
+              ? `${t("settings.data.cleanProfile.description")} ${t("settings.data.cleanProfile.active")}`
+              : t("settings.data.cleanProfile.description")
+          }
         >
           {runtime?.cleanProfileActive ? (
-            <p className="settings-cell-desc">
-              {t("settings.data.cleanProfile.active")}
-            </p>
-          ) : null}
-          <div className="settings-cell-actions">
-            {runtime?.cleanProfileActive ? (
-              <button
-                type="button"
-                className="btn ghost"
-                disabled={locked}
-                onClick={() => {
-                  const runExit = async () => {
-                    setError(null);
-                    try {
-                      const ready = await shellApi.exitCleanProfile();
-                      showToast(t("settings.data.cleanProfile.exitDone"));
-                      refreshRuntime();
-                      onHarnessReady?.(ready);
-                    } catch (e) {
-                      const msg = typeof e === "string" ? e : String(e);
-                      setError(msg, runExit);
-                    }
-                  };
-                  void runExit();
-                }}
-              >
-                {t("settings.data.cleanProfile.exit")}
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="btn ghost"
-                disabled={locked}
-                onClick={() => setCleanProfileConfirmOpen(true)}
-              >
-                {t("settings.data.cleanProfile.start")}
-              </button>
-            )}
-          </div>
+            <button
+              type="button"
+              className="btn ghost"
+              disabled={locked}
+              onClick={() => {
+                const runExit = async () => {
+                  setError(null);
+                  try {
+                    const ready = await shellApi.exitCleanProfile();
+                    showToast(t("settings.data.cleanProfile.exitDone"));
+                    refreshRuntime();
+                    onHarnessReady?.(ready);
+                  } catch (e) {
+                    const msg = typeof e === "string" ? e : String(e);
+                    setError(msg, runExit);
+                  }
+                };
+                void runExit();
+              }}
+            >
+              {t("settings.data.cleanProfile.exit")}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn ghost"
+              disabled={locked}
+              onClick={() => setCleanProfileConfirmOpen(true)}
+            >
+              {t("settings.data.cleanProfile.start")}
+            </button>
+          )}
         </SettingsPrefRow>
       </SettingsGroup>
 
       <SettingsGroup title={t("settings.group.danger")} danger>
         <SettingsPrefRow
-          title={t("settings.data.reset.title")}
-          description={t("settings.data.reset.description")}
-          layout="stack"
+          title={t("settings.data.resetConfig.title")}
+          description={t("settings.data.resetConfig.description")}
         >
           <button
             type="button"
             className="btn ghost"
             disabled={locked}
-            onClick={() => {
-              if (!window.confirm(t("settings.data.reset.confirm"))) {
-                return;
-              }
-              const runReset = async () => {
-                setError(null);
-                try {
-                  const ready = await shellApi.resetHostedRuntime();
-                  showToast(t("settings.data.reset.done"));
-                  refreshRuntime();
-                  onHarnessReady?.(ready);
-                } catch (e) {
-                  const msg = typeof e === "string" ? e : String(e);
-                  setError(msg, runReset);
-                }
-              };
-              void runReset();
-            }}
+            onClick={() => setResetConfigConfirmOpen(true)}
           >
-            {t("settings.data.reset.button")}
+            {t("settings.data.resetConfig.button")}
+          </button>
+        </SettingsPrefRow>
+        <SettingsPrefRow
+          title={t("settings.data.reinstallDsh.title")}
+          description={t("settings.data.reinstallDsh.description")}
+        >
+          <button
+            type="button"
+            className="btn ghost"
+            disabled={locked}
+            onClick={() => setReinstallConfirmOpen(true)}
+          >
+            {t("settings.data.reinstallDsh.button")}
           </button>
         </SettingsPrefRow>
       </SettingsGroup>

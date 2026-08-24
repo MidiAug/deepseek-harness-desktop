@@ -11,19 +11,24 @@ export type LocaleKey =
   | "settings.group.shellChrome"
   | "settings.group.editing"
   | "settings.group.status"
-  | "settings.group.runtimeSource"
-  | "settings.runtimeSource.title"
-  | "settings.runtimeSource.description"
-  | "settings.runtimeSource.aria"
-  | "settings.runtimeSource.auto"
-  | "settings.runtimeSource.system"
-  | "settings.runtimeSource.hosted"
-  | "settings.runtimeSource.active"
-  | "settings.runtimeSource.activeSystem"
-  | "settings.runtimeSource.activeHosted"
-  | "settings.runtimeSource.detected"
-  | "settings.runtimeSource.notDetected"
-  | "settings.runtimeSource.restartHint"
+  | "settings.group.harnessInstall"
+  | "settings.harnessInstall.title"
+  | "settings.harnessInstall.description"
+  | "settings.harnessInstall.aria"
+  | "settings.harnessInstall.system"
+  | "settings.harnessInstall.hosted"
+  | "settings.harnessInstall.preference"
+  | "settings.harnessInstall.running"
+  | "settings.harnessInstall.source"
+  | "settings.harnessInstall.mismatch"
+  | "settings.harnessInstall.detected"
+  | "settings.harnessInstall.notDetected"
+  | "settings.harnessInstall.restartHint"
+  | "settings.harnessInstall.restartConfirmTitle"
+  | "settings.harnessInstall.restartConfirmBody"
+  | "settings.harnessInstall.restartNow"
+  | "settings.harnessInstall.restartLater"
+  | "settings.harnessInstall.switchedRestart"
   | "settings.group.controls"
   | "settings.group.port"
   | "settings.group.cli"
@@ -116,6 +121,7 @@ export type LocaleKey =
   | "settings.data.dshHome.title"
   | "settings.data.dshHome.description"
   | "settings.data.dshHome.placeholder"
+  | "settings.data.dshHome.browse"
   | "settings.data.dshHome.saved"
   | "settings.data.path.dshHome"
   | "settings.data.path.appData"
@@ -127,11 +133,14 @@ export type LocaleKey =
   | "settings.data.path.appDataDesc"
   | "settings.data.path.dshHomeTitle"
   | "settings.data.path.dshHomeDesc"
-  | "settings.data.reset.title"
-  | "settings.data.reset.description"
-  | "settings.data.reset.button"
-  | "settings.data.reset.confirm"
-  | "settings.data.reset.done"
+  | "settings.data.resetConfig.title"
+  | "settings.data.resetConfig.description"
+  | "settings.data.resetConfig.button"
+  | "settings.data.resetConfig.done"
+  | "settings.data.reinstallDsh.title"
+  | "settings.data.reinstallDsh.description"
+  | "settings.data.reinstallDsh.button"
+  | "settings.data.reinstallDsh.done"
   | "settings.data.cleanProfile.title"
   | "settings.data.cleanProfile.description"
   | "settings.data.cleanProfile.active"
@@ -159,6 +168,7 @@ export type LocaleKey =
   | "settings.about.applyNetwork"
   | "settings.about.checking"
   | "settings.about.upToDate"
+  | "settings.about.upToDateToast"
   | "settings.about.updateFound"
   | "settings.about.updated"
   | "settings.about.networkRestarted"
@@ -176,6 +186,10 @@ export type LocaleKey =
   | "settings.about.shellUpdate.descAuto"
   | "settings.about.harnessUpdate.rowTitle"
   | "settings.about.harnessUpdate.descIdle"
+  | "settings.about.harnessUpdate.available"
+  | "settings.about.harnessUpdate.current"
+  | "settings.about.harnessRunning"
+  | "settings.about.unknownVersion"
   | "settings.about.progress.busy"
   | "settings.about.progress.idle"
   | "settings.about.harnessUpdating"
@@ -224,6 +238,7 @@ export type LocaleKey =
   | "onboarding.done"
   | "onboarding.continueDefault"
   | "settings.about.resetOnboarding"
+  | "settings.about.resetOnboardingAction"
   | "settings.about.resetOnboardingDesc"
   | "settings.about.resetOnboardingDone"
   | "boot.title.firstRun"
@@ -250,6 +265,7 @@ export type LocaleKey =
   | "boot.msg.restart"
   | "boot.msg.ensure"
   | "boot.msg.ready"
+  | "boot.msg.embedding"
   | "boot.msg.failed"
   | "boot.msg.resetting"
   | "boot.msg.resetFailed"
@@ -265,16 +281,34 @@ export type LocaleKey =
   | "boot.fault.harness.body"
   | "boot.fault.plugin.title"
   | "boot.fault.plugin.body"
+  | "boot.fault.dshHomeInUse.title"
+  | "boot.fault.dshHomeInUse.body"
   | "boot.fault.default.title"
   | "boot.fault.default.body"
   | "boot.cta.retry"
   | "boot.cta.network"
   | "boot.cta.logs"
-  | "boot.cta.reset"
   | "boot.cta.cleanProfile"
+  | "boot.cta.resetConfig"
+  | "boot.cta.reinstallDsh"
+  | "boot.cta.retry.desc"
+  | "boot.cta.network.desc"
+  | "boot.cta.logs.desc"
+  | "boot.cta.cleanProfile.desc"
+  | "boot.cta.resetConfig.desc"
+  | "boot.cta.reinstallDsh.system.desc"
+  | "boot.cta.reinstallDsh.hosted.desc"
   | "boot.cleanProfile.confirm"
   | "boot.cleanProfile.confirmTitle"
-  | "boot.reset.confirm"
+  | "boot.resetConfig.confirmTitle"
+  | "boot.resetConfig.confirm"
+  | "boot.reinstallDsh.confirmTitle"
+  | "boot.reinstallDsh.confirmSystem"
+  | "boot.reinstallDsh.confirmHosted"
+  | "boot.msg.resettingConfig"
+  | "boot.msg.resetConfigFailed"
+  | "boot.msg.reinstalling"
+  | "boot.msg.reinstallFailed"
   | "boot.msg.harnessUpdated"
   | "chrome.windowControls.aria"
   | "chrome.sessionLog"
@@ -297,6 +331,7 @@ export type LocaleKey =
   | "chrome.menu.copyVersion"
   | "chrome.conn.failed"
   | "chrome.conn.preparing"
+  | "chrome.activity.embedding"
   | "chrome.productName"
   | "chrome.platform.back"
   | "chrome.platform.title"
@@ -328,20 +363,28 @@ export const zh: LocaleDict = {
   "settings.group.shellChrome": "窗口",
   "settings.group.editing": "编辑体验",
   "settings.group.status": "服务状态",
-  "settings.group.runtimeSource": "运行时来源",
-  "settings.runtimeSource.title": "运行时来源",
-  "settings.runtimeSource.description":
-    "自动：本机已有可用 dsh 则直接嵌入；否则由应用下载托管。系统：只用本机。托管：只用 AppData。",
-  "settings.runtimeSource.aria": "运行时来源",
-  "settings.runtimeSource.auto": "自动（推荐）",
-  "settings.runtimeSource.system": "本机已装的 dsh",
-  "settings.runtimeSource.hosted": "应用托管安装",
-  "settings.runtimeSource.active": "当前生效",
-  "settings.runtimeSource.activeSystem": "本机",
-  "settings.runtimeSource.activeHosted": "托管",
-  "settings.runtimeSource.detected": "已检测到本机 dsh",
-  "settings.runtimeSource.notDetected": "未检测到本机 dsh",
-  "settings.runtimeSource.restartHint": "更改后请重启 harness 生效",
+  "settings.group.harnessInstall": "Harness 安装",
+  "settings.harnessInstall.title": "使用哪份 Harness",
+  "settings.harnessInstall.description":
+    "本机：npm 全局安装的 @deepseek-ai/dsh；应用内：由本应用下载到 AppData。",
+  "settings.harnessInstall.aria": "Harness 安装方式",
+  "settings.harnessInstall.system": "本机已安装",
+  "settings.harnessInstall.hosted": "应用内安装",
+  "settings.harnessInstall.preference": "你的选择",
+  "settings.harnessInstall.running": "当前运行",
+  "settings.harnessInstall.source": "Harness 来源",
+  "settings.harnessInstall.mismatch":
+    "当前运行「{running}」，与你选择的「{preference}」不一致；请重启 harness",
+  "settings.harnessInstall.detected": "已检测到本机 dsh",
+  "settings.harnessInstall.notDetected": "未检测到本机 dsh",
+  "settings.harnessInstall.restartHint": "更改后请重启 harness 生效",
+  "settings.harnessInstall.restartConfirmTitle": "切换 Harness 来源",
+  "settings.harnessInstall.restartConfirmBody":
+    "切换后需重启 harness 才能生效。",
+  "settings.harnessInstall.restartNow": "立刻重启",
+  "settings.harnessInstall.restartLater": "稍后手动重启",
+  "settings.harnessInstall.switchedRestart":
+    "当前运行版本和选择版本不同，请重启 harness",
   "settings.group.controls": "控制",
   "settings.group.port": "端口",
   "settings.group.cli": "命令行 dsh",
@@ -390,17 +433,17 @@ export const zh: LocaleDict = {
   "settings.mirror.aria": "镜像",
   "settings.mirror.domestic": "国内（npmmirror）",
   "settings.mirror.official": "官方（nodejs.org / npmjs）",
-  "settings.mirror.saved": "镜像已保存；下次安装或更新 harness 时生效。",
+  "settings.mirror.saved": "镜像已保存，下次安装或更新 harness 时生效",
   "settings.proxy.title": "代理",
   "settings.proxy.description": "作用于应用下载、npm 与托管 dsh 子进程",
   "settings.proxy.aria": "代理",
   "settings.proxy.off": "关闭（直连）",
   "settings.proxy.system": "系统代理",
   "settings.proxy.custom": "自定义 URL",
-  "settings.proxy.saved": "代理已保存。运行中进程需在「关于」中重启以立即生效。",
+  "settings.proxy.saved": "代理已保存，运行中进程需在「关于」中重启以立即生效",
   "settings.proxyUrl.title": "代理 URL",
   "settings.proxyUrl.description": "例如 http://127.0.0.1:7890 或 socks5://…",
-  "settings.proxyUrl.saved": "代理 URL 已保存。运行中进程需重启以立即生效。",
+  "settings.proxyUrl.saved": "代理 URL 已保存，运行中进程需重启以立即生效",
   "settings.window.title": "关闭窗口时最小化到托盘",
   "settings.window.description": "关闭时会记住此选择；也可用下方按钮下次再询问",
   "settings.window.aria": "关闭窗口时最小化到托盘",
@@ -418,31 +461,32 @@ export const zh: LocaleDict = {
   "settings.port.description":
     "0 或留空 = 应用默认（开发 3081 / 发行 3080）；被占用时自动顺延。改后需重启 harness。",
   "settings.port.placeholder": "默认",
-  "settings.port.saved": "首选端口已保存；请在下方重启 harness 后生效。",
+  "settings.port.saved": "首选端口已保存，请在下方重启 harness 后生效",
   "settings.port.current": "当前端口",
   "settings.port.currentDesc": "实际监听端口（可能因占用顺延）",
   "settings.port.copy": "复制服务 URL",
   "settings.port.openBrowser": "浏览器打开",
   "settings.port.stop": "停止 harness",
   "settings.port.restart": "重启 harness",
-  "settings.port.copied": "已复制服务 URL。",
-  "settings.port.opened": "已在浏览器打开。",
-  "settings.port.stopped": "已请求停止 harness。",
+  "settings.port.copied": "已复制服务 URL",
+  "settings.port.opened": "已在浏览器打开",
+  "settings.port.stopped": "已请求停止 harness",
   "settings.port.copyFail": "复制失败",
   "settings.cli.title": "命令行 dsh",
   "settings.cli.description":
     "在 AppData/bin 写入 dsh.cmd 并加入用户 PATH（不修改 .bashrc/.zshrc）。新开终端生效。",
   "settings.cli.aria": "命令行 dsh",
-  "settings.cli.enabled": "已启用 CLI；请新开终端验证 dsh。",
-  "settings.cli.disabled": "已关闭 CLI 并移出用户 PATH。",
+  "settings.cli.enabled": "已启用 CLI，请新开终端验证 dsh",
+  "settings.cli.disabled": "已关闭 CLI 并移出用户 PATH",
   "settings.cli.shimYes": "已写入",
   "settings.cli.shimNo": "未写入",
   "settings.cli.pathYes": "已注册",
   "settings.cli.pathNo": "未注册",
-  "settings.data.dshHome.title": "DSH_HOME 覆盖",
+  "settings.data.dshHome.title": "DSH_HOME",
   "settings.data.dshHome.description": "留空 = ~/.dsh；下次启动 harness 时生效",
   "settings.data.dshHome.placeholder": "例如 D:\\data\\dsh-home",
-  "settings.data.dshHome.saved": "DSH_HOME 覆盖已保存；下次启动生效。",
+  "settings.data.dshHome.browse": "浏览文件夹",
+  "settings.data.dshHome.saved": "DSH_HOME 已保存，下次启动生效",
   "settings.data.path.dshHome": "DSH_HOME",
   "settings.data.path.appData": "AppData",
   "settings.data.path.logs": "日志",
@@ -453,24 +497,27 @@ export const zh: LocaleDict = {
   "settings.data.path.appDataDesc": "托管 Node、harness 与应用配置",
   "settings.data.path.dshHomeTitle": "DSH_HOME",
   "settings.data.path.dshHomeDesc": "Harness 用户数据与会话",
-  "settings.data.reset.title": "重置托管运行时",
-  "settings.data.reset.description":
-    "清除 AppData 下的 harness 并重新安装；保留已下载的 Node；不会删除 DSH_HOME / ~/.dsh 会话与插件",
-  "settings.data.reset.button": "重置托管运行时",
-  "settings.data.reset.confirm":
-    "将清除本机托管的 harness 安装并重新下载（保留 Node；不删除 ~/.dsh）。继续？",
-  "settings.data.reset.done": "托管运行时已重置并重新启动。",
+  "settings.data.resetConfig.title": "重置配置",
+  "settings.data.resetConfig.description":
+    "清空首跑选定的 DSH_HOME（会话、凭证、插件配置）；不删除 dsh 程序包",
+  "settings.data.resetConfig.button": "重置配置",
+  "settings.data.resetConfig.done": "DSH_HOME 已清空并重新启动",
+  "settings.data.reinstallDsh.title": "重装 DSH",
+  "settings.data.reinstallDsh.description":
+    "按「Harness 安装」设置重装 dsh 程序包（本机 npm 全局或 AppData）；不删 DSH_HOME",
+  "settings.data.reinstallDsh.button": "重装 DSH",
+  "settings.data.reinstallDsh.done": "DSH 已重装并重新启动",
   "settings.data.cleanProfile.title": "干净 profile（插件故障）",
   "settings.data.cleanProfile.description":
     "怀疑 ~/.dsh 内插件导致无法启动时，用 AppData 临时目录作为 DSH_HOME 启动；不删除你的正式数据。",
   "settings.data.cleanProfile.active": "当前处于干净 profile 会话。",
-  "settings.data.cleanProfile.start": "干净 profile 启动",
+  "settings.data.cleanProfile.start": "跳过配置",
   "settings.data.cleanProfile.exit": "退出干净 profile",
   "settings.data.cleanProfile.confirm":
     "将使用 AppData 临时干净 profile 启动，不删除 ~/.dsh。",
-  "settings.data.cleanProfile.confirmTitle": "干净 profile 启动",
-  "settings.data.cleanProfile.done": "已以干净 profile 启动。",
-  "settings.data.cleanProfile.exitDone": "已退出干净 profile 并回到正式 DSH_HOME。",
+  "settings.data.cleanProfile.confirmTitle": "跳过配置",
+  "settings.data.cleanProfile.done": "已以干净 profile 启动",
+  "settings.data.cleanProfile.exitDone": "已退出干净 profile 并回到正式 DSH_HOME",
   "settings.about.name": "deepseek-harness-desktop",
   "settings.about.tag": "DeepSeek Harness 桌面版",
   "settings.about.shellVersion": "应用版本",
@@ -488,10 +535,11 @@ export const zh: LocaleDict = {
   "settings.about.applyUpdate": "安装更新",
   "settings.about.applyNetwork": "应用网络设置并重启 harness",
   "settings.about.checking": "正在检查更新…",
-  "settings.about.upToDate": "已是最新",
+  "settings.about.upToDate": "暂无可用更新",
+  "settings.about.upToDateToast": "检查完成，暂无可用更新",
   "settings.about.updateFound": "发现新版本",
-  "settings.about.updated": "harness 已更新并重启。",
-  "settings.about.networkRestarted": "已按当前网络设置重启 harness。",
+  "settings.about.updated": "harness 已更新并重启",
+  "settings.about.networkRestarted": "已按当前网络设置重启 harness",
   "settings.hint.checkingUpdate": "正在检查更新…",
   "settings.hint.networkRestart": "正在按当前网络设置重启 harness…",
   "settings.about.shellUpdate.downloaded":
@@ -510,6 +558,11 @@ export const zh: LocaleDict = {
   "settings.about.shellUpdate.descAuto": "启动后与每 6 小时自动检查",
   "settings.about.harnessUpdate.rowTitle": "Harness",
   "settings.about.harnessUpdate.descIdle": "从 registry 检查是否有新版本",
+  "settings.about.harnessUpdate.available":
+    "可更新至 {latest}（当前 {local}）",
+  "settings.about.harnessUpdate.current": "当前版本 {local}",
+  "settings.about.harnessRunning": "运行中",
+  "settings.about.unknownVersion": "未知",
   "settings.about.progress.busy": "处理中…",
   "settings.about.progress.idle": "最近进度",
   "settings.about.updateBanner.latest": "有可用更新",
@@ -558,10 +611,11 @@ export const zh: LocaleDict = {
   "onboarding.saving": "保存中…",
   "onboarding.done": "首跑偏好已保存。",
   "onboarding.continueDefault": "使用默认设置继续",
-  "settings.about.resetOnboarding": "重新显示首跑向导",
+  "settings.about.resetOnboarding": "安装向导",
+  "settings.about.resetOnboardingAction": "下次启动时询问",
   "settings.about.resetOnboardingDesc":
-    "下次启动时将再次询问「沿用本机」或「由应用安装」；不会删除数据。",
-  "settings.about.resetOnboardingDone": "已重置；请重启应用以显示首跑向导。",
+    "下次启动时重新选择：使用本机已装的 dsh，或由应用下载安装。",
+  "settings.about.resetOnboardingDone": "已设置，重启应用后将再次显示安装向导",
   "boot.title.firstRun": "首次准备",
   "boot.title.repair": "修复安装",
   "boot.lead.firstRun": "安装托管 Node 与 harness 后自动打开官方界面。",
@@ -586,6 +640,7 @@ export const zh: LocaleDict = {
   "boot.msg.restart": "正在重启官方 UI…",
   "boot.msg.ensure": "正在确保 Node / harness 并启动…",
   "boot.msg.ready": "服务已就绪",
+  "boot.msg.embedding": "正在打开官方界面…",
   "boot.msg.failed": "启动失败",
   "boot.msg.resetting": "正在重置托管运行时…",
   "boot.msg.resetFailed": "重置失败",
@@ -606,18 +661,39 @@ export const zh: LocaleDict = {
   "boot.fault.plugin.title": "插件可能阻止启动",
   "boot.fault.plugin.body":
     "官方 UI 长时间未就绪，日志提示可能与插件有关。可用干净 profile 临时启动（不删你的 ~/.dsh）。",
+  "boot.fault.dshHomeInUse.title": "数据目录被占用",
+  "boot.fault.dshHomeInUse.body":
+    "无法清空 DSH_HOME：目录可能被其他 dsh 或终端占用。请关闭占用进程后重试。",
   "boot.fault.default.title": "启动失败",
-  "boot.fault.default.body": "请查看下方技术详情，或重试 / 打开日志。",
+  "boot.fault.default.body": "请查看下方错误信息，或重试 / 打开日志。",
   "boot.cta.retry": "重试",
-  "boot.cta.network": "去设置网络",
+  "boot.cta.network": "网络设置",
   "boot.cta.logs": "打开日志",
-  "boot.cta.reset": "重置托管运行时",
-  "boot.cta.cleanProfile": "干净 profile 启动",
-  "boot.cleanProfile.confirmTitle": "干净 profile 启动",
+  "boot.cta.cleanProfile": "跳过配置",
+  "boot.cta.resetConfig": "重置配置",
+  "boot.cta.reinstallDsh": "重装 DSH",
+  "boot.cta.retry.desc": "重新尝试启动",
+  "boot.cta.network.desc": "检查代理或镜像",
+  "boot.cta.logs.desc": "打开日志文件夹",
+  "boot.cta.cleanProfile.desc": "用临时空白配置启动，不删你的 DSH_HOME",
+  "boot.cta.resetConfig.desc": "清空选定的 DSH_HOME 数据目录",
+  "boot.cta.reinstallDsh.system.desc": "npm 全局重装 @deepseek-ai/dsh",
+  "boot.cta.reinstallDsh.hosted.desc": "删除 AppData 内 harness 并重新下载",
+  "boot.cleanProfile.confirmTitle": "跳过配置",
   "boot.cleanProfile.confirm":
-    "将使用 AppData 下的临时干净 profile 启动（不删除你当前的 ~/.dsh 与已装插件）。",
-  "boot.reset.confirm":
-    "将清除本机托管的 harness 安装并重新下载（保留已下载的 Node；不会删除 ~/.dsh 会话与插件）。继续？",
+    "将使用 AppData 下的临时干净 profile 启动（不删除你当前的 DSH_HOME 与已装插件）。",
+  "boot.resetConfig.confirmTitle": "重置配置",
+  "boot.resetConfig.confirm":
+    "将清空 DSH_HOME 目录「{path}」内的全部数据（会话、凭证、插件配置），不可恢复。不删除 dsh 程序包。继续？",
+  "boot.reinstallDsh.confirmTitle": "重装 DSH",
+  "boot.reinstallDsh.confirmSystem":
+    "将用 npm 全局重装 @deepseek-ai/dsh（不删 DSH_HOME）。可能需数分钟。继续？",
+  "boot.reinstallDsh.confirmHosted":
+    "将删除 AppData 内 harness 并重新下载（保留 Node；不删 DSH_HOME）。继续？",
+  "boot.msg.resettingConfig": "正在清空 DSH_HOME…",
+  "boot.msg.resetConfigFailed": "重置配置失败",
+  "boot.msg.reinstalling": "正在重装 DSH…",
+  "boot.msg.reinstallFailed": "重装 DSH 失败",
   "boot.msg.harnessUpdated": "更新完成",
   "chrome.windowControls.aria": "窗口控制",
   "chrome.sessionLog": "下载 Session log",
@@ -640,6 +716,7 @@ export const zh: LocaleDict = {
   "chrome.menu.copyVersion": "复制版本信息",
   "chrome.conn.failed": "启动失败",
   "chrome.conn.preparing": "准备中",
+  "chrome.activity.embedding": "正在嵌入官方界面…",
   "chrome.productName": "DeepSeek Harness",
   "chrome.platform.back": "返回",
   "chrome.platform.title": "DeepSeek 开放平台",
@@ -670,20 +747,28 @@ export const en: LocaleDict = {
   "settings.group.shellChrome": "Shell window",
   "settings.group.editing": "Editing",
   "settings.group.status": "Service status",
-  "settings.group.runtimeSource": "Runtime source",
-  "settings.runtimeSource.title": "Runtime source",
-  "settings.runtimeSource.description":
-    "Auto: use local dsh when available, otherwise host in AppData. System: local only. Hosted: AppData only.",
-  "settings.runtimeSource.aria": "Runtime source",
-  "settings.runtimeSource.auto": "Auto (recommended)",
-  "settings.runtimeSource.system": "Local installed dsh",
-  "settings.runtimeSource.hosted": "Shell-hosted install",
-  "settings.runtimeSource.active": "Active",
-  "settings.runtimeSource.activeSystem": "System",
-  "settings.runtimeSource.activeHosted": "Hosted",
-  "settings.runtimeSource.detected": "Local dsh detected",
-  "settings.runtimeSource.notDetected": "No local dsh detected",
-  "settings.runtimeSource.restartHint": "Restart harness after changing",
+  "settings.group.harnessInstall": "Harness install",
+  "settings.harnessInstall.title": "Which Harness to use",
+  "settings.harnessInstall.description":
+    "Local: your global npm @deepseek-ai/dsh. In-app: downloaded by this app into AppData.",
+  "settings.harnessInstall.aria": "Harness install mode",
+  "settings.harnessInstall.system": "Local install",
+  "settings.harnessInstall.hosted": "In-app install",
+  "settings.harnessInstall.preference": "Your choice",
+  "settings.harnessInstall.running": "Currently running",
+  "settings.harnessInstall.source": "Harness source",
+  "settings.harnessInstall.mismatch":
+    "Running «{running}» differs from your choice «{preference}»; restart harness",
+  "settings.harnessInstall.detected": "Local dsh detected",
+  "settings.harnessInstall.notDetected": "No local dsh detected",
+  "settings.harnessInstall.restartHint": "Restart harness after changing",
+  "settings.harnessInstall.restartConfirmTitle": "Switch Harness source",
+  "settings.harnessInstall.restartConfirmBody":
+    "Restart harness for the new source to take effect.",
+  "settings.harnessInstall.restartNow": "Restart now",
+  "settings.harnessInstall.restartLater": "Restart manually later",
+  "settings.harnessInstall.switchedRestart":
+    "Running version differs from selected version — restart harness",
   "settings.group.controls": "Controls",
   "settings.group.port": "Port",
   "settings.group.cli": "CLI dsh",
@@ -733,7 +818,7 @@ export const en: LocaleDict = {
   "settings.mirror.aria": "Mirror",
   "settings.mirror.domestic": "Domestic (npmmirror)",
   "settings.mirror.official": "Official (nodejs.org / npmjs)",
-  "settings.mirror.saved": "Mirror saved; applies on next harness install or update.",
+  "settings.mirror.saved": "Mirror saved, applies on next harness install or update",
   "settings.proxy.title": "Proxy",
   "settings.proxy.description": "Applies to shell downloads, npm, and the supervised dsh process",
   "settings.proxy.aria": "Proxy",
@@ -741,10 +826,10 @@ export const en: LocaleDict = {
   "settings.proxy.system": "System proxy",
   "settings.proxy.custom": "Custom URL",
   "settings.proxy.saved":
-    "Proxy saved. Restart harness from About to apply to a running process.",
+    "Proxy saved, restart harness from About to apply to a running process",
   "settings.proxyUrl.title": "Proxy URL",
   "settings.proxyUrl.description": "e.g. http://127.0.0.1:7890 or socks5://…",
-  "settings.proxyUrl.saved": "Proxy URL saved. Restart harness to apply immediately.",
+  "settings.proxyUrl.saved": "Proxy URL saved, restart harness to apply immediately",
   "settings.window.title": "Minimize to tray when closing",
   "settings.window.description":
     "Your choice is remembered; use the button below to ask again next time",
@@ -758,36 +843,37 @@ export const en: LocaleDict = {
   "settings.autostart.aria": "Launch at login",
   "settings.autostart.toastOn": "Launch at login enabled",
   "settings.autostart.toastOff": "Launch at login disabled",
-  "settings.autostart.toastFail": "Could not change launch at login. Try again.",
+  "settings.autostart.toastFail": "Could not change launch at login, try again",
   "settings.port.title": "Preferred port",
   "settings.port.description":
     "0 or empty = shell default (dev 3081 / release 3080); auto-increments if busy. Restart harness after change.",
   "settings.port.placeholder": "Default",
-  "settings.port.saved": "Preferred port saved; restart harness below to apply.",
+  "settings.port.saved": "Preferred port saved, restart harness below to apply",
   "settings.port.current": "Current port",
   "settings.port.currentDesc": "Actual listen port (may differ if busy)",
   "settings.port.copy": "Copy service URL",
   "settings.port.openBrowser": "Open in browser",
   "settings.port.stop": "Stop harness",
   "settings.port.restart": "Restart harness",
-  "settings.port.copied": "Service URL copied.",
-  "settings.port.opened": "Opened in browser.",
-  "settings.port.stopped": "Stop harness requested.",
+  "settings.port.copied": "Service URL copied",
+  "settings.port.opened": "Opened in browser",
+  "settings.port.stopped": "Stop harness requested",
   "settings.port.copyFail": "Copy failed",
   "settings.cli.title": "CLI dsh",
   "settings.cli.description":
     "Writes dsh.cmd under AppData/bin and adds it to user PATH (does not edit shell rc). New terminals only.",
   "settings.cli.aria": "CLI dsh",
-  "settings.cli.enabled": "CLI enabled; open a new terminal and run dsh.",
-  "settings.cli.disabled": "CLI disabled and removed from user PATH.",
+  "settings.cli.enabled": "CLI enabled, open a new terminal and run dsh",
+  "settings.cli.disabled": "CLI disabled and removed from user PATH",
   "settings.cli.shimYes": "written",
   "settings.cli.shimNo": "not written",
   "settings.cli.pathYes": "registered",
   "settings.cli.pathNo": "not registered",
-  "settings.data.dshHome.title": "DSH_HOME override",
+  "settings.data.dshHome.title": "DSH_HOME",
   "settings.data.dshHome.description": "Empty = ~/.dsh; applies on next harness start",
   "settings.data.dshHome.placeholder": "e.g. D:\\data\\dsh-home",
-  "settings.data.dshHome.saved": "DSH_HOME override saved; applies on next start.",
+  "settings.data.dshHome.browse": "Browse folder",
+  "settings.data.dshHome.saved": "DSH_HOME saved, applies on next start",
   "settings.data.path.dshHome": "DSH_HOME",
   "settings.data.path.appData": "AppData",
   "settings.data.path.logs": "Logs",
@@ -798,13 +884,16 @@ export const en: LocaleDict = {
   "settings.data.path.appDataDesc": "Hosted Node, harness, and shell config",
   "settings.data.path.dshHomeTitle": "DSH_HOME",
   "settings.data.path.dshHomeDesc": "Harness user data and sessions",
-  "settings.data.reset.title": "Reset hosted runtime",
-  "settings.data.reset.description":
-    "Clears harness under AppData and reinstalls; keeps downloaded Node; does not delete DSH_HOME sessions/plugins",
-  "settings.data.reset.button": "Reset hosted runtime",
-  "settings.data.reset.confirm":
-    "This clears the hosted harness install and downloads again (keeps Node; does not delete ~/.dsh). Continue?",
-  "settings.data.reset.done": "Hosted runtime reset and restarted.",
+  "settings.data.resetConfig.title": "Reset config",
+  "settings.data.resetConfig.description":
+    "Clear the DSH_HOME chosen at first run (sessions, credentials, plugins); keeps the dsh package",
+  "settings.data.resetConfig.button": "Reset config",
+  "settings.data.resetConfig.done": "DSH_HOME cleared and harness restarted",
+  "settings.data.reinstallDsh.title": "Reinstall DSH",
+  "settings.data.reinstallDsh.description":
+    "Reinstall dsh per Harness install setting (global npm or AppData); does not delete DSH_HOME",
+  "settings.data.reinstallDsh.button": "Reinstall DSH",
+  "settings.data.reinstallDsh.done": "DSH reinstalled and harness restarted",
   "settings.data.cleanProfile.title": "Clean profile (plugin issues)",
   "settings.data.cleanProfile.description":
     "If plugins under ~/.dsh block startup, launch with a temporary AppData DSH_HOME without deleting your real data.",
@@ -814,8 +903,8 @@ export const en: LocaleDict = {
   "settings.data.cleanProfile.confirm":
     "Launch with a temporary clean profile under AppData; your ~/.dsh is not deleted.",
   "settings.data.cleanProfile.confirmTitle": "Start clean profile",
-  "settings.data.cleanProfile.done": "Started with clean profile.",
-  "settings.data.cleanProfile.exitDone": "Exited clean profile; back to your normal DSH_HOME.",
+  "settings.data.cleanProfile.done": "Started with clean profile",
+  "settings.data.cleanProfile.exitDone": "Exited clean profile, back to your normal DSH_HOME",
   "settings.about.name": "deepseek-harness-desktop",
   "settings.about.tag": "DeepSeek Harness desktop",
   "settings.about.shellVersion": "Shell version",
@@ -833,10 +922,11 @@ export const en: LocaleDict = {
   "settings.about.applyUpdate": "Install update",
   "settings.about.applyNetwork": "Apply network settings and restart harness",
   "settings.about.checking": "Checking for updates…",
-  "settings.about.upToDate": "Up to date",
+  "settings.about.upToDate": "No updates available",
+  "settings.about.upToDateToast": "Check complete — no updates available",
   "settings.about.updateFound": "Update available",
-  "settings.about.updated": "Harness updated and restarted.",
-  "settings.about.networkRestarted": "Harness restarted with current network settings.",
+  "settings.about.updated": "Harness updated and restarted",
+  "settings.about.networkRestarted": "Harness restarted with current network settings",
   "settings.hint.checkingUpdate": "Checking for updates…",
   "settings.hint.networkRestart": "Restarting harness with current network settings…",
   "settings.about.shellUpdate.downloaded":
@@ -855,6 +945,11 @@ export const en: LocaleDict = {
   "settings.about.shellUpdate.descAuto": "Checks on start and every 6 hours",
   "settings.about.harnessUpdate.rowTitle": "Harness",
   "settings.about.harnessUpdate.descIdle": "Check the registry for a newer version",
+  "settings.about.harnessUpdate.available":
+    "Update to {latest} (current {local})",
+  "settings.about.harnessUpdate.current": "Version {local}",
+  "settings.about.harnessRunning": "Running",
+  "settings.about.unknownVersion": "unknown",
   "settings.about.progress.busy": "Working…",
   "settings.about.progress.idle": "Recent progress",
   "settings.about.updateBanner.latest": "Update available",
@@ -904,11 +999,12 @@ export const en: LocaleDict = {
   "onboarding.saving": "Saving…",
   "onboarding.done": "First-run preferences saved.",
   "onboarding.continueDefault": "Continue with defaults",
-  "settings.about.resetOnboarding": "Show first-run wizard again",
+  "settings.about.resetOnboarding": "Install wizard",
+  "settings.about.resetOnboardingAction": "Ask on next launch",
   "settings.about.resetOnboardingDesc":
-    "On next launch you will be asked again; your data is not deleted.",
+    "On next launch, ask again: use your system dsh or let the app install one.",
   "settings.about.resetOnboardingDone":
-    "Reset. Restart the app to show the first-run wizard.",
+    "Saved, restart the app to show the install wizard again",
   "boot.title.firstRun": "First-time setup",
   "boot.title.repair": "Repair install",
   "boot.lead.firstRun":
@@ -935,6 +1031,7 @@ export const en: LocaleDict = {
   "boot.msg.restart": "Restarting official UI…",
   "boot.msg.ensure": "Ensuring Node / harness and starting…",
   "boot.msg.ready": "Service ready",
+  "boot.msg.embedding": "Opening official UI…",
   "boot.msg.failed": "Start failed",
   "boot.msg.resetting": "Resetting hosted runtime…",
   "boot.msg.resetFailed": "Reset failed",
@@ -956,19 +1053,39 @@ export const en: LocaleDict = {
   "boot.fault.plugin.title": "Plugins may be blocking startup",
   "boot.fault.plugin.body":
     "Official UI did not become ready in time; logs suggest plugins. Start with a clean profile (your ~/.dsh is not deleted).",
+  "boot.fault.dshHomeInUse.title": "Data directory in use",
+  "boot.fault.dshHomeInUse.body":
+    "Cannot clear DSH_HOME: the folder may be locked by another dsh or terminal. Close it and retry.",
   "boot.fault.default.title": "Start failed",
-  "boot.fault.default.body":
-    "See technical details below, or retry / open logs.",
+  "boot.fault.default.body": "See the error below, or retry / open logs.",
   "boot.cta.retry": "Retry",
-  "boot.cta.network": "Network settings",
+  "boot.cta.network": "Network",
   "boot.cta.logs": "Open logs",
-  "boot.cta.reset": "Reset hosted runtime",
-  "boot.cta.cleanProfile": "Start clean profile",
-  "boot.cleanProfile.confirmTitle": "Start clean profile",
+  "boot.cta.cleanProfile": "Skip config",
+  "boot.cta.resetConfig": "Reset config",
+  "boot.cta.reinstallDsh": "Reinstall DSH",
+  "boot.cta.retry.desc": "Try starting again",
+  "boot.cta.network.desc": "Check proxy or mirror",
+  "boot.cta.logs.desc": "Open the logs folder",
+  "boot.cta.cleanProfile.desc": "Temporary blank profile; your DSH_HOME is kept",
+  "boot.cta.resetConfig.desc": "Clear the DSH_HOME directory from first-run setup",
+  "boot.cta.reinstallDsh.system.desc": "Reinstall global @deepseek-ai/dsh via npm",
+  "boot.cta.reinstallDsh.hosted.desc": "Delete and re-download harness in AppData",
+  "boot.cleanProfile.confirmTitle": "Skip config",
   "boot.cleanProfile.confirm":
-    "Use a temporary clean profile under AppData (does not delete your ~/.dsh or plugins).",
-  "boot.reset.confirm":
-    "Clears the local harness install and re-downloads (keeps Node; does not delete ~/.dsh). Continue?",
+    "Use a temporary clean profile under AppData (does not delete your DSH_HOME or plugins).",
+  "boot.resetConfig.confirmTitle": "Reset config",
+  "boot.resetConfig.confirm":
+    "This clears all data under DSH_HOME at “{path}” (sessions, credentials, plugins). Cannot be undone. The dsh package is not removed. Continue?",
+  "boot.reinstallDsh.confirmTitle": "Reinstall DSH",
+  "boot.reinstallDsh.confirmSystem":
+    "Reinstall global @deepseek-ai/dsh via npm (keeps DSH_HOME). May take several minutes. Continue?",
+  "boot.reinstallDsh.confirmHosted":
+    "Delete in-app harness under AppData and re-download (keeps Node; does not delete DSH_HOME). Continue?",
+  "boot.msg.resettingConfig": "Clearing DSH_HOME…",
+  "boot.msg.resetConfigFailed": "Reset config failed",
+  "boot.msg.reinstalling": "Reinstalling DSH…",
+  "boot.msg.reinstallFailed": "Reinstall DSH failed",
   "boot.msg.harnessUpdated": "Update complete",
   "chrome.windowControls.aria": "Window controls",
   "chrome.sessionLog": "Download Session log",
@@ -991,6 +1108,7 @@ export const en: LocaleDict = {
   "chrome.menu.copyVersion": "Copy version info",
   "chrome.conn.failed": "Start failed",
   "chrome.conn.preparing": "Preparing",
+  "chrome.activity.embedding": "Embedding official UI…",
   "chrome.productName": "DeepSeek Harness",
   "chrome.platform.back": "Back",
   "chrome.platform.title": "DeepSeek Open Platform",

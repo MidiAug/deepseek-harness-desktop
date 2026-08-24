@@ -8,7 +8,6 @@ import {
   SettingsModal,
   type SettingsSection,
 } from "./components/settings/SettingsModal";
-import { ShellProgressBubble } from "./components/chrome/ShellProgressBubble";
 import { ShellContextMenu } from "./components/chrome/ShellContextMenu";
 import { ShellTitleBar } from "./components/titlebar/ShellTitleBar";
 import type { ShellBodyView } from "./components/titlebar/titlebarTypes";
@@ -20,7 +19,6 @@ import {
   useHostLifecycle,
   useLocale,
   usePlatformWebview,
-  useShellProgressBubble,
   useShellSession,
   useSidebarLayout,
   useHarnessContextMenu,
@@ -94,11 +92,9 @@ function postSessionLogClick(frame: HTMLIFrameElement | null) {
 export default function App() {
   const { t } = useLocale();
   const session = useShellSession();
-  const { syncSessionPhase } = useHostLifecycle();
+  const life = useHostLifecycle();
+  const { syncSessionPhase } = life;
   const { sidebarWidthPx } = useSidebarLayout(session.iframeKey);
-  const { bubbleVisible, bubbleLeaving } = useShellProgressBubble(
-    session.wantBubble,
-  );
   const { chrome, resolvedTheme } = useChrome();
   const harnessFrameRef = useRef<HTMLIFrameElement | null>(null);
   const [shellBodyEl, setShellBodyEl] = useState<HTMLDivElement | null>(null);
@@ -288,6 +284,16 @@ export default function App() {
   const shellBackdropOpen = settingsOpen || closeAskOpen;
   const showBootChrome = onboardingGate === "ready";
   const onboardingActive = onboardingGate !== "ready";
+  const opsActive = life.busyReason === "ops";
+  const titleFailed = session.phase === "failed";
+  const titleActivity = titleFailed
+    ? t("chrome.conn.failed")
+    : opsActive && life.message
+      ? life.message
+      : onboardingGate === "loading"
+        ? t("onboarding.loading")
+        : session.titleActivity;
+  const titleActivityTone = titleFailed ? "error" : "busy";
   const showHarness =
     session.showIframe && !!session.serviceUrl;
   const harnessVisible = bodyView === "harness";
@@ -342,7 +348,7 @@ export default function App() {
 
   const contextMenuEnabled =
     harnessVisible && showHarness && !settingsOpen && !closeAskOpen;
-  const { menu: contextMenu, close: closeContextMenu, selectAction, copyToastMessage, copyToastAction, copyToastLeaving, copyToastVisible } =
+  const { menu: contextMenu, close: closeContextMenu, selectAction } =
     useHarnessContextMenu(harnessFrameRef, contextMenuEnabled, settingsOpen);
 
   usePlatformWebview(platformWebviewActive, shellBodyEl, resolvedTheme);
@@ -352,9 +358,10 @@ export default function App() {
       className={`shell${shellOverlay ? " titlebar-overlay" : ""}${shellBackdropOpen ? " shell-backdrop-open" : ""}`}
     >
       <ShellTitleBar
-        port={session.port}
         conn={session.titleConn}
         hideConnStatus={!showBootChrome}
+        titleActivity={titleActivity}
+        titleActivityTone={titleActivity ? titleActivityTone : undefined}
         minimal={onboardingActive}
         chrome={chrome}
         sidebarWidthPx={sidebarWidthPx}
@@ -396,9 +403,6 @@ export default function App() {
       {!onboardingActive && <ShellUpdateBanner />}
 
       <div className="shell-body" ref={shellBodyRef}>
-        {onboardingGate === "loading" && (
-          <ShellProgressBubble message={t("onboarding.loading")} />
-        )}
         {onboardingGate === "wizard" && (
           <OnboardingWizard onComplete={() => setOnboardingGate("ready")} />
         )}
@@ -408,6 +412,8 @@ export default function App() {
           <BootPanel
             key={session.bootKey}
             startCommand={session.startCommand}
+            forceStealth={opsActive}
+            sessionError={session.bootError}
             onReady={session.markReady}
             onError={session.markFailed}
             onBootWorking={session.markBootWorking}
@@ -427,7 +433,6 @@ export default function App() {
             hidden={!harnessVisible}
             allow="clipboard-read; clipboard-write; downloads"
             onLoad={() => {
-              session.markIframeConnected();
               const frame = harnessFrameRef.current;
               postSelectionHygiene(frame, chrome.selectionHygiene);
               postSessionLogProxy(
@@ -441,21 +446,6 @@ export default function App() {
           />
         )}
 
-        {bodyView === "harness" && showBootChrome && bubbleVisible && (
-          <ShellProgressBubble
-            message={session.bubbleMessage}
-            leaving={bubbleLeaving}
-          />
-        )}
-
-        {copyToastVisible && copyToastMessage && (
-          <ShellProgressBubble
-            message={copyToastMessage}
-            leaving={copyToastLeaving}
-            showSpinner={false}
-            action={copyToastAction ?? undefined}
-          />
-        )}
       </div>
 
       <SettingsModal
@@ -463,6 +453,8 @@ export default function App() {
         onClose={closeSettings}
         initialSection={settingsSection}
         onHarnessReady={session.markReady}
+        onBeginHarnessOp={session.beginHarnessOp}
+        onHarnessOpFailed={session.markFailed}
         onStopHarness={() => void session.stop()}
       />
       <CloseAskDialog open={closeAskOpen} onClose={() => setCloseAskOpen(false)} />

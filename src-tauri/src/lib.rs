@@ -256,9 +256,12 @@ fn save_ui_settings(app: tauri::AppHandle, settings: UiSettings) -> Result<(), S
 }
 
 #[tauri::command]
-async fn check_harness_update(app: tauri::AppHandle) -> Result<HarnessUpdateCheck, String> {
+async fn check_harness_update(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, supervise::HarnessState>,
+) -> Result<HarnessUpdateCheck, String> {
     log::info!(target: "shell::ipc", "check_harness_update");
-    let result = update::check_harness_update(&app).await;
+    let result = update::check_harness_update(&app, &state).await;
     match &result {
         Ok(c) => log::info!(
             target: "shell::ipc",
@@ -330,6 +333,33 @@ async fn reset_hosted_runtime(
 ) -> Result<ReadyPayload, String> {
     progress::append_shell_log(&app, "[ops] reset_hosted_runtime");
     runtime::reset_hosted_runtime(&app, &state).await
+}
+
+/// 清空首跑选定的 DSH_HOME 并重启。
+#[tauri::command]
+async fn reset_dsh_home(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, HarnessState>,
+) -> Result<ReadyPayload, String> {
+    log::info!(target: "shell::ipc", "reset_dsh_home");
+    progress::append_shell_log(&app, "[ops] reset_dsh_home");
+    runtime::reset_dsh_home(&app, &state).await
+}
+
+/// 按设置记录的 Harness 安装方式重装 dsh 包。
+#[tauri::command]
+async fn reinstall_dsh(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, HarnessState>,
+) -> Result<ReadyPayload, String> {
+    log::info!(target: "shell::ipc", "reinstall_dsh");
+    progress::append_shell_log(&app, "[ops] reinstall_dsh");
+    runtime::reinstall_dsh(&app, &state).await
+}
+
+#[tauri::command]
+async fn probe_harness_url(url: String) -> Result<bool, String> {
+    Ok(supervise::probe_service_healthy(&url).await)
 }
 
 #[tauri::command]
@@ -467,6 +497,9 @@ pub fn run() {
             start_clean_profile,
             exit_clean_profile,
             reset_hosted_runtime,
+            reset_dsh_home,
+            reinstall_dsh,
+            probe_harness_url,
             read_shell_log,
             export_diagnostics,
             get_cli_link_status,

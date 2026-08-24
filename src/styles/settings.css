@@ -353,6 +353,91 @@
   box-shadow: none;
 }
 
+/* DSH_HOME 路径行：对齐首跑 onboarding 输入 + 右侧浏览钮 */
+.settings-path-input-wrap {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 36px;
+  padding: 0 4px 0 12px;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 12px;
+  background: var(--color-canvas);
+  box-sizing: border-box;
+}
+
+.settings-path-input-wrap:focus-within {
+  border-color: color-mix(
+    in srgb,
+    var(--color-accent, #3b82f6) 45%,
+    var(--color-line-strong)
+  );
+}
+
+.settings-path-input {
+  flex: 1;
+  min-width: 0;
+  appearance: none;
+  margin: 0;
+  padding: 6px 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--color-ink);
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.settings-path-input::placeholder {
+  color: var(--color-muted);
+}
+
+.settings-path-input:focus,
+.settings-path-input:focus-visible {
+  outline: none;
+}
+
+.settings-path-input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.settings-path-input-actions {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  margin: 0 -2px 0 2px;
+}
+
+.settings-path-icon-btn {
+  appearance: none;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  font: inherit;
+}
+
+.settings-path-icon-btn:hover:not(:disabled) {
+  background: var(--color-nav-hover);
+  color: var(--color-ink);
+}
+
+.settings-path-icon-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 /* 自绘下拉：对齐 DSH PermissionRow 胶囊 + ModelSelect 菜单 */
 .shell-select {
   position: relative;
@@ -497,15 +582,15 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 8px 0 4px;
+  padding: 0;
+}
+
+.settings-about-identity {
+  padding: 0;
 }
 
 .settings-about {
   gap: 26px;
-}
-
-.settings-about-identity {
-  padding: 4px 2px 2px;
 }
 
 .settings-about-brand {
@@ -526,9 +611,7 @@
 }
 
 .settings-about-tag {
-  font-size: 12px;
-  line-height: 18px;
-  color: var(--color-muted);
+  display: none;
 }
 
 .settings-about-meta {
@@ -596,9 +679,88 @@
   opacity: 1;
 }
 
-.settings-about-safe-hint {
-  margin: 4px 2px 0;
-  padding: 0 2px;
+.settings-update-row .settings-cell {
+  border-bottom: none;
+  padding: var(--settings-row-gap) 0;
+}
+
+.settings-update-row:not(:last-child) .settings-cell {
+  border-bottom: 1px solid var(--color-line-strong);
+}
+
+.settings-update-row.is-disabled {
+  opacity: 0.55;
+}
+
+.settings-update-row-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border-bottom: 1px solid var(--color-line-strong);
+}
+
+.settings-update-row:last-child .settings-update-row-footer {
+  border-bottom: none;
+}
+
+.settings-update-row-footer .settings-update-progress {
+  margin: 0;
+  padding: 0;
+}
+
+.settings-update-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-update-progress-bar {
+  height: 3px;
+  border-radius: 999px;
+}
+
+.settings-update-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 2px 0 0;
+}
+
+.settings-update-aside-text {
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--color-muted);
+}
+
+.settings-update-aside-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+}
+
+.settings-link-btn {
+  appearance: none;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--color-muted);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: color-mix(in srgb, var(--color-muted) 55%, transparent);
+}
+
+.settings-link-btn:hover {
+  color: var(--color-ink);
+  text-decoration-color: currentColor;
 }
 
 .settings-about-meta dt {
@@ -1096,6 +1258,9 @@
 /* 组间距；卡片与下拉分表面 */
 .settings-section {
   gap: 26px;
+  /* 卡片四边统一内边距（与左缘观感一致）；行间留白单独控制 */
+  --settings-group-inset: 12px;
+  --settings-row-gap: 16px;
 }
 
 .settings-group {
@@ -1150,11 +1315,50 @@
 .settings-group-body {
   display: flex;
   flex-direction: column;
-  padding: 2px 12px 6px;
+  padding: var(--settings-group-inset);
   border-radius: 10px;
   border: 1px solid var(--color-line-strong);
   /* 浅：纯 panel，与灰底按钮/下拉拉开 */
   background: var(--color-panel);
+}
+
+/* 卡片四边只由 --settings-group-inset 控制；子项不再叠加顶/底外边距 */
+.settings-group-body > .settings-cell {
+  padding: var(--settings-row-gap) 0;
+}
+
+.settings-group-body > .settings-cell:first-child {
+  padding-top: 0;
+}
+
+.settings-group-body > .settings-cell:last-child {
+  padding-bottom: 0;
+}
+
+.settings-group-body > .settings-update-row:first-child .settings-cell {
+  padding-top: 0;
+}
+
+.settings-group-body > .settings-update-row:last-child .settings-cell {
+  padding-bottom: 0;
+}
+
+.settings-group-body > .settings-cell-actions {
+  padding-top: var(--settings-row-gap);
+}
+
+.settings-group-body > .settings-cell-actions:first-child {
+  padding-top: 0;
+}
+
+.settings-group-body > .settings-cell + .settings-cell-actions,
+.settings-group-body > .settings-live-hint {
+  margin-top: 0;
+}
+
+.settings-group-body > .settings-live-hint:not(:first-child) {
+  padding-top: var(--settings-row-gap);
+  border-top: 1px solid var(--color-line-strong);
 }
 
 :root[data-shell-theme="dark"] .settings-group-body {
@@ -1189,7 +1393,7 @@
 }
 
 .settings-status-block {
-  padding: 8px 2px 6px;
+  padding: 0;
 }
 
 .settings-status-block__row {
@@ -1219,9 +1423,45 @@
   color: var(--color-ink);
 }
 
+.settings-status-block__source {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 18px;
+}
+
+.settings-status-warn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #9a4e00;
+  cursor: help;
+  transform: translateY(1px);
+}
+
+.settings-status-warn-icon:focus-visible {
+  outline: 2px solid color-mix(in srgb, #9a4e00 55%, transparent);
+  outline-offset: 2px;
+}
+
+:root[data-shell-theme="dark"] .settings-status-warn-icon {
+  color: #ffc96b;
+}
+
+:root[data-shell-theme="dark"] .settings-status-warn-icon:focus-visible {
+  outline-color: color-mix(in srgb, #ffc96b 55%, transparent);
+}
+
 .settings-cell-actions--primary {
-  margin: 4px 0 2px;
-  padding: 4px 0;
+  margin: 0;
+  padding: 0;
 }
 
 .settings-detail-toggle {
@@ -1234,8 +1474,8 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin: 6px 2px 2px;
-  padding: 8px 2px 2px;
+  margin: 0;
+  padding: var(--settings-row-gap) 0 0;
   border-top: 1px solid var(--color-line);
 }
 
@@ -1243,7 +1483,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 6px 0 4px;
+  padding: 0;
 }
 
 .settings-disclosure {

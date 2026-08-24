@@ -418,7 +418,7 @@ pub async fn try_reuse_healthy<R: Runtime>(
     None
 }
 
-async fn probe_service_healthy(url: &str) -> bool {
+pub async fn probe_service_healthy(url: &str) -> bool {
     let client = match reqwest::Client::builder()
         .timeout(Duration::from_secs(2))
         .no_proxy()
@@ -452,9 +452,12 @@ async fn wait_healthy<R: Runtime>(
     loop {
         if tokio::time::Instant::now() > deadline {
             if harness_log_suggests_plugin_issue(app) {
-                return Err(String::from(HostError::plugin_load_failed(format!(
-                    "{url} 在时限内未就绪，日志提示可能与插件加载有关"
-                ))));
+                return Err(String::from(HostError::plugin_load_failed(
+                    plugin_load_failed_message(
+                        app,
+                        format!("{url} 在时限内未就绪，日志提示可能与插件加载有关"),
+                    ),
+                )));
             }
             return Err(String::from(
                 HostError::health_timeout(format!(
@@ -465,9 +468,14 @@ async fn wait_healthy<R: Runtime>(
 
         if !process_still_ours(state, expected_pid) {
             if harness_log_suggests_plugin_issue(app) {
-                return Err(String::from(HostError::plugin_load_failed(format!(
-                    "dsh 进程 {expected_pid} 已退出；日志提示可能与插件或 profile 配置有关"
-                ))));
+                return Err(String::from(HostError::plugin_load_failed(
+                    plugin_load_failed_message(
+                        app,
+                        format!(
+                            "dsh 进程 {expected_pid} 已退出；日志提示可能与插件或 profile 配置有关"
+                        ),
+                    ),
+                )));
             }
             return Err(String::from(
                 HostError::spawn(format!(
@@ -512,15 +520,18 @@ async fn wait_healthy<R: Runtime>(
     }
 }
 
-fn harness_log_suggests_plugin_issue<R: Runtime>(app: &AppHandle<R>) -> bool {
-    let Ok(path) = paths::harness_log_file(app) else {
-        return false;
-    };
+fn harness_log_tail<R: Runtime>(app: &AppHandle<R>) -> Option<String> {
+    let path = paths::harness_log_file(app).ok()?;
     let text = fs::read_to_string(&path).unwrap_or_default();
-    let tail = if text.len() > 4000 {
-        &text[text.len() - 4000..]
-    } else {
-        &text
+    if text.is_empty() {
+        return None;
+    }
+    Some(crate::logging::tail_since_last_spawn(&text).to_string())
+}
+
+fn harness_log_suggests_plugin_issue<R: Runtime>(app: &AppHandle<R>) -> bool {
+    let Some(tail) = harness_log_tail(app) else {
+        return false;
     };
     let lower = tail.to_lowercase();
     lower.contains("plugin tree")
@@ -528,6 +539,17 @@ fn harness_log_suggests_plugin_issue<R: Runtime>(app: &AppHandle<R>) -> bool {
         || lower.contains("cordis")
         || lower.contains("credentials")
         || lower.contains("dshmarket")
+}
+
+fn harness_log_plugin_detail<R: Runtime>(app: &AppHandle<R>) -> Option<String> {
+    harness_log_tail(app).and_then(|tail| crate::logging::extract_plugin_root_cause(&tail))
+}
+
+fn plugin_load_failed_message<R: Runtime>(app: &AppHandle<R>, context: String) -> String {
+    match harness_log_plugin_detail(app) {
+        Some(detail) => format!("{context}\n\n{detail}"),
+        None => context,
+    }
 }
 
 fn process_still_ours(state: &HarnessState, expected_pid: u32) -> bool {

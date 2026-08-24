@@ -1,6 +1,9 @@
 //! 宿主日志：目录解析 + 高频行限流。
 
+mod harness_detail;
 mod rate_limit;
+
+pub use harness_detail::{extract_plugin_root_cause, tail_since_last_spawn, tail_text};
 
 use std::path::PathBuf;
 use std::sync::{LazyLock, Mutex};

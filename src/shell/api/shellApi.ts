@@ -95,6 +95,21 @@ export function resetHostedRuntime(): Promise<ReadyPayload> {
   return invoke<ReadyPayload>("reset_hosted_runtime");
 }
 
+/** 清空首跑选定的 DSH_HOME 并重启（删数据目录内容；不删 dsh 包）。 */
+export function resetDshHome(): Promise<ReadyPayload> {
+  return invoke<ReadyPayload>("reset_dsh_home");
+}
+
+/** 探活官方 UI（Rust reqwest，不受 WebView CSP 限制）。 */
+export function probeHarnessUrl(url: string): Promise<boolean> {
+  return invoke<boolean>("probe_harness_url", { url });
+}
+
+/** 按设置记录的 Harness 安装方式重装 dsh 包。 */
+export function reinstallDsh(): Promise<ReadyPayload> {
+  return invoke<ReadyPayload>("reinstall_dsh");
+}
+
 /** 以 AppData 干净 profile 会话启动（临时 DSH_HOME，不删用户 ~/.dsh）。 */
 export function startCleanProfile(): Promise<ReadyPayload> {
   return invoke<ReadyPayload>("start_clean_profile");

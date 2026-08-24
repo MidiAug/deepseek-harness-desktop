@@ -147,6 +147,46 @@ pub fn read_harness_meta<R: Runtime>(app: &AppHandle<R>) -> HarnessMeta {
     read_harness_meta_at_pkg(&pkg)
 }
 
+/// 从本机 dsh 入口（`…/dsh/lib/bin.js`）反查 package.json。
+pub fn read_harness_meta_from_system_entry(entry: &Path) -> HarnessMeta {
+    let Some(pkg) = entry
+        .parent()
+        .and_then(|lib| lib.parent())
+        .map(|dsh| dsh.join("package.json"))
+    else {
+        return HarnessMeta::default();
+    };
+    read_harness_meta_at_pkg(&pkg)
+}
+
+/// 按当前/配置的运行时来源读 version + digest（系统 dsh 与托管 AppData 统一口径）。
+pub fn resolve_effective_harness_meta<R: Runtime>(
+    app: &AppHandle<R>,
+    state: &crate::supervise::HarnessState,
+) -> HarnessMeta {
+    use crate::settings;
+    use crate::system_runtime::{self, ActiveRuntimeKind, RuntimeSource};
+
+    if let Ok(guard) = state.active_runtime.lock() {
+        if let Some(kind) = *guard {
+            return match kind {
+                ActiveRuntimeKind::System => system_runtime::resolve_system_runtime()
+                    .map(|rt| read_harness_meta_from_system_entry(&rt.entry))
+                    .unwrap_or_default(),
+                ActiveRuntimeKind::Hosted => read_harness_meta(app),
+            };
+        }
+    }
+
+    let cfg = settings::load(app);
+    match cfg.runtime_source {
+        RuntimeSource::Hosted => read_harness_meta(app),
+        RuntimeSource::System | RuntimeSource::Auto => system_runtime::resolve_system_runtime()
+            .map(|rt| read_harness_meta_from_system_entry(&rt.entry))
+            .unwrap_or_else(|| read_harness_meta(app)),
+    }
+}
+
 /// 从 package.json 路径读 version + digest。
 pub fn read_harness_meta_at_pkg(pkg: &Path) -> HarnessMeta {
     let Ok(text) = fs::read_to_string(pkg) else {

@@ -2,18 +2,19 @@
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub enum RuntimeSource {
-    /// 能探测到本机 dsh 则用系统，否则托管
-    #[default]
+    /// auto：legacy；加载 settings 时迁移为 system 或 hosted
     Auto,
     /// 强制本机；失败则报错
     System,
     /// 强制壳 AppData 托管
+    #[default]
     Hosted,
 }
 
@@ -31,8 +32,30 @@ pub struct SystemRuntime {
     pub cwd: PathBuf,
 }
 
+/// 进程内缓存：探测会多次 spawn where/node/powershell，状态查询不得每次重跑。
+static SYSTEM_RUNTIME_CACHE: Mutex<Option<Option<SystemRuntime>>> = Mutex::new(None);
+
 /// Windows：优先 npm/系统 Node（排除 IDE 内置），再匹配 dsh 入口。
 pub fn resolve_system_runtime() -> Option<SystemRuntime> {
+    let mut guard = SYSTEM_RUNTIME_CACHE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    if let Some(cached) = guard.as_ref() {
+        return cached.clone();
+    }
+    let resolved = probe_system_runtime();
+    *guard = Some(resolved.clone());
+    resolved
+}
+
+/// 全局 npm 重装等会改变本机 dsh 路径，需失效缓存。
+pub fn invalidate_system_runtime_cache() {
+    if let Ok(mut guard) = SYSTEM_RUNTIME_CACHE.lock() {
+        *guard = None;
+    }
+}
+
+fn probe_system_runtime() -> Option<SystemRuntime> {
     #[cfg(windows)]
     {
         let entry = global_dsh_entry().or_else(|| {
@@ -201,12 +224,12 @@ mod tests {
     }
 
     #[test]
-    fn runtime_settings_default_auto() {
+    fn runtime_settings_default_hosted() {
         let r: crate::settings::RuntimeSettings = serde_json::from_str(
             r#"{"mirror":"domestic","proxyMode":"off","proxyUrl":""}"#,
         )
         .unwrap();
-        assert_eq!(r.runtime_source, RuntimeSource::Auto);
+        assert_eq!(r.runtime_source, RuntimeSource::Hosted);
     }
 
     #[test]
@@ -233,6 +256,7 @@ mod tests {
 
     #[test]
     fn resolve_system_runtime_smoke_on_dev_machine() {
+        invalidate_system_runtime_cache();
         let _ = resolve_system_runtime();
     }
 }

@@ -89,11 +89,11 @@ AppData/com.deepseek.harness.desktop/
 - 不 patch `@deepseek-ai/*` 换 UI  
 - 不替你管理 nvm 多版本 Node；探测失败会回落托管或明示错误  
 
-## 运行时来源
+## Harness 安装方式
 
-默认 **自动**：本机已有可用的 Node + `@deepseek-ai/dsh` 时直接嵌入；否则壳下载托管到 AppData。  
-可在 **设置 → 本地服务 → 运行时来源** 强制「本机」或「托管」。  
-系统模式下壳 **不会** 用 npm 改写你的全局 dsh 包。 
+首跑时选择 **本机已安装**（`system`）或 **应用内安装**（`hosted`）。  
+可在 **设置 → 本地服务 → 使用哪份 Harness** 切换。  
+本机模式下壳 **不会** 用 npm 改写你的全局 dsh 包。
 
 ## 文档
 

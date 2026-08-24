@@ -135,21 +135,17 @@
   box-shadow: var(--shadow-lv3);
 }
 
+.boot-card--failed {
+  gap: 20px;
+  padding-top: 24px;
+}
+
 .boot-hero {
   display: flex;
   flex-direction: column;
   gap: 4px;
   padding-bottom: 4px;
   border-bottom: 1px solid var(--color-line);
-}
-
-.boot-brand {
-  margin: 0;
-  font-size: 12px;
-  line-height: 18px;
-  font-weight: 400;
-  letter-spacing: 0.02em;
-  color: var(--color-muted);
 }
 
 .boot-hero-row {
@@ -417,6 +413,18 @@
   /* 对齐 shell-dialog：默认可选禁，仅 .shell-copyable / 输入框可复制 */
   user-select: none;
   -webkit-user-select: none;
+}
+
+.onboarding-card--loading {
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+}
+
+.onboarding-loading-lead {
+  margin: 0;
+  text-align: center;
+  color: var(--color-muted);
 }
 
 .onboarding-card .shell-copyable,

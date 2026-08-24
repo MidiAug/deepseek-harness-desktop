@@ -9,9 +9,10 @@ import type { WinAction } from "./titlebarTypes";
 import type { TitleConn } from "../../shell";
 
 type Props = {
-  port: number | null;
   conn: TitleConn;
   hideConnStatus?: boolean;
+  titleActivity?: string | null;
+  titleActivityTone?: "busy" | "error";
   maximized: boolean;
   onOpenSettings: () => void;
   onRestart: () => void;
@@ -26,9 +27,10 @@ type Props = {
 };
 
 export function ClassicTitleBar({
-  port,
   conn,
   hideConnStatus = false,
+  titleActivity = null,
+  titleActivityTone = "busy",
   maximized,
   onOpenSettings,
   onRestart,
@@ -44,11 +46,9 @@ export function ClassicTitleBar({
   const { t } = useLocale();
 
   const statusLabel =
-    conn === "connected" && port != null
-      ? `:${port}`
-      : conn === "error"
-        ? t("chrome.conn.failed")
-        : t("chrome.conn.preparing");
+    conn === "error"
+      ? t("chrome.conn.failed")
+      : t("chrome.conn.preparing");
 
   const statusClass =
     conn === "connected"
@@ -57,8 +57,16 @@ export function ClassicTitleBar({
         ? "is-err"
         : "is-busy";
 
+  const activity = titleActivity?.trim() || null;
+  const showActivity = activity != null;
+  const isError = titleActivityTone === "error";
+  const showTrail =
+    !hideConnStatus && !showActivity && conn !== "connected";
+
   return (
-    <header className="titlebar">
+    <header
+      className={`titlebar${showActivity ? " is-active" : ""}${isError ? " is-error" : ""}`}
+    >
       <TitleBarHostMenus
         onRestart={onRestart}
         onStop={onStop}
@@ -75,25 +83,41 @@ export function ClassicTitleBar({
         data-tauri-drag-region
         onDoubleClick={() => void onWin("maximize")}
       >
-        <span className="titlebar-product" data-tauri-drag-region>
-          {t("chrome.productName")}
-        </span>
-        <span className="titlebar-trail" data-tauri-drag-region>
-          {!hideConnStatus && (
-            <>
-              <span className="titlebar-dot" aria-hidden data-tauri-drag-region>
-                ·
-              </span>
-              <span
-                className={`titlebar-conn ${statusClass}`}
-                data-tauri-drag-region
-              >
-                <span className="titlebar-conn-mark" aria-hidden />
-                {statusLabel}
-              </span>
-            </>
+        <span
+          className={`titlebar-product${showActivity ? " is-activity" : ""}`}
+          data-tauri-drag-region
+          title={showActivity ? activity : undefined}
+          aria-live={showActivity ? "polite" : undefined}
+          aria-busy={showActivity && !isError ? true : undefined}
+        >
+          {showActivity ? (
+            <span
+              className={`titlebar-activity-text${isError ? " is-error" : ""}`}
+              data-tauri-drag-region
+            >
+              {isError ? (
+                <span className="titlebar-activity-mark" aria-hidden />
+              ) : null}
+              {activity}
+            </span>
+          ) : (
+            t("chrome.productName")
           )}
         </span>
+        {showTrail && (
+          <span className="titlebar-trail" data-tauri-drag-region>
+            <span className="titlebar-dot" aria-hidden data-tauri-drag-region>
+              ·
+            </span>
+            <span
+              className={`titlebar-conn ${statusClass}`}
+              data-tauri-drag-region
+            >
+              <span className="titlebar-conn-mark" aria-hidden />
+              {statusLabel}
+            </span>
+          </span>
+        )}
       </div>
 
       <div className="titlebar-right">

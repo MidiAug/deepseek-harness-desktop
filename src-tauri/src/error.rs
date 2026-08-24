@@ -16,6 +16,8 @@ pub enum HostError {
     HarnessNotFound(String),
     #[error("PLUGIN_LOAD_FAILED: {0}")]
     PluginLoadFailed(String),
+    #[error("DSH_HOME_IN_USE: {0}")]
+    DshHomeInUse(String),
     #[error("OPEN_PATH: {0}")]
     OpenPath(String),
     #[error("HIDE: {0}")]
@@ -47,6 +49,10 @@ impl HostError {
 
     pub fn plugin_load_failed(msg: impl Into<String>) -> Self {
         Self::PluginLoadFailed(msg.into())
+    }
+
+    pub fn dsh_home_in_use(msg: impl Into<String>) -> Self {
+        Self::DshHomeInUse(msg.into())
     }
 }
 
@@ -96,5 +102,11 @@ mod tests {
     fn plugin_load_failed_prefix_stable() {
         let s: String = HostError::plugin_load_failed("插件加载超时").into();
         assert!(s.starts_with("PLUGIN_LOAD_FAILED:"));
+    }
+
+    #[test]
+    fn dsh_home_in_use_prefix_stable() {
+        let s: String = HostError::dsh_home_in_use("目录被占用").into();
+        assert!(s.starts_with("DSH_HOME_IN_USE:"));
     }
 }

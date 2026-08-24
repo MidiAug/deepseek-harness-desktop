@@ -28,21 +28,25 @@ export function useShellSession() {
   const [iframeKey, setIframeKey] = useState(0);
   const [bootStealth, setBootStealth] = useState(false);
   const [bootMsg, setBootMsg] = useState("正在准备…");
+  const [bootError, setBootError] = useState<string | null>(null);
 
   const markReady = useCallback((payload: ReadyPayload) => {
-    shellLog.info("session", `ready embedding port=${payload.port}`);
+    shellLog.info("session", `ready port=${payload.port}`);
+    setBootError(null);
+    setStartCommand("ensure_and_start");
     setServiceUrl(withCacheBust(payload.url));
     setPort(payload.port);
-    setPhase("embedding");
+    setPhase("ready");
     setBootStealth(false);
     setIframeKey((k) => k + 1);
   }, []);
 
-  const markFailed = useCallback(() => {
+  const markFailed = useCallback((error?: string) => {
     shellLog.warn("session", "phase failed");
     setPhase("failed");
     setServiceUrl(null);
     setBootStealth(false);
+    if (error) setBootError(error);
   }, []);
 
   const markIframeConnected = useCallback(() => {
@@ -54,11 +58,13 @@ export function useShellSession() {
     setPhase("failed");
     setServiceUrl(null);
     setBootStealth(false);
+    setBootError("HEALTH_TIMEOUT: 官方 UI 加载失败");
   }, []);
 
   /** BootPanel 进入工作态时：冷启动=installing，快路径=spawning */
   const markBootWorking = useCallback((coldInstall: boolean) => {
     shellLog.info("session", coldInstall ? "boot installing" : "boot spawning");
+    setBootError(null);
     setPhase(coldInstall ? "installing" : "spawning");
   }, []);
 
@@ -66,7 +72,19 @@ export function useShellSession() {
     setPhase("idle");
     setServiceUrl(null);
     setBootStealth(false);
+    setBootError(null);
     setStartCommand("restart_harness");
+    setBootKey((k) => k + 1);
+  }, []);
+
+  /** 设置页发起 reset/reinstall 等：隐藏 iframe，进入 stealth 启动态，勿重复 auto-start */
+  const beginHarnessOp = useCallback(() => {
+    setBootError(null);
+    setServiceUrl(null);
+    setPort(null);
+    setPhase("spawning");
+    setBootStealth(true);
+    setStartCommand("external_op");
     setBootKey((k) => k + 1);
   }, []);
 
@@ -90,20 +108,15 @@ export function useShellSession() {
     phase === "idle" ||
     phase === "installing" ||
     phase === "spawning" ||
+    phase === "embedding" ||
     phase === "failed";
 
-  const showIframe =
-    (phase === "embedding" || phase === "ready") && serviceUrl != null;
+  const showIframe = phase === "ready" && serviceUrl != null;
 
-  const wantBubble =
-    (showBootPanel && phase !== "failed") || phase === "embedding";
-
-  const bubbleMessage =
-    phase === "embedding"
-      ? port != null
-        ? `正在嵌入官方界面 · :${port}`
-        : "正在嵌入官方界面…"
-      : bootMsg;
+  const titleActivity =
+    showBootPanel && phase !== "failed" && phase !== "embedding"
+      ? bootMsg
+      : null;
 
   return {
     phase,
@@ -114,6 +127,7 @@ export function useShellSession() {
     iframeKey,
     bootStealth,
     bootMsg,
+    bootError,
     setBootStealth,
     setBootMsg,
     markReady,
@@ -122,11 +136,11 @@ export function useShellSession() {
     markIframeConnected,
     markIframeError,
     restart,
+    beginHarnessOp,
     stop,
     titleConn,
     showBootPanel,
     showIframe,
-    wantBubble,
-    bubbleMessage,
+    titleActivity,
   };
 }
