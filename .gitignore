@@ -34,6 +34,7 @@ dev/
 # Misc
 *.tsbuildinfo
 .turbo/
+latest.json
 
 # Codegraph local index
 .codegraph/

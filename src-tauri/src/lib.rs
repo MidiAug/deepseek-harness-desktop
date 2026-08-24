@@ -271,7 +271,7 @@ async fn apply_harness_update(
     result
 }
 
-/// 壳自更新安装前：跨进程锁 + 杀托管进程树（B13）。
+/// 壳自更新安装前：跨进程锁 + 杀托管进程树。
 #[tauri::command]
 async fn prepare_shell_update(
     app: tauri::AppHandle,

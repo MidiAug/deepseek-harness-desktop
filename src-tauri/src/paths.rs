@@ -35,7 +35,7 @@ pub fn node_binary<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
     #[cfg(not(windows))]
     {
         let _ = app;
-        Err("B2 runtime install is Windows-only for now".into())
+        Err("runtime install is Windows-only for now".into())
     }
 }
 

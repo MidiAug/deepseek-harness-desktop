@@ -1082,7 +1082,7 @@
   line-height: 22px;
 }
 
-/* B32+：组间距；卡片与下拉分表面 */
+/* 组间距；卡片与下拉分表面 */
 .settings-section {
   gap: 26px;
 }

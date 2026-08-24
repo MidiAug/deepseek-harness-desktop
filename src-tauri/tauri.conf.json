@@ -30,9 +30,9 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDk1NTJGQjlDOTgxNUYwMDkKUldRSjhCV1luUHRTbFhSbVBoK1BpaFVFTStrSDZaT1dOajVFekc0TVV1QVZIakVYTXgwZnp1QjQK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDNGQjJCMDZERTc2NjYwRkYKUldUL1lHYm5iYkN5UCtzbGMvdkxUZTdNVEZYVWJHZUpEa0xuN1RZQmJqMU1XSG5zSmM1andaMmwK",
       "endpoints": [
-        "https://github.com/deepseek-harness-desktop/deepseek-harness-desktop/releases/latest/download/latest.json"
+        "https://github.com/MidiAug/deepseek-harness-desktop/releases/latest/download/latest.json"
       ],
       "windows": {
         "installMode": "passive"

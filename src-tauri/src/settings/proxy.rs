@@ -5,7 +5,7 @@ use std::process::Command;
 
 use super::types::ShellSettings;
 
-/// loopback 探活与子进程 dsh 须绕过系统代理（B19）。
+/// loopback 探活与子进程 dsh 须绕过系统代理。
 pub const LOOPBACK_NO_PROXY: &str = "127.0.0.1,localhost";
 
 /// 读 Windows「Internet 设置」系统代理；失败则返回 None（调用方当直连）。

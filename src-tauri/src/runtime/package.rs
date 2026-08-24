@@ -1,6 +1,6 @@
 //! 解析托管 `@deepseek-ai/dsh` 入口（固定相对路径 + package.json bin 兜底）。
-//! 版本 / digest 供状态与关于页（R4 → B6）。
-//! 闭包完整性（B13）：npm 后断言入口 + 声明的 `@deepseek-ai/*` 依赖目录。
+//! 版本 / digest 供状态与关于页。
+//! 闭包完整性：npm 后断言入口 + 声明的 `@deepseek-ai/*` 依赖目录。
 
 use std::fs;
 use std::path::{Path, PathBuf};

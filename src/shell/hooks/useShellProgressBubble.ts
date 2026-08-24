@@ -1,4 +1,4 @@
-/** 顶中进度气泡：挂载 / 淡出卸载（B7d）。 */
+/** 顶中进度气泡：挂载 / 淡出卸载。 */
 
 import { useEffect, useRef, useState } from "react";
 

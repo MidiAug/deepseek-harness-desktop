@@ -39,7 +39,7 @@ pub async fn ensure_runtime_installed<R: Runtime>(app: &AppHandle<R>) -> Result<
     #[cfg(not(windows))]
     {
         let _ = app;
-        return Err(String::from(HostError::install("B2 仅支持 Windows x64")));
+        return Err(String::from(HostError::install("当前仅支持 Windows x64")));
     }
     #[cfg(windows)]
     {
@@ -132,7 +132,7 @@ pub async fn force_install_dsh<R: Runtime>(app: &AppHandle<R>) -> Result<(), Str
 #[cfg(not(windows))]
 pub async fn force_install_dsh<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
     let _ = app;
-    Err(String::from(HostError::install("B2 仅支持 Windows x64")))
+    Err(String::from(HostError::install("当前仅支持 Windows x64")))
 }
 
 /// 将 `node_modules/@deepseek-ai/dsh` 改名为旁路备份，避免更新中途退出后无入口。
@@ -333,7 +333,7 @@ async fn npm_install_dsh<R: Runtime>(app: &AppHandle<R>, force: bool) -> Result<
         ));
     }
 
-    // 闭包门禁（B13）：入口 + 声明的 @deepseek-ai/* 依赖目录
+    // 闭包门禁：入口 + 声明的 @deepseek-ai/* 依赖目录
     assert_harness_closure(app)?;
     emit_progress(
         app,

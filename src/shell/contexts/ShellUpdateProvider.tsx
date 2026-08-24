@@ -1,4 +1,4 @@
-/** 壳自更新：对齐 dataelement — 启动延迟检查、每 6h、后台下载、确认后安装重启。 */
+/** 壳自更新：启动延迟检查、每 6h 轮询、后台下载、用户确认后安装重启。 */
 
 import {
   createContext,
@@ -130,7 +130,7 @@ export function ShellUpdateProvider({ children }: { children: ReactNode }) {
           percent: 0,
         });
 
-        // 对齐 dataelement：有更新即后台下载，装前等用户确认
+        // 有更新即后台下载，装前等用户确认
         apply({ phase: "downloading", message: `正在下载壳 ${update.version}…` });
         let downloaded = 0;
         let contentLength = 0;
@@ -192,7 +192,7 @@ export function ShellUpdateProvider({ children }: { children: ReactNode }) {
     if (!update || state.phase !== "downloaded") return;
     apply({ phase: "installing", message: "正在停止托管进程并安装壳更新…" });
     try {
-      // 先杀树再装，避免 DSH 未关导致更新失败（B13）
+      // 先杀树再装，避免 DSH 未关导致更新失败
       await prepareShellUpdate();
       apply({ phase: "installing", message: "正在安装壳更新并重启…" });
       await update.install();

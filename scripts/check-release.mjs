@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * 发行前静态门禁（B13 + B19）：updater 配置、capabilities、壳更新杀树路径、
- * NODE_VERSION 与文档一致（B19 Node 门禁）。
+ * 发行前静态门禁：updater 配置、capabilities、壳更新杀树路径、
+ * NODE_VERSION 与文档一致。
  * 用法：pnpm check:release
  */
 import { readFileSync, existsSync } from "node:fs";
@@ -35,11 +35,6 @@ if (confText) {
     for (const ep of endpoints) {
       if (String(ep).includes("OWNER") || String(ep).includes("example.com")) {
         errors.push(`updater endpoint 仍为占位: ${ep}`);
-      }
-      if (String(ep).includes("deepseek-harness-desktop/deepseek-harness-desktop")) {
-        errors.push(
-          `updater endpoint 仍为占位仓库（请改为真实 owner/repo）: ${ep}`,
-        );
       }
     }
   }
@@ -80,20 +75,33 @@ if (libRs) {
 }
 
 const pathsRs = read("src-tauri/src/paths.rs");
-const releasesMd = read("docs/releases.md");
-if (pathsRs && releasesMd) {
+if (pathsRs) {
   const nodeMatch = pathsRs.match(
     /pub const NODE_VERSION:\s*&str\s*=\s*"([^"]+)"/,
   );
-  const docMatch = releasesMd.match(/NODE_VERSION:\s*(v[\d.]+)/);
   if (!nodeMatch) {
     errors.push("paths.rs 缺少 pub const NODE_VERSION");
-  } else if (!docMatch) {
-    errors.push("docs/releases.md 缺少 NODE_VERSION: 行（check:release 断言）");
-  } else if (nodeMatch[1] !== docMatch[1]) {
-    errors.push(
-      `NODE_VERSION 不一致: paths.rs=${nodeMatch[1]} docs/releases.md=${docMatch[1]}`,
-    );
+  } else {
+    const version = nodeMatch[1];
+    const docSources = ["dev/maintainer-release.md", "docs/releases.md"];
+    let docVersion = null;
+    for (const src of docSources) {
+      const text = read(src);
+      if (!text) continue;
+      const explicit = text.match(/NODE_VERSION:\s*(v[\d.]+)/);
+      const inline = text.match(/\*\*Node (v[\d.]+)\*\*/);
+      docVersion = explicit?.[1] ?? inline?.[1] ?? null;
+      if (docVersion) break;
+    }
+    if (!docVersion) {
+      errors.push(
+        "docs/releases.md 或 dev/maintainer-release.md 缺少 Node 版本说明",
+      );
+    } else if (version !== docVersion) {
+      errors.push(
+        `NODE_VERSION 不一致: paths.rs=${version} docs=${docVersion}`,
+      );
+    }
   }
 }
 
