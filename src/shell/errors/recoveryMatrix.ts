@@ -6,9 +6,10 @@ export type FaultPrefix =
   | "SPAWN_FAILED"
   | "NODE_MISSING"
   | "HARNESS_NOT_FOUND"
+  | "PLUGIN_LOAD_FAILED"
   | "DEFAULT";
 
-export type FaultCta = "retry" | "network" | "logs" | "reset";
+export type FaultCta = "retry" | "network" | "logs" | "reset" | "cleanProfile";
 
 export type RecoveryPlan = {
   prefix: FaultPrefix;
@@ -24,6 +25,7 @@ const KNOWN_PREFIXES: FaultPrefix[] = [
   "SPAWN_FAILED",
   "NODE_MISSING",
   "HARNESS_NOT_FOUND",
+  "PLUGIN_LOAD_FAILED",
 ];
 
 const MATRIX: Record<FaultPrefix, Omit<RecoveryPlan, "prefix">> = {
@@ -37,7 +39,7 @@ const MATRIX: Record<FaultPrefix, Omit<RecoveryPlan, "prefix">> = {
     titleKey: "boot.fault.health.title",
     bodyKey: "boot.fault.health.body",
     primary: "retry",
-    secondary: ["logs", "reset"],
+    secondary: ["cleanProfile", "logs", "reset"],
   },
   SPAWN_FAILED: {
     titleKey: "boot.fault.spawn.title",
@@ -56,6 +58,12 @@ const MATRIX: Record<FaultPrefix, Omit<RecoveryPlan, "prefix">> = {
     bodyKey: "boot.fault.harness.body",
     primary: "reset",
     secondary: ["logs"],
+  },
+  PLUGIN_LOAD_FAILED: {
+    titleKey: "boot.fault.plugin.title",
+    bodyKey: "boot.fault.plugin.body",
+    primary: "cleanProfile",
+    secondary: ["retry", "logs", "reset"],
   },
   DEFAULT: {
     titleKey: "boot.fault.default.title",
@@ -83,4 +91,5 @@ export const CTA_LABEL_KEYS: Record<FaultCta, LocaleKey> = {
   network: "boot.cta.network",
   logs: "boot.cta.logs",
   reset: "boot.cta.reset",
+  cleanProfile: "boot.cta.cleanProfile",
 };

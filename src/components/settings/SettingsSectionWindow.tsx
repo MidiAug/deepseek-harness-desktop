@@ -1,4 +1,5 @@
 import type { ShellSettings } from "../../shell/settings";
+import { useAppToast } from "../../shell";
 import { useLocale } from "../../shell/locale";
 import { SettingsPrefRow } from "./SettingsPrefRow";
 
@@ -12,6 +13,7 @@ type Props = {
 
 export function SettingsSectionWindow({ settings, patchRuntime }: Props) {
   const { t } = useLocale();
+  const { showToast } = useAppToast();
 
   return (
     <div className="settings-section">
@@ -25,12 +27,18 @@ export function SettingsSectionWindow({ settings, patchRuntime }: Props) {
           role="switch"
           aria-checked={settings.closeToTray}
           aria-label={t("settings.window.aria")}
-          onClick={() =>
+          onClick={() => {
+            const next = !settings.closeToTray;
             patchRuntime({
-              closeToTray: !settings.closeToTray,
+              closeToTray: next,
               closePrefSet: true,
-            })
-          }
+            });
+            showToast(
+              next
+                ? t("settings.window.toastTray")
+                : t("settings.window.toastQuit"),
+            );
+          }}
         >
           <span className="settings-switch-knob" />
         </button>
@@ -39,7 +47,10 @@ export function SettingsSectionWindow({ settings, patchRuntime }: Props) {
         <button
           type="button"
           className="btn ghost"
-          onClick={() => patchRuntime({ closePrefSet: false })}
+          onClick={() => {
+            patchRuntime({ closePrefSet: false });
+            showToast(t("settings.window.reaskDone"));
+          }}
         >
           {t("settings.window.reask")}
         </button>

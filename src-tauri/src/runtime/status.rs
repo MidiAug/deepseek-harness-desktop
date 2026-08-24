@@ -5,9 +5,11 @@ use tauri::{AppHandle, Runtime};
 use crate::paths;
 use crate::runtime::package::{is_harness_partial, read_harness_meta, resolve_dsh_entry};
 use crate::settings;
+use crate::supervise::{self, HarnessState};
 
 pub fn build_runtime_status_json<R: Runtime>(
     app: &AppHandle<R>,
+    state: &HarnessState,
     port: u16,
 ) -> Result<serde_json::Value, String> {
     let node = paths::node_binary(app)?;
@@ -15,12 +17,16 @@ pub fn build_runtime_status_json<R: Runtime>(
     let cfg = settings::load(app);
     let meta = read_harness_meta(app);
     let harness_ready = paths::is_file(&entry);
+    let clean_profile_active = supervise::is_clean_profile_active(state);
+    let effective_dsh_home = supervise::effective_dsh_home(app, state, &cfg);
     Ok(serde_json::json!({
         "nodeReady": paths::is_file(&node),
         "harnessReady": harness_ready,
         "harnessPartial": !harness_ready && is_harness_partial(app),
         "port": port,
-        "dshHome": paths::dsh_home(&app, Some(cfg.dsh_home_override.as_str())).to_string_lossy(),
+        "dshHome": paths::dsh_home(app, Some(cfg.dsh_home_override.as_str())).to_string_lossy(),
+        "effectiveDshHome": effective_dsh_home.to_string_lossy(),
+        "cleanProfileActive": clean_profile_active,
         "appData": paths::base_dir(app)?.to_string_lossy(),
         "mirror": cfg.mirror,
         "proxyMode": cfg.proxy_mode,

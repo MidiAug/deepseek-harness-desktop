@@ -14,6 +14,8 @@ pub enum HostError {
     HealthTimeout(String),
     #[error("HARNESS_NOT_FOUND: {0}")]
     HarnessNotFound(String),
+    #[error("PLUGIN_LOAD_FAILED: {0}")]
+    PluginLoadFailed(String),
     #[error("OPEN_PATH: {0}")]
     OpenPath(String),
     #[error("HIDE: {0}")]
@@ -41,6 +43,10 @@ impl HostError {
 
     pub fn harness_not_found(msg: impl Into<String>) -> Self {
         Self::HarnessNotFound(msg.into())
+    }
+
+    pub fn plugin_load_failed(msg: impl Into<String>) -> Self {
+        Self::PluginLoadFailed(msg.into())
     }
 }
 
@@ -84,5 +90,11 @@ mod tests {
     fn harness_not_found_prefix_stable() {
         let s: String = HostError::harness_not_found("/path/entry").into();
         assert!(s.starts_with("HARNESS_NOT_FOUND:"));
+    }
+
+    #[test]
+    fn plugin_load_failed_prefix_stable() {
+        let s: String = HostError::plugin_load_failed("插件加载超时").into();
+        assert!(s.starts_with("PLUGIN_LOAD_FAILED:"));
     }
 }

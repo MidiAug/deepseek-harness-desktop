@@ -35,6 +35,53 @@ pub async fn ensure_and_start<R: Runtime>(
     Ok(ReadyPayload { url, port })
 }
 
+/// 以 AppData 干净 profile 会话启动（临时 `DSH_HOME`，不删用户数据）。
+pub async fn start_clean_profile<R: Runtime>(
+    app: &AppHandle<R>,
+    state: &HarnessState,
+) -> Result<ReadyPayload, String> {
+    log::info!(target: "shell::runtime", "start_clean_profile begin");
+    let _guard = state.boot_lock.lock().await;
+    let _rt_lock = runtime_lock::acquire(app, LockPurpose::Ensure)?;
+    progress::emit_progress(app, "start", "正在准备干净 profile 会话…", Some(5));
+    supervise::stop_and_clear_pid(app, state);
+    tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+    let dir = supervise::activate_clean_profile_session(app, state)?;
+    progress::append_shell_log(
+        app,
+        &format!("start_clean_profile DSH_HOME={}", dir.display()),
+    );
+    install::ensure_runtime_installed(app).await?;
+    let (port, url) = supervise::spawn_and_wait_healthy(app, state).await?;
+    progress::emit_progress(
+        app,
+        "ready",
+        &format!("干净 profile 已就绪 · {url}"),
+        Some(100),
+    );
+    Ok(ReadyPayload { url, port })
+}
+
+/// 退出干净 profile 会话，回到用户配置的 `DSH_HOME` 并重启 harness。
+pub async fn exit_clean_profile<R: Runtime>(
+    app: &AppHandle<R>,
+    state: &HarnessState,
+) -> Result<ReadyPayload, String> {
+    log::info!(target: "shell::runtime", "exit_clean_profile begin");
+    let _guard = state.boot_lock.lock().await;
+    supervise::deactivate_clean_profile_session(app, state);
+    supervise::stop_and_clear_pid(app, state);
+    tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+    let (port, url) = supervise::spawn_and_wait_healthy(app, state).await?;
+    progress::emit_progress(
+        app,
+        "ready",
+        &format!("已回到正式 profile · {url}"),
+        Some(100),
+    );
+    Ok(ReadyPayload { url, port })
+}
+
 /// 重置托管 harness（保留 Node runtime；不碰 `$DSH_HOME`）→ 再 ensure。
 pub async fn reset_hosted_runtime<R: Runtime>(
     app: &AppHandle<R>,

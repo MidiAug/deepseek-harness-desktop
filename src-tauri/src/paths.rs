@@ -94,6 +94,11 @@ pub fn shell_log_file<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String>
     Ok(base_dir(app)?.join("logs").join("shell.log"))
 }
 
+/// 会话级干净 profile：仅本壳托管 spawn 使用，不删用户 `~/.dsh`。
+pub fn clean_profile_session_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
+    Ok(base_dir(app)?.join("clean-profile-session"))
+}
+
 /// debug 用 3081：避开官方默认 3080；若被占用则由 supervise 顺延。
 pub fn default_port() -> u16 {
     if cfg!(debug_assertions) {

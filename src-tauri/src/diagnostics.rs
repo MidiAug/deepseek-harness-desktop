@@ -144,7 +144,7 @@ pub fn export_diagnostics<R: Runtime>(
         .map(|g| *g)
         .unwrap_or_else(|_| paths::default_port());
     let pid = state.pid.lock().ok().and_then(|g| *g);
-    let mut runtime_status = build_runtime_status_json(app, port)?;
+    let mut runtime_status = build_runtime_status_json(app, state, port)?;
     if let Some(obj) = runtime_status.as_object_mut() {
         obj.insert("pid".into(), serde_json::json!(pid));
         obj.insert("exportedAt".into(), serde_json::json!(stamp));

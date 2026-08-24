@@ -61,6 +61,8 @@
 
 ## 怀疑插件导致无法启动
 
+- 设置 → **数据与诊断** → **干净 profile 启动**：使用 AppData `clean-profile-session` 作临时 `DSH_HOME`，**不删除**你的 `~/.dsh` 与已装插件  
+- 启动成功后可在同一分区 **退出干净 profile** 回到正式数据；或从首跑失败页 / 故障恢复 CTA 进入  
 - 壳 **重置托管运行时** 只清 AppData `harness`，**不删** `~/.dsh` 内已装插件  
 - 若官方 UI 因插件卡死：备份后尝试删除或移走 `%USERPROFILE%\.dsh\plugins`（或你自定义的 `DSH_HOME` 下 `plugins`）再重启  
 - 仍失败：设置 → 关于 → **导出诊断**，附 `shell.log` 与 `manifest.json` 求助  

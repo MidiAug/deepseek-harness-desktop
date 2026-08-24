@@ -26,6 +26,8 @@ pub struct HarnessState {
     pub owned: Mutex<Option<OwnedProcessHandle>>,
     pub pid: Mutex<Option<u32>>,
     pub port: Mutex<u16>,
+    /// 会话级干净 profile：优先于 settings 的 DSH_HOME 覆盖。
+    pub session_dsh_home: Mutex<Option<PathBuf>>,
     /// 防止 HMR / StrictMode / 重复点击并行跑 ensure（会叠多个 npm install）。
     pub boot_lock: tokio::sync::Mutex<()>,
 }
@@ -37,9 +39,73 @@ impl Default for HarnessState {
             owned: Mutex::new(None),
             pid: Mutex::new(None),
             port: Mutex::new(paths::default_port()),
+            session_dsh_home: Mutex::new(None),
             boot_lock: tokio::sync::Mutex::new(()),
         }
     }
+}
+
+/// 当前 spawn 使用的 `DSH_HOME`（干净 profile 会话优先）。
+pub fn effective_dsh_home<R: Runtime>(
+    app: &AppHandle<R>,
+    state: &HarnessState,
+    cfg: &settings::ShellSettings,
+) -> PathBuf {
+    if let Ok(guard) = state.session_dsh_home.lock() {
+        if let Some(path) = guard.as_ref() {
+            return path.clone();
+        }
+    }
+    paths::dsh_home(app, Some(cfg.dsh_home_override.as_str()))
+}
+
+pub fn is_clean_profile_active(state: &HarnessState) -> bool {
+    state
+        .session_dsh_home
+        .lock()
+        .ok()
+        .and_then(|g| g.as_ref().map(|_| true))
+        .unwrap_or(false)
+}
+
+pub fn activate_clean_profile_session<R: Runtime>(
+    app: &AppHandle<R>,
+    state: &HarnessState,
+) -> Result<PathBuf, String> {
+    let dir = paths::clean_profile_session_dir(app)?;
+    fs::create_dir_all(&dir).map_err(|e| {
+        String::from(HostError::spawn(format!("mkdir clean profile: {e}")))
+    })?;
+    *state
+        .session_dsh_home
+        .lock()
+        .map_err(|e| e.to_string())? = Some(dir.clone());
+    progress::append_shell_log(
+        app,
+        &format!("[ops] clean_profile_session {}", dir.display()),
+    );
+    Ok(dir)
+}
+
+pub fn deactivate_clean_profile_session<R: Runtime>(
+    app: &AppHandle<R>,
+    state: &HarnessState,
+) {
+    if let Ok(mut guard) = state.session_dsh_home.lock() {
+        if guard.take().is_some() {
+            progress::append_shell_log(app, "[ops] exit_clean_profile_session");
+        }
+    }
+}
+
+/// 从 pid 文件读取 `(pid, port)`；格式损坏时返回 `None` 并清理文件。
+pub fn read_pid_record<R: Runtime>(app: &AppHandle<R>) -> Option<(u32, u16)> {
+    let path = paths::pid_file(app).ok()?;
+    let text = fs::read_to_string(&path).ok()?;
+    let mut lines = text.lines();
+    let pid = lines.next()?.trim().parse::<u32>().ok()?;
+    let port = lines.next()?.trim().parse::<u16>().ok()?;
+    Some((pid, port))
 }
 
 /// 启动前清扫：仅杀「pid 文件记录且仍占该端口」的孤儿，避免误杀他人 node。
@@ -141,7 +207,7 @@ pub async fn spawn_and_wait_healthy<R: Runtime>(
             ));
         }
         let harness = paths::harness_dir(app)?;
-        let dsh_home = paths::dsh_home(app, Some(cfg.dsh_home_override.as_str()));
+        let dsh_home = effective_dsh_home(app, state, &cfg);
         fs::create_dir_all(&dsh_home).map_err(|e| {
             String::from(HostError::spawn(format!("mkdir DSH_HOME: {e}")))
         })?;
@@ -202,38 +268,81 @@ pub async fn spawn_and_wait_healthy<R: Runtime>(
 }
 
 /// 本壳已托管进程且根路径已 HTTP 200 时复用，避免重复 ensure 杀进程。
+/// 若 pid 文件端口与内存端口不一致，以探活成功的端口为准（漂移自愈）。
 pub async fn try_reuse_healthy<R: Runtime>(
     app: &AppHandle<R>,
     state: &HarnessState,
 ) -> Option<progress::ReadyPayload> {
-    let port = match state.port.lock() {
-        Ok(g) => *g,
-        Err(_) => return None,
-    };
-    let pid = match state.pid.lock() {
-        Ok(g) => *g,
-        Err(_) => return None,
-    }?;
+    let state_pid = state.pid.lock().ok().and_then(|g| *g);
+    let file_record = read_pid_record(app);
+    let pid = state_pid.or_else(|| file_record.map(|(p, _)| p))?;
+
     if !process_still_ours(state, pid) {
         return None;
     }
-    let url = paths::service_url(port);
-    let client = reqwest::Client::builder()
+
+    let state_port = state
+        .port
+        .lock()
+        .ok()
+        .map(|g| *g)
+        .unwrap_or_else(paths::default_port);
+
+    let mut candidate_ports = Vec::new();
+    if let Some((file_pid, file_port)) = file_record {
+        if file_pid == pid {
+            candidate_ports.push(file_port);
+        }
+    }
+    candidate_ports.push(state_port);
+    candidate_ports.sort_unstable();
+    candidate_ports.dedup();
+
+    for port in candidate_ports {
+        if !process_still_ours(state, pid) {
+            return None;
+        }
+        let url = paths::service_url(port);
+        if !probe_service_healthy(&url).await {
+            continue;
+        }
+        if let Ok(mut g) = state.port.lock() {
+            if *g != port {
+                log::info!(
+                    target: "shell::supervise",
+                    "healed port drift {} -> {port}",
+                    *g
+                );
+                progress::append_shell_log(app, &format!("[ops] healed port drift -> {port}"));
+            }
+            *g = port;
+        }
+        if let Ok(mut g) = state.pid.lock() {
+            *g = Some(pid);
+        }
+        progress::emit_progress(
+            app,
+            "start",
+            &format!("复用已就绪服务：{url}"),
+            Some(100),
+        );
+        return Some(progress::ReadyPayload { url, port });
+    }
+    None
+}
+
+async fn probe_service_healthy(url: &str) -> bool {
+    let client = match reqwest::Client::builder()
         .timeout(Duration::from_secs(2))
         .no_proxy()
         .build()
-        .ok()?;
-    match client.get(&url).send().await {
-        Ok(resp) if resp.status().as_u16() == 200 => {
-            progress::emit_progress(
-                app,
-                "start",
-                &format!("复用已就绪服务：{url}"),
-                Some(100),
-            );
-            Some(progress::ReadyPayload { url, port })
-        }
-        _ => None,
+    {
+        Ok(c) => c,
+        Err(_) => return false,
+    };
+    match client.get(url).send().await {
+        Ok(resp) => resp.status().as_u16() == 200,
+        Err(_) => false,
     }
 }
 
@@ -255,6 +364,11 @@ async fn wait_healthy<R: Runtime>(
     let mut tick: u32 = 0;
     loop {
         if tokio::time::Instant::now() > deadline {
+            if harness_log_suggests_plugin_issue(app) {
+                return Err(String::from(HostError::plugin_load_failed(format!(
+                    "{url} 在时限内未就绪，日志提示可能与插件加载有关"
+                ))));
+            }
             return Err(String::from(
                 HostError::health_timeout(format!(
                     "{url} 在时限内未返回 HTTP 200（请查看 AppData/logs/harness.log）"
@@ -304,6 +418,20 @@ async fn wait_healthy<R: Runtime>(
             }
         }
     }
+}
+
+fn harness_log_suggests_plugin_issue<R: Runtime>(app: &AppHandle<R>) -> bool {
+    let Ok(path) = paths::harness_log_file(app) else {
+        return false;
+    };
+    let text = fs::read_to_string(&path).unwrap_or_default();
+    let tail = if text.len() > 4000 {
+        &text[text.len() - 4000..]
+    } else {
+        &text
+    };
+    let lower = tail.to_lowercase();
+    lower.contains("plugin") || lower.contains("cordis") || lower.contains("dshmarket")
 }
 
 fn process_still_ours(state: &HarnessState, expected_pid: u32) -> bool {

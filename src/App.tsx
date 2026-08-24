@@ -23,9 +23,9 @@ import {
   useShellSession,
   useSidebarLayout,
   useHarnessContextMenu,
+  useAppToast,
 } from "./shell";
 import type { DownloadFinishedPayload } from "./shell/api/shellApi";
-import { useShellToast } from "./shell/hooks/useShellToast";
 import {
   clearShellSelections,
   dismissSessionExportDialog,
@@ -114,14 +114,7 @@ export default function App() {
   const [sessionLogAvailable, setSessionLogAvailable] = useState(false);
   const sessionLogDownloadPending = useRef(false);
   const sessionLogDownloadTimer = useRef<number | null>(null);
-  const {
-    showToast: showDownloadToast,
-    dismissToast: dismissDownloadToast,
-    toastMessage: downloadToastMessage,
-    toastAction: downloadToastAction,
-    toastLeaving: downloadToastLeaving,
-    toastVisible: downloadToastVisible,
-  } = useShellToast();
+  const { showToast } = useAppToast();
 
   const openSettings = useCallback((section?: SettingsSection) => {
     setSettingsSection(section);
@@ -240,11 +233,10 @@ export default function App() {
       const filePath = ev.payload.path;
       shellLog.info("download", `session-log toast path=${filePath}`);
       dismissSessionExportDialog(harnessFrameRef.current);
-      showDownloadToast(t("chrome.sessionLog.downloaded"), {
+      showToast(t("chrome.sessionLog.downloaded"), {
         action: {
           label: t("chrome.sessionLog.open"),
           onClick: () => {
-            dismissDownloadToast();
             shellLog.info("download", `session-log reveal path=${filePath}`);
             dismissSessionExportDialog(harnessFrameRef.current);
             void shellApi.revealDownloadedFile(filePath).catch((e) => {
@@ -259,7 +251,7 @@ export default function App() {
     return () => {
       unlisten?.();
     };
-  }, [dismissDownloadToast, showDownloadToast, t]);
+  }, [showToast, t]);
 
   const onSessionLog = useCallback(() => {
     shellLog.info("download", "session-log click (pending download toast)");
@@ -432,15 +424,6 @@ export default function App() {
             leaving={copyToastLeaving}
             showSpinner={false}
             action={copyToastAction ?? undefined}
-          />
-        )}
-
-        {downloadToastVisible && downloadToastMessage && (
-          <ShellProgressBubble
-            message={downloadToastMessage}
-            leaving={downloadToastLeaving}
-            showSpinner={false}
-            action={downloadToastAction ?? undefined}
           />
         )}
       </div>

@@ -31,6 +31,9 @@ export type RuntimeStatus = {
   /** package.json SHA-256 前 16 hex */
   harnessDigest?: string | null;
   shellVersion?: string;
+  /** 当前 spawn 实际使用的 DSH_HOME（含干净 profile 会话） */
+  effectiveDshHome?: string;
+  cleanProfileActive?: boolean;
 };
 
 export type HarnessUpdateCheck = {

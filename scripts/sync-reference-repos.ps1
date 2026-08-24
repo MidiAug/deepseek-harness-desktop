@@ -33,13 +33,17 @@ function Sync-Repo {
         }
     }
 
-    Push-Location $Path
+        Push-Location $Path
     try {
         $branch = git branch --show-current 2>$null
         if (-not $branch) { $branch = "HEAD" }
 
+        $prevEap = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
         $fetch = & git @gitProxy fetch origin --prune --tags 2>&1 | Out-String
-        if ($LASTEXITCODE -ne 0) {
+        $fetchExit = $LASTEXITCODE
+        $ErrorActionPreference = $prevEap
+        if ($fetchExit -ne 0) {
             return [PSCustomObject]@{
                 name = $name; kind = $Kind; status = "fetch_failed"; branch = $branch
                 local = (git rev-parse --short HEAD 2>$null); remote = $null

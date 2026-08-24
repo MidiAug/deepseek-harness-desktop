@@ -11,6 +11,7 @@ import {
 } from "../../shell";
 import { type FaultCta } from "../../shell/errors/recoveryMatrix";
 import { FaultRecoveryBlock } from "../chrome/FaultRecoveryBlock";
+import { ShellConfirmDialog } from "../chrome/ShellConfirmDialog";
 
 type Props = {
   startCommand: StartCommand;
@@ -43,6 +44,8 @@ export function BootPanel({
   const [repairing, setRepairing] = useState(false);
   const [logOpen, setLogOpen] = useState(true);
   const [done, setDone] = useState(false);
+  const [cleanProfileConfirmOpen, setCleanProfileConfirmOpen] = useState(false);
+  const [slowBoot, setSlowBoot] = useState(false);
   const logBodyRef = useRef<HTMLDivElement>(null);
   const startedRef = useRef(false);
   const onStealthChangeRef = useRef(onStealthChange);
@@ -110,6 +113,47 @@ export function BootPanel({
     })();
   }, [onReady, onError, t]);
 
+  const executeCleanProfile = useCallback(() => {
+    startedRef.current = true;
+    onBootWorkingRef.current?.(true);
+    setFailed(false);
+    setError(null);
+    seedBootRef.current({
+      message: t("boot.msg.ensure"),
+      stageId: "detect",
+      percent: 5,
+      clearLog: true,
+    });
+    void (async () => {
+      try {
+        const ready = await shellApi.startCleanProfile();
+        const msg = `${t("boot.msg.ready")} · :${ready.port}`;
+        seedBootRef.current({
+          message: msg,
+          stageId: "start",
+          percent: 100,
+        });
+        setDone(true);
+        onReady(ready);
+      } catch (e) {
+        const msg = typeof e === "string" ? e : String(e);
+        shellLog.error("boot", "start_clean_profile", msg);
+        setFailed(true);
+        setError(msg);
+        seedBootRef.current({
+          message: t("boot.msg.failed"),
+          stageId: "start",
+        });
+        startedRef.current = false;
+        onError();
+      }
+    })();
+  }, [onReady, onError, t]);
+
+  const runCleanProfile = useCallback(() => {
+    setCleanProfileConfirmOpen(true);
+  }, []);
+
   const start = useCallback(
     async (cmd: StartCommand) => {
       setFailed(false);
@@ -166,9 +210,12 @@ export function BootPanel({
         case "reset":
           runReset();
           break;
+        case "cleanProfile":
+          runCleanProfile();
+          break;
       }
     },
-    [onOpenSettings, runReset, start, startCommand],
+    [onOpenSettings, runCleanProfile, runReset, start, startCommand],
   );
 
   useEffect(() => {
@@ -210,8 +257,17 @@ export function BootPanel({
     return () => window.cancelAnimationFrame(id);
   }, [life.logLines, logOpen]);
 
-  const stealth = !runtimeKnown || (fastPath && !failed);
+  const stealth = !runtimeKnown || (fastPath && !failed && !slowBoot);
   const working = !failed && !done;
+
+  useEffect(() => {
+    if (!working || failed || done) {
+      setSlowBoot(false);
+      return;
+    }
+    const id = window.setTimeout(() => setSlowBoot(true), 1800);
+    return () => window.clearTimeout(id);
+  }, [working, failed, done]);
 
   useEffect(() => {
     onStealthChangeRef.current?.(stealth && !done);
@@ -235,8 +291,33 @@ export function BootPanel({
     working &&
     (percent == null || percent === 75 || /npm install|修复安装/.test(message));
 
+  if (stealth) {
+    return (
+      <ShellConfirmDialog
+        open={cleanProfileConfirmOpen}
+        titleKey="boot.cleanProfile.confirmTitle"
+        bodyKey="boot.cleanProfile.confirm"
+        onCancel={() => setCleanProfileConfirmOpen(false)}
+        onConfirm={() => {
+          setCleanProfileConfirmOpen(false);
+          executeCleanProfile();
+        }}
+      />
+    );
+  }
+
   return (
     <main className="boot-panel">
+      <ShellConfirmDialog
+        open={cleanProfileConfirmOpen}
+        titleKey="boot.cleanProfile.confirmTitle"
+        bodyKey="boot.cleanProfile.confirm"
+        onCancel={() => setCleanProfileConfirmOpen(false)}
+        onConfirm={() => {
+          setCleanProfileConfirmOpen(false);
+          executeCleanProfile();
+        }}
+      />
       <div className="boot-shell">
         <div className="boot-card">
           <header className="boot-hero">

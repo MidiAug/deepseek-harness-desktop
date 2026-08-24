@@ -47,6 +47,9 @@ export type LocaleKey =
   | "settings.window.description"
   | "settings.window.aria"
   | "settings.window.reask"
+  | "settings.window.reaskDone"
+  | "settings.window.toastTray"
+  | "settings.window.toastQuit"
   | "settings.port.title"
   | "settings.port.description"
   | "settings.port.placeholder"
@@ -82,6 +85,15 @@ export type LocaleKey =
   | "settings.data.reset.button"
   | "settings.data.reset.confirm"
   | "settings.data.reset.done"
+  | "settings.data.cleanProfile.title"
+  | "settings.data.cleanProfile.description"
+  | "settings.data.cleanProfile.active"
+  | "settings.data.cleanProfile.start"
+  | "settings.data.cleanProfile.exit"
+  | "settings.data.cleanProfile.confirm"
+  | "settings.data.cleanProfile.confirmTitle"
+  | "settings.data.cleanProfile.done"
+  | "settings.data.cleanProfile.exitDone"
   | "settings.about.name"
   | "settings.about.tag"
   | "settings.about.shellVersion"
@@ -167,12 +179,17 @@ export type LocaleKey =
   | "boot.fault.node.body"
   | "boot.fault.harness.title"
   | "boot.fault.harness.body"
+  | "boot.fault.plugin.title"
+  | "boot.fault.plugin.body"
   | "boot.fault.default.title"
   | "boot.fault.default.body"
   | "boot.cta.retry"
   | "boot.cta.network"
   | "boot.cta.logs"
   | "boot.cta.reset"
+  | "boot.cta.cleanProfile"
+  | "boot.cleanProfile.confirm"
+  | "boot.cleanProfile.confirmTitle"
   | "boot.reset.confirm"
   | "boot.msg.harnessUpdated"
   | "chrome.windowControls.aria"
@@ -207,7 +224,8 @@ export type LocaleKey =
   | "closeAsk.rememberHint"
   | "closeAsk.toTray"
   | "closeAsk.quit"
-  | "closeAsk.cancel"
+  | "chrome.confirm.ok"
+  | "chrome.confirm.cancel"
   | "tray.open"
   | "tray.quit";
 
@@ -267,6 +285,9 @@ export const zh: LocaleDict = {
   "settings.window.description": "关闭时会记住此选择；也可用下方按钮下次再询问",
   "settings.window.aria": "关闭窗口时最小化到托盘",
   "settings.window.reask": "下次关闭时重新询问",
+  "settings.window.reaskDone": "已恢复：下次关闭窗口时将再次询问",
+  "settings.window.toastTray": "已设为：关闭时最小化到托盘",
+  "settings.window.toastQuit": "已设为：关闭时直接退出",
   "settings.port.title": "首选端口",
   "settings.port.description":
     "0 或留空 = 壳默认（开发 3081 / 发行 3080）；被占用时自动顺延。改后需重启 harness。",
@@ -306,6 +327,17 @@ export const zh: LocaleDict = {
   "settings.data.reset.confirm":
     "将清除本机托管的 harness 安装并重新下载（保留 Node；不删除 ~/.dsh）。继续？",
   "settings.data.reset.done": "托管运行时已重置并重新启动。",
+  "settings.data.cleanProfile.title": "干净 profile（插件故障）",
+  "settings.data.cleanProfile.description":
+    "怀疑 ~/.dsh 内插件导致无法启动时，用 AppData 临时目录作为 DSH_HOME 启动；不删除你的正式数据。",
+  "settings.data.cleanProfile.active": "当前处于干净 profile 会话。",
+  "settings.data.cleanProfile.start": "干净 profile 启动",
+  "settings.data.cleanProfile.exit": "退出干净 profile",
+  "settings.data.cleanProfile.confirm":
+    "将使用 AppData 临时干净 profile 启动，不删除 ~/.dsh。",
+  "settings.data.cleanProfile.confirmTitle": "干净 profile 启动",
+  "settings.data.cleanProfile.done": "已以干净 profile 启动。",
+  "settings.data.cleanProfile.exitDone": "已退出干净 profile 并回到正式 DSH_HOME。",
   "settings.about.name": "deepseek-harness-desktop",
   "settings.about.tag": "DeepSeek Harness 桌面版",
   "settings.about.shellVersion": "壳版本",
@@ -401,12 +433,19 @@ export const zh: LocaleDict = {
   "boot.fault.harness.title": "缺少 harness 入口",
   "boot.fault.harness.body":
     "托管 harness 入口文件缺失，可能半安装或更新中断，建议重置 harness。",
+  "boot.fault.plugin.title": "插件可能阻止启动",
+  "boot.fault.plugin.body":
+    "官方 UI 长时间未就绪，日志提示可能与插件有关。可用干净 profile 临时启动（不删你的 ~/.dsh）。",
   "boot.fault.default.title": "启动失败",
   "boot.fault.default.body": "请查看下方技术详情，或重试 / 打开日志。",
   "boot.cta.retry": "重试",
   "boot.cta.network": "去设置网络",
   "boot.cta.logs": "打开日志",
   "boot.cta.reset": "重置托管运行时",
+  "boot.cta.cleanProfile": "干净 profile 启动",
+  "boot.cleanProfile.confirmTitle": "干净 profile 启动",
+  "boot.cleanProfile.confirm":
+    "将使用 AppData 下的临时干净 profile 启动（不删除你当前的 ~/.dsh 与已装插件）。",
   "boot.reset.confirm":
     "将清除本机托管的 harness 安装并重新下载（保留已下载的 Node；不会删除 ~/.dsh 会话与插件）。继续？",
   "boot.msg.harnessUpdated": "更新完成",
@@ -437,12 +476,13 @@ export const zh: LocaleDict = {
   "chrome.updateBanner.downloaded": "壳 {version} 已下载完成，重启后安装",
   "chrome.updateBanner.newVersion": "新版本",
   "closeAsk.title": "关闭窗口",
-  "closeAsk.lead": "关闭时希望怎么做？官方 UI 服务可在托盘后台继续运行。",
-  "closeAsk.remember": "记住为我的默认选择",
-  "closeAsk.rememberHint": "之后可在壳设置 → 窗口 中修改",
+  "closeAsk.lead": "可最小化到托盘继续运行，或直接退出应用。",
+  "closeAsk.remember": "记住选择",
+  "closeAsk.rememberHint": "设置 → 窗口可改",
   "closeAsk.toTray": "最小化到托盘",
   "closeAsk.quit": "直接退出",
-  "closeAsk.cancel": "取消",
+  "chrome.confirm.ok": "确定",
+  "chrome.confirm.cancel": "取消",
   "tray.open": "打开窗口",
   "tray.quit": "退出",
 };
@@ -504,6 +544,9 @@ export const en: LocaleDict = {
     "Your choice is remembered; use the button below to ask again next time",
   "settings.window.aria": "Minimize to tray when closing",
   "settings.window.reask": "Ask again on next close",
+  "settings.window.reaskDone": "Next close will ask again",
+  "settings.window.toastTray": "Close will minimize to tray",
+  "settings.window.toastQuit": "Close will quit the app",
   "settings.port.title": "Preferred port",
   "settings.port.description":
     "0 or empty = shell default (dev 3081 / release 3080); auto-increments if busy. Restart harness after change.",
@@ -543,6 +586,17 @@ export const en: LocaleDict = {
   "settings.data.reset.confirm":
     "This clears the hosted harness install and downloads again (keeps Node; does not delete ~/.dsh). Continue?",
   "settings.data.reset.done": "Hosted runtime reset and restarted.",
+  "settings.data.cleanProfile.title": "Clean profile (plugin issues)",
+  "settings.data.cleanProfile.description":
+    "If plugins under ~/.dsh block startup, launch with a temporary AppData DSH_HOME without deleting your real data.",
+  "settings.data.cleanProfile.active": "Clean profile session is active.",
+  "settings.data.cleanProfile.start": "Start clean profile",
+  "settings.data.cleanProfile.exit": "Exit clean profile",
+  "settings.data.cleanProfile.confirm":
+    "Launch with a temporary clean profile under AppData; your ~/.dsh is not deleted.",
+  "settings.data.cleanProfile.confirmTitle": "Start clean profile",
+  "settings.data.cleanProfile.done": "Started with clean profile.",
+  "settings.data.cleanProfile.exitDone": "Exited clean profile; back to your normal DSH_HOME.",
   "settings.about.name": "deepseek-harness-desktop",
   "settings.about.tag": "DeepSeek Harness desktop",
   "settings.about.shellVersion": "Shell version",
@@ -641,6 +695,9 @@ export const en: LocaleDict = {
   "boot.fault.harness.title": "Harness entry missing",
   "boot.fault.harness.body":
     "Managed harness entry file is missing—partial install or interrupted update. Reset harness.",
+  "boot.fault.plugin.title": "Plugins may be blocking startup",
+  "boot.fault.plugin.body":
+    "Official UI did not become ready in time; logs suggest plugins. Start with a clean profile (your ~/.dsh is not deleted).",
   "boot.fault.default.title": "Start failed",
   "boot.fault.default.body":
     "See technical details below, or retry / open logs.",
@@ -648,6 +705,10 @@ export const en: LocaleDict = {
   "boot.cta.network": "Network settings",
   "boot.cta.logs": "Open logs",
   "boot.cta.reset": "Reset hosted runtime",
+  "boot.cta.cleanProfile": "Start clean profile",
+  "boot.cleanProfile.confirmTitle": "Start clean profile",
+  "boot.cleanProfile.confirm":
+    "Use a temporary clean profile under AppData (does not delete your ~/.dsh or plugins).",
   "boot.reset.confirm":
     "Clears the local harness install and re-downloads (keeps Node; does not delete ~/.dsh). Continue?",
   "boot.msg.harnessUpdated": "Update complete",
@@ -679,13 +740,13 @@ export const en: LocaleDict = {
     "Shell {version} downloaded. Restart to install.",
   "chrome.updateBanner.newVersion": "new version",
   "closeAsk.title": "Close window",
-  "closeAsk.lead":
-    "What should happen when you close? The official UI service can keep running in the tray.",
-  "closeAsk.remember": "Remember as my default",
-  "closeAsk.rememberHint": "Change later in Shell settings → Window",
+  "closeAsk.lead": "Minimize to the tray to keep running, or quit the app.",
+  "closeAsk.remember": "Remember",
+  "closeAsk.rememberHint": "Change in Settings → Window",
   "closeAsk.toTray": "Minimize to tray",
-  "closeAsk.quit": "Quit completely",
-  "closeAsk.cancel": "Cancel",
+  "closeAsk.quit": "Quit",
+  "chrome.confirm.ok": "Confirm",
+  "chrome.confirm.cancel": "Cancel",
   "tray.open": "Open window",
   "tray.quit": "Quit",
 };

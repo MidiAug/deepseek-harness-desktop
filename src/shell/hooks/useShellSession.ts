@@ -96,9 +96,7 @@ export function useShellSession() {
     (phase === "embedding" || phase === "ready") && serviceUrl != null;
 
   const wantBubble =
-    phase === "embedding" ||
-    ((phase === "idle" || phase === "installing" || phase === "spawning") &&
-      bootStealth);
+    (showBootPanel && phase !== "failed") || phase === "embedding";
 
   const bubbleMessage =
     phase === "embedding"

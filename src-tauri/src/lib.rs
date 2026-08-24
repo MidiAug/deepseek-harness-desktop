@@ -174,7 +174,7 @@ fn get_runtime_status(
         .lock()
         .map(|g| *g)
         .unwrap_or_else(|_| paths::default_port());
-    runtime::build_runtime_status_json(&app, port)
+    runtime::build_runtime_status_json(&app, &state, port)
 }
 
 #[tauri::command]
@@ -285,6 +285,26 @@ async fn prepare_shell_update(
     tokio::time::sleep(std::time::Duration::from_millis(1200)).await;
     progress::append_shell_log(&app, "[ops] prepare_shell_update done");
     Ok(())
+}
+
+#[tauri::command]
+async fn start_clean_profile(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, HarnessState>,
+) -> Result<ReadyPayload, String> {
+    log::info!(target: "shell::ipc", "start_clean_profile");
+    progress::append_shell_log(&app, "[ops] start_clean_profile");
+    runtime::start_clean_profile(&app, &state).await
+}
+
+#[tauri::command]
+async fn exit_clean_profile(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, HarnessState>,
+) -> Result<ReadyPayload, String> {
+    log::info!(target: "shell::ipc", "exit_clean_profile");
+    progress::append_shell_log(&app, "[ops] exit_clean_profile");
+    runtime::exit_clean_profile(&app, &state).await
 }
 
 /// 重置托管 harness（保留 Node；不碰 `$DSH_HOME`）后重新 ensure。
@@ -424,6 +444,8 @@ pub fn run() {
             check_harness_update,
             apply_harness_update,
             prepare_shell_update,
+            start_clean_profile,
+            exit_clean_profile,
             reset_hosted_runtime,
             read_shell_log,
             export_diagnostics,

@@ -26,6 +26,12 @@ describe("getRecoveryPlan", () => {
     assert.deepEqual(plan.secondary, ["retry", "logs"]);
   });
 
+  test("maps PLUGIN_LOAD_FAILED to cleanProfile primary", () => {
+    const plan = getRecoveryPlan("PLUGIN_LOAD_FAILED: plugin hang");
+    assert.equal(plan.prefix, "PLUGIN_LOAD_FAILED");
+    assert.equal(plan.primary, "cleanProfile");
+  });
+
   test("maps DEFAULT to retry primary", () => {
     const plan = getRecoveryPlan("something else");
     assert.equal(plan.prefix, "DEFAULT");

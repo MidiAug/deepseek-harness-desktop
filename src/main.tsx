@@ -6,6 +6,7 @@ import {
   ChromeProvider,
   HostLifecycleProvider,
   LocaleProvider,
+  ShellToastProvider,
   ShellUpdateProvider,
   shellLog,
 } from "./shell";
@@ -21,7 +22,9 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
       <ChromeProvider>
         <HostLifecycleProvider>
           <ShellUpdateProvider>
-            <App />
+            <ShellToastProvider>
+              <App />
+            </ShellToastProvider>
           </ShellUpdateProvider>
         </HostLifecycleProvider>
       </ChromeProvider>

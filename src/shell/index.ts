@@ -47,5 +47,10 @@ export {
   type FaultCta,
   type FaultPrefix,
 } from "./errors/recoveryMatrix";
+export {
+  ShellToastProvider,
+  useAppToast,
+} from "./contexts/ShellToastProvider";
+export type { ShellToastAction, ShowToastOptions } from "./contexts/ShellToastProvider";
 export { shellLog } from "./logger";
 export { PLATFORM_URL } from "./settings";

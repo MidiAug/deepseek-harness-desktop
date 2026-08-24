@@ -55,59 +55,60 @@ export function CloseAskDialog({ open, onClose }: Props) {
   }
 
   return (
-    <div className="modal-backdrop" role="presentation">
+    <div
+      className="modal-backdrop shell-confirm-backdrop"
+      role="presentation"
+      onClick={() => {
+        if (!busy) onClose();
+      }}
+    >
       <div
         ref={modalRef}
         tabIndex={-1}
-        className="modal close-ask"
+        className="modal shell-dialog close-ask"
         role="dialog"
         aria-labelledby="close-ask-title"
+        aria-describedby="close-ask-body"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="drawer-head">
-          <h2 id="close-ask-title">{t("closeAsk.title")}</h2>
-        </div>
-        <p className="lead">{t("closeAsk.lead")}</p>
+        <header className="shell-dialog__head">
+          <h2 id="close-ask-title" className="shell-dialog__title">
+            {t("closeAsk.title")}
+          </h2>
+        </header>
+        <p id="close-ask-body" className="shell-dialog__body">
+          {t("closeAsk.lead")}
+        </p>
 
-        <label className="field check">
-          <input
-            type="checkbox"
-            checked={remember}
-            disabled={busy}
-            onChange={(ev) => setRemember(ev.target.checked)}
-          />
-          <span>
-            {t("closeAsk.remember")}
-            <small>{t("closeAsk.rememberHint")}</small>
-          </span>
-        </label>
-
-        <div className="close-ask-actions">
-          <button
-            type="button"
-            className="btn"
-            disabled={busy}
-            onClick={() => void apply(true)}
-          >
-            {t("closeAsk.toTray")}
-          </button>
-          <button
-            type="button"
-            className="btn ghost"
-            disabled={busy}
-            onClick={() => void apply(false)}
-          >
-            {t("closeAsk.quit")}
-          </button>
-          <button
-            type="button"
-            className="btn ghost"
-            disabled={busy}
-            onClick={onClose}
-          >
-            {t("closeAsk.cancel")}
-          </button>
-        </div>
+        <footer className="shell-dialog__footer close-ask__footer">
+          <label className="close-ask__remember">
+            <input
+              type="checkbox"
+              checked={remember}
+              disabled={busy}
+              onChange={(ev) => setRemember(ev.target.checked)}
+            />
+            <span>{t("closeAsk.remember")}</span>
+          </label>
+          <div className="close-ask__actions">
+            <button
+              type="button"
+              className="btn"
+              disabled={busy}
+              onClick={() => void apply(true)}
+            >
+              {t("closeAsk.toTray")}
+            </button>
+            <button
+              type="button"
+              className="btn ghost"
+              disabled={busy}
+              onClick={() => void apply(false)}
+            >
+              {t("closeAsk.quit")}
+            </button>
+          </div>
+        </footer>
       </div>
     </div>
   );

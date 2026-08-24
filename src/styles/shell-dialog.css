@@ -1,0 +1,140 @@
+/* 壳内小弹窗：关窗询问 / 确认框 */
+.shell-dialog.modal {
+  gap: 0;
+  padding: 0;
+  width: min(400px, 100%);
+}
+
+/* 关窗询问：正文说明 + 页脚「勾选左 / 操作右」（Esc / 点遮罩取消） */
+.shell-dialog.close-ask {
+  width: min(420px, calc(100vw - 32px));
+}
+
+.close-ask .shell-dialog__body {
+  padding-bottom: 18px;
+}
+
+.close-ask__footer {
+  margin-top: 0;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+
+.close-ask__remember {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  min-width: 0;
+  flex: 0 1 auto;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--color-text-secondary, var(--color-ink));
+  cursor: pointer;
+  user-select: none;
+}
+
+.close-ask__remember input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  flex-shrink: 0;
+  accent-color: var(--color-accent, #4c6ef5);
+}
+
+.close-ask__remember span {
+  white-space: nowrap;
+}
+
+.close-ask__actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.close-ask__actions .btn {
+  min-width: 0;
+  padding-inline: 14px;
+}
+
+.shell-dialog__head {
+  padding: 20px 24px 0;
+}
+
+.shell-dialog__title {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+  color: var(--color-text-primary, var(--color-ink));
+}
+
+.shell-dialog__body {
+  margin: 8px 0 0;
+  padding: 0 24px;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--color-text-secondary, var(--color-ink));
+}
+
+.shell-dialog__check {
+  margin: 14px 0 0;
+  padding: 0 24px;
+}
+
+.shell-dialog__check small {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--color-text-secondary, var(--color-ink));
+  opacity: 0.85;
+}
+
+.shell-dialog__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+  padding: 14px 20px 18px;
+  border-top: 1px solid var(--color-line);
+  background: var(--color-panel);
+}
+
+.shell-dialog__footer--stack {
+  justify-content: stretch;
+}
+
+.shell-dialog__footer--stack .btn {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.shell-confirm-backdrop {
+  z-index: 1100;
+}
+
+/* 全局 Toast 挂载点（顶中，高于设置弹窗） */
+.shell-toast-host {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1200;
+  pointer-events: none;
+}
+
+.shell-toast-host .shell-progress-bubble {
+  position: fixed;
+  top: 52px;
+  pointer-events: auto;
+}
+
+.shell-toast-host .shell-progress-bubble--interactive {
+  pointer-events: auto;
+}

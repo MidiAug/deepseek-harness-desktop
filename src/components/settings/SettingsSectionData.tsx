@@ -1,10 +1,13 @@
+import { useCallback, useState } from "react";
 import type { ShellSettings } from "../../shell/settings";
-import { shellApi, type ReadyPayload } from "../../shell";
+import { shellApi, type ReadyPayload, type RuntimeStatus, useAppToast } from "../../shell";
 import { useLocale } from "../../shell/locale";
+import { ShellConfirmDialog } from "../chrome/ShellConfirmDialog";
 import { SettingsPrefRow } from "./SettingsPrefRow";
 
 type Props = {
   settings: ShellSettings;
+  runtime: RuntimeStatus | null;
   locked: boolean;
   patchRuntime: (
     patch: Partial<ShellSettings>,
@@ -36,6 +39,7 @@ function PathButton({
 
 export function SettingsSectionData({
   settings,
+  runtime,
   locked,
   patchRuntime,
   flashHint,
@@ -44,9 +48,40 @@ export function SettingsSectionData({
   onHarnessReady,
 }: Props) {
   const { t } = useLocale();
+  const { showToast } = useAppToast();
+  const [cleanProfileConfirmOpen, setCleanProfileConfirmOpen] = useState(false);
+  const [cleanProfileBusy, setCleanProfileBusy] = useState(false);
+
+  const runStartCleanProfile = useCallback(async () => {
+    setError(null);
+    setCleanProfileBusy(true);
+    try {
+      const ready = await shellApi.startCleanProfile();
+      setCleanProfileConfirmOpen(false);
+      showToast(t("settings.data.cleanProfile.done"));
+      flashHint(t("settings.data.cleanProfile.done"));
+      refreshRuntime();
+      onHarnessReady?.(ready);
+    } catch (e) {
+      const msg = typeof e === "string" ? e : String(e);
+      setError(msg, runStartCleanProfile);
+    } finally {
+      setCleanProfileBusy(false);
+    }
+  }, [flashHint, onHarnessReady, refreshRuntime, setError, showToast, t]);
 
   return (
     <div className="settings-section">
+      <ShellConfirmDialog
+        open={cleanProfileConfirmOpen}
+        titleKey="settings.data.cleanProfile.confirmTitle"
+        bodyKey="settings.data.cleanProfile.confirm"
+        busy={cleanProfileBusy}
+        onCancel={() => {
+          if (!cleanProfileBusy) setCleanProfileConfirmOpen(false);
+        }}
+        onConfirm={() => void runStartCleanProfile()}
+      />
       <SettingsPrefRow
         title={t("settings.data.dshHome.title")}
         description={t("settings.data.dshHome.description")}
@@ -74,6 +109,51 @@ export function SettingsSectionData({
         <PathButton which="logs" label={t("settings.data.path.logs")} />
       </div>
       <SettingsPrefRow
+        title={t("settings.data.cleanProfile.title")}
+        description={t("settings.data.cleanProfile.description")}
+        layout="stack"
+      >
+        {runtime?.cleanProfileActive ? (
+          <p className="settings-cell-desc">{t("settings.data.cleanProfile.active")}</p>
+        ) : null}
+        <div className="settings-cell-actions">
+          {runtime?.cleanProfileActive ? (
+            <button
+              type="button"
+              className="btn ghost"
+              disabled={locked}
+              onClick={() => {
+                const runExit = async () => {
+                  setError(null);
+                  try {
+                    const ready = await shellApi.exitCleanProfile();
+                    flashHint(t("settings.data.cleanProfile.exitDone"));
+                    showToast(t("settings.data.cleanProfile.exitDone"));
+                    refreshRuntime();
+                    onHarnessReady?.(ready);
+                  } catch (e) {
+                    const msg = typeof e === "string" ? e : String(e);
+                    setError(msg, runExit);
+                  }
+                };
+                void runExit();
+              }}
+            >
+              {t("settings.data.cleanProfile.exit")}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn ghost"
+              disabled={locked}
+              onClick={() => setCleanProfileConfirmOpen(true)}
+            >
+              {t("settings.data.cleanProfile.start")}
+            </button>
+          )}
+        </div>
+      </SettingsPrefRow>
+      <SettingsPrefRow
         title={t("settings.data.reset.title")}
         description={t("settings.data.reset.description")}
         layout="stack"
@@ -91,6 +171,7 @@ export function SettingsSectionData({
               try {
                 const ready = await shellApi.resetHostedRuntime();
                 flashHint(t("settings.data.reset.done"));
+                showToast(t("settings.data.reset.done"));
                 refreshRuntime();
                 onHarnessReady?.(ready);
               } catch (e) {

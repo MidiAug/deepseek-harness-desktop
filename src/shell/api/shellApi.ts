@@ -72,6 +72,16 @@ export function resetHostedRuntime(): Promise<ReadyPayload> {
   return invoke<ReadyPayload>("reset_hosted_runtime");
 }
 
+/** 以 AppData 干净 profile 会话启动（临时 DSH_HOME，不删用户 ~/.dsh）。 */
+export function startCleanProfile(): Promise<ReadyPayload> {
+  return invoke<ReadyPayload>("start_clean_profile");
+}
+
+/** 退出干净 profile 会话并回到正式 DSH_HOME。 */
+export function exitCleanProfile(): Promise<ReadyPayload> {
+  return invoke<ReadyPayload>("exit_clean_profile");
+}
+
 export function readShellLog(): Promise<string> {
   return invoke<string>("read_shell_log");
 }

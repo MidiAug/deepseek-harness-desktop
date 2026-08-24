@@ -14,6 +14,7 @@ import {
   HarnessSettingsOpsProvider,
   shellApi,
   shellLog,
+  useAppToast,
   useChrome,
   useHarnessSettingsOps,
   useHostLifecycle,
@@ -32,6 +33,7 @@ import { SettingsSectionData } from "./SettingsSectionData";
 import { SettingsSectionAbout } from "./SettingsSectionAbout";
 import { settingsNavIcon } from "./settingsNavIcon";
 import { FaultRecoveryBlock } from "../chrome/FaultRecoveryBlock";
+import { ShellConfirmDialog } from "../chrome/ShellConfirmDialog";
 import type { FaultCta } from "../../shell/errors/recoveryMatrix";
 import { blockModalSelectAll } from "../../shell/modalKeydown";
 
@@ -93,6 +95,7 @@ function SettingsModalPanel({
   const { t } = useLocale();
   const sections = useSectionLabels();
   const life = useHostLifecycle();
+  const { showToast } = useAppToast();
   const { setUpdateCheck } = useHarnessSettingsOps();
   const [settings, setSettings] = useState<ShellSettings>(
     normalizeShellSettings(null),
@@ -102,6 +105,8 @@ function SettingsModalPanel({
     initialSection ?? "network",
   );
   const [portDraft, setPortDraft] = useState("");
+  const [cleanProfileConfirmOpen, setCleanProfileConfirmOpen] = useState(false);
+  const [cleanProfileBusy, setCleanProfileBusy] = useState(false);
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -182,10 +187,32 @@ function SettingsModalPanel({
           setSection("data");
           reportFault(null);
           break;
+        case "cleanProfile": {
+          reportFault(null);
+          setCleanProfileConfirmOpen(true);
+          break;
+        }
       }
     },
     [refreshRuntime, reportFault],
   );
+
+  const runCleanProfileFromFault = useCallback(() => {
+    setCleanProfileBusy(true);
+    void shellApi
+      .startCleanProfile()
+      .then((ready) => {
+        setCleanProfileConfirmOpen(false);
+        showToast(t("settings.data.cleanProfile.done"));
+        onHarnessReady?.(ready);
+        refreshRuntime();
+      })
+      .catch((e) => {
+        const msg = typeof e === "string" ? e : String(e);
+        reportFault(msg);
+      })
+      .finally(() => setCleanProfileBusy(false));
+  }, [onHarnessReady, refreshRuntime, reportFault, showToast, t]);
 
   function persistRuntime(next: ShellSettings, softHint?: string) {
     reportFault(null);
@@ -339,6 +366,7 @@ function SettingsModalPanel({
             {section === "data" && (
               <SettingsSectionData
                 settings={settings}
+                runtime={runtime}
                 locked={locked}
                 patchRuntime={patchRuntime}
                 flashHint={flashHint}
@@ -350,11 +378,14 @@ function SettingsModalPanel({
             {section === "about" && (
               <SettingsSectionAbout
                 runtime={runtime}
-                onDiagnosticsExported={(path) =>
+                onDiagnosticsExported={(path) => {
+                  showToast(
+                    t("settings.about.exportDiagnosticsDone", { path }),
+                  );
                   flashHint(
                     t("settings.about.exportDiagnosticsDone", { path }),
-                  )
-                }
+                  );
+                }}
                 onDiagnosticsError={reportFault}
               />
             )}
@@ -368,6 +399,16 @@ function SettingsModalPanel({
           </div>
         </div>
       </div>
+      <ShellConfirmDialog
+        open={cleanProfileConfirmOpen}
+        titleKey="boot.cleanProfile.confirmTitle"
+        bodyKey="boot.cleanProfile.confirm"
+        busy={cleanProfileBusy}
+        onCancel={() => {
+          if (!cleanProfileBusy) setCleanProfileConfirmOpen(false);
+        }}
+        onConfirm={runCleanProfileFromFault}
+      />
     </div>
   );
 }
