@@ -7,6 +7,7 @@ import {
 } from "react";
 import * as shellApi from "../api/shellApi";
 import { useHostLifecycle } from "../contexts/HostLifecycleProvider";
+import { useAppToast } from "../contexts/ShellToastProvider";
 import type { HarnessUpdateCheck, ReadyPayload } from "../types/ipc-types";
 import { useLocale } from "../locale";
 
@@ -19,11 +20,12 @@ export type HarnessSettingsOpsOptions = {
   refreshRuntime: () => void;
   onHarnessReady?: (payload: ReadyPayload) => void;
   reportFault: FaultReporter;
-  flashHint: (msg: string) => void;
 };
 
 export type HarnessSettingsOps = {
   updateCheck: HarnessUpdateCheck | null;
+  /** 轻检查中：不锁 HostLifecycle，仅行内态 */
+  checkingUpdate: boolean;
   setUpdateCheck: (check: HarnessUpdateCheck | null) => void;
   onCheckUpdate: () => Promise<void>;
   onApplyUpdate: () => Promise<void>;
@@ -36,24 +38,26 @@ function useHarnessSettingsOpsImpl({
   refreshRuntime,
   onHarnessReady,
   reportFault,
-  flashHint,
 }: HarnessSettingsOpsOptions): HarnessSettingsOps {
   const { t } = useLocale();
   const life = useHostLifecycle();
+  const { showToast } = useAppToast();
   const [updateCheck, setUpdateCheck] = useState<HarnessUpdateCheck | null>(
     null,
   );
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
 
   const onCheckUpdate = useCallback(async () => {
     reportFault(null);
-    life.beginOps(t("settings.hint.checkingUpdate"));
+    // 轻检查不走 beginOps：避免闪「运行详情」并 clear 掉启动日志
+    setCheckingUpdate(true);
     try {
       const r = await shellApi.checkHarnessUpdate();
       setUpdateCheck(r);
       if (!r.updateAvailable) {
-        flashHint(t("settings.about.upToDate"));
+        showToast(t("settings.about.upToDate"));
       } else {
-        flashHint(
+        showToast(
           `${t("settings.about.updateFound")} ${r.latest ?? "?"} (${r.local ?? "?"})`,
         );
       }
@@ -61,9 +65,9 @@ function useHarnessSettingsOpsImpl({
       const msg = typeof e === "string" ? e : String(e);
       reportFault(msg, onCheckUpdate);
     } finally {
-      life.endOps({ clearProgress: true });
+      setCheckingUpdate(false);
     }
-  }, [flashHint, life, reportFault, t]);
+  }, [reportFault, showToast, t]);
 
   const onApplyUpdate = useCallback(async () => {
     reportFault(null);
@@ -73,7 +77,7 @@ function useHarnessSettingsOpsImpl({
       setUpdateCheck(null);
       refreshRuntime();
       onHarnessReady?.(payload);
-      flashHint(t("settings.about.updated"));
+      showToast(t("settings.about.updated"));
       life.seedBoot({
         message: t("boot.msg.harnessUpdated"),
         stageId: "start",
@@ -86,7 +90,7 @@ function useHarnessSettingsOpsImpl({
     } finally {
       life.endOps();
     }
-  }, [flashHint, life, onHarnessReady, refreshRuntime, reportFault, t]);
+  }, [life, onHarnessReady, refreshRuntime, reportFault, showToast, t]);
 
   const onApplyNetworkRestart = useCallback(async () => {
     reportFault(null);
@@ -95,17 +99,18 @@ function useHarnessSettingsOpsImpl({
       const payload = await shellApi.restartHarness();
       refreshRuntime();
       onHarnessReady?.(payload);
-      flashHint(t("settings.about.networkRestarted"));
+      showToast(t("settings.about.networkRestarted"));
     } catch (e) {
       const msg = typeof e === "string" ? e : String(e);
       reportFault(msg, onApplyNetworkRestart);
     } finally {
       life.endOps({ clearProgress: true });
     }
-  }, [flashHint, life, onHarnessReady, refreshRuntime, reportFault, t]);
+  }, [life, onHarnessReady, refreshRuntime, reportFault, showToast, t]);
 
   return {
     updateCheck,
+    checkingUpdate,
     setUpdateCheck,
     onCheckUpdate,
     onApplyUpdate,

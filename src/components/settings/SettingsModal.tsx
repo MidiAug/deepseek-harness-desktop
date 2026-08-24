@@ -25,8 +25,8 @@ import type { CliLinkStatus } from "../../shell/api/shellApi";
 import { ShellTooltip } from "../chrome/ShellTooltip";
 import { useLocale, useSectionLabels } from "../../shell/locale";
 import type { SettingsSection } from "./settingsTypes";
+import { normalizeSettingsSection } from "./settingsTypes";
 import { SettingsSectionNetwork } from "./SettingsSectionNetwork";
-import { SettingsSectionWindow } from "./SettingsSectionWindow";
 import { SettingsSectionAppearance } from "./SettingsSectionAppearance";
 import { SettingsSectionRuntime } from "./SettingsSectionRuntime";
 import { SettingsSectionData } from "./SettingsSectionData";
@@ -70,8 +70,6 @@ type PanelProps = {
   onStopHarness?: () => void;
   runtime: RuntimeStatus | null;
   refreshRuntime: () => void;
-  hint: string | null;
-  flashHint: (msg: string) => void;
   fault: FaultState | null;
   reportFault: (
     message: string | null,
@@ -86,8 +84,6 @@ function SettingsModalPanel({
   onStopHarness,
   runtime,
   refreshRuntime,
-  hint,
-  flashHint,
   fault,
   reportFault,
 }: PanelProps) {
@@ -101,8 +97,8 @@ function SettingsModalPanel({
     normalizeShellSettings(null),
   );
   const [cliStatus, setCliStatus] = useState<CliLinkStatus | null>(null);
-  const [section, setSection] = useState<SettingsSection>(
-    initialSection ?? "network",
+  const [section, setSection] = useState<SettingsSection>(() =>
+    normalizeSettingsSection(initialSection),
   );
   const [portDraft, setPortDraft] = useState("");
   const [cleanProfileConfirmOpen, setCleanProfileConfirmOpen] = useState(false);
@@ -115,7 +111,7 @@ function SettingsModalPanel({
 
   useEffect(() => {
     setUpdateCheck(null);
-    setSection(initialSection ?? "network");
+    setSection(normalizeSettingsSection(initialSection));
     void loadShellSettingsWithTheme()
       .then((next) => {
         setSettings(next);
@@ -204,7 +200,7 @@ function SettingsModalPanel({
     void shellApi
       .saveRuntimeSettings(runtimeFromSettings(next))
       .then(() => {
-        if (softHint) flashHint(softHint);
+        if (softHint) showToast(softHint);
       })
       .catch((e) => {
         const msg = typeof e === "string" ? e : String(e);
@@ -303,23 +299,18 @@ function SettingsModalPanel({
           </div>
 
           <div className="settings-scroll">
-            {section === "network" && (
-              <SettingsSectionNetwork
-                settings={settings}
-                patchRuntime={patchRuntime}
-              />
-            )}
-            {section === "window" && (
-              <SettingsSectionWindow
-                settings={settings}
-                patchRuntime={patchRuntime}
-              />
-            )}
             {section === "appearance" && (
               <SettingsSectionAppearance
                 settings={settings}
                 compactOn={compactOn}
+                patchRuntime={patchRuntime}
                 patchAppearance={patchAppearance}
+              />
+            )}
+            {section === "network" && (
+              <SettingsSectionNetwork
+                settings={settings}
+                patchRuntime={patchRuntime}
               />
             )}
             {section === "runtime" && (
@@ -331,7 +322,6 @@ function SettingsModalPanel({
                 setPortDraft={setPortDraft}
                 locked={locked}
                 patchRuntime={patchRuntime}
-                flashHint={flashHint}
                 setError={reportFault}
                 setSettings={setSettings}
                 setCliStatus={setCliStatus}
@@ -345,30 +335,21 @@ function SettingsModalPanel({
                 runtime={runtime}
                 locked={locked}
                 patchRuntime={patchRuntime}
-                flashHint={flashHint}
                 setError={reportFault}
                 refreshRuntime={refreshRuntime}
                 onHarnessReady={onHarnessReady}
-              />
-            )}
-            {section === "about" && (
-              <SettingsSectionAbout
-                runtime={runtime}
                 onDiagnosticsExported={(path) => {
                   showToast(
-                    t("settings.about.exportDiagnosticsDone", { path }),
-                  );
-                  flashHint(
                     t("settings.about.exportDiagnosticsDone", { path }),
                   );
                 }}
                 onDiagnosticsError={reportFault}
               />
             )}
-
-            {hint && (
-              <p className="settings-live-hint settings-feedback">{hint}</p>
+            {section === "about" && (
+              <SettingsSectionAbout runtime={runtime} />
             )}
+
             {fault && (
               <FaultRecoveryBlock error={fault.message} onCta={handleFaultCta} />
             )}
@@ -396,7 +377,6 @@ function SettingsModalOpen({
   onStopHarness,
 }: Omit<Props, "open">) {
   const [runtime, setRuntime] = useState<RuntimeStatus | null>(null);
-  const [hint, setHint] = useState<string | null>(null);
   const [fault, setFault] = useState<FaultState | null>(null);
 
   const refreshRuntime = useCallback(() => {
@@ -406,15 +386,10 @@ function SettingsModalOpen({
       .catch(() => undefined);
   }, []);
 
-  const flashHint = useCallback((msg: string) => {
-    setHint(msg);
-  }, []);
-
   const reportFault = useCallback(
     (message: string | null, retry?: () => void | Promise<void>) => {
       if (message === null) {
         setFault(null);
-        setHint(null);
         return;
       }
       shellLog.warn("settings", message);
@@ -428,7 +403,6 @@ function SettingsModalOpen({
       refreshRuntime={refreshRuntime}
       onHarnessReady={onHarnessReady}
       reportFault={reportFault}
-      flashHint={flashHint}
     >
       <SettingsModalPanel
         onClose={onClose}
@@ -437,8 +411,6 @@ function SettingsModalOpen({
         onStopHarness={onStopHarness}
         runtime={runtime}
         refreshRuntime={refreshRuntime}
-        hint={hint}
-        flashHint={flashHint}
         fault={fault}
         reportFault={reportFault}
       />

@@ -1,29 +1,44 @@
 /**
- * 简洁叠层顶栏：按侧栏宽切 L 形；拖窗期间 pin 窗控显隐。
+ * 简洁叠层顶栏：按侧栏宽切 L 形；左右悬停显现；拖窗期间 pin 显隐。
  */
 
 import {
+  useCallback,
   useEffect,
   useRef,
   useState,
   type CSSProperties,
   type MouseEvent as ReactMouseEvent,
+  type ReactNode,
 } from "react";
 import { flushSync } from "react-dom";
 import { ShellTooltip } from "../chrome/ShellTooltip";
 import { IconDownloadOutline16 } from "../chrome/DshIcons";
 import { useLocale } from "../../shell/locale";
 import { WindowControls } from "./WindowControls";
+import { TitleBarHostMenus } from "./TitleBarHostMenus";
 import type { WinAction } from "./titlebarTypes";
 
 type Props = {
   sidebarWidthPx: number;
   maximized: boolean;
-  /** 简洁 + 开关：在齿轮左侧放 Session log 代理按钮 */
   showSessionLog: boolean;
   onSessionLog: () => void;
   onOpenSettings: () => void;
+  onRestart: () => void;
+  onStop: () => void;
+  onOpenDshHome: () => void;
+  onOpenLogs: () => void;
+  onHideToTray: () => void;
+  onAbout: () => void;
+  onCopyVersion: () => void;
+  onOpenPlatform: () => void;
   onWin: (action: WinAction) => void;
+};
+
+type DragPin = {
+  left: "shown" | "hidden";
+  right: "shown" | "hidden";
 };
 
 export function CompactTitleBar({
@@ -32,13 +47,22 @@ export function CompactTitleBar({
   showSessionLog,
   onSessionLog,
   onOpenSettings,
+  onRestart,
+  onStop,
+  onOpenDshHome,
+  onOpenLogs,
+  onHideToTray,
+  onAbout,
+  onCopyVersion,
+  onOpenPlatform,
   onWin,
 }: Props) {
   const { t } = useLocale();
-  const [dragPin, setDragPin] = useState<"shown" | "hidden" | null>(null);
+  const [dragPin, setDragPin] = useState<DragPin | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const barRef = useRef<HTMLElement>(null);
   const dragPinRef = useRef(dragPin);
-  /** 右侧热区：用 enter/leave 记，避免 mousedown 时 :hover 已被拖窗清掉 */
+  const leftHotRef = useRef(false);
   const rightHotRef = useRef(false);
   dragPinRef.current = dragPin;
 
@@ -46,7 +70,14 @@ export function CompactTitleBar({
     if (dragPin == null) return;
     function endDrag() {
       setDragPin(null);
+      const left = barRef.current?.querySelector(".titlebar-compact-left");
       const right = barRef.current?.querySelector(".titlebar-compact-right");
+      if (
+        !(left instanceof HTMLElement) ||
+        !left.matches(":hover")
+      ) {
+        leftHotRef.current = false;
+      }
       if (
         !(right instanceof HTMLElement) ||
         !right.matches(":hover")
@@ -54,7 +85,6 @@ export function CompactTitleBar({
         rightHotRef.current = false;
       }
     }
-    /** OS 拖窗常吞 mouseup；用 buttons===0 的 move 兜底 */
     function onMove(e: MouseEvent | PointerEvent) {
       if (e.buttons === 0) endDrag();
     }
@@ -76,38 +106,46 @@ export function CompactTitleBar({
 
   function onCompactDragDown(e: ReactMouseEvent) {
     if (e.button !== 0) return;
-    const t = e.target as Element | null;
-    if (t?.closest?.(".titlebar-right-reveal")) return;
-    // 捕获阶段 + flushSync：赶在 WebView 清 :hover / 下一帧之前挂上 pin
+    const el = e.target as Element | null;
+    if (el?.closest?.(".titlebar-right-reveal, .titlebar-left-reveal, .menu-pop"))
+      return;
+    const left = barRef.current?.querySelector(".titlebar-compact-left");
     const right = barRef.current?.querySelector(".titlebar-compact-right");
-    const wasShown = Boolean(
+    const leftShown = Boolean(
+      menuOpen ||
+        leftHotRef.current ||
+        (left instanceof HTMLElement &&
+          (left.matches(":hover") || left.contains(document.activeElement))),
+    );
+    const rightShown = Boolean(
       rightHotRef.current ||
         (right instanceof HTMLElement &&
           (right.matches(":hover") || right.contains(document.activeElement))),
     );
     flushSync(() => {
-      setDragPin(wasShown ? "shown" : "hidden");
+      setDragPin({
+        left: leftShown ? "shown" : "hidden",
+        right: rightShown ? "shown" : "hidden",
+      });
     });
   }
 
-  function onCompactRightEnter() {
-    rightHotRef.current = true;
-  }
+  const onMenuOpenChange = useCallback((open: boolean) => {
+    setMenuOpen(open);
+  }, []);
 
-  function onCompactRightLeave() {
-    // 拖窗时常会合成 leave；冻结期间保留热区采样
-    if (dragPinRef.current != null) return;
-    rightHotRef.current = false;
-  }
+  const wrapMenus = useCallback((menus: ReactNode) => {
+    return <div className="titlebar-left-reveal">{menus}</div>;
+  }, []);
 
   const compactClass = [
     "titlebar",
     "titlebar-compact",
-    dragPin === "shown"
-      ? "is-drag-pin-shown"
-      : dragPin === "hidden"
-        ? "is-drag-pin-hidden"
-        : "",
+    dragPin?.left === "shown" ? "is-drag-pin-left-shown" : "",
+    dragPin?.left === "hidden" ? "is-drag-pin-left-hidden" : "",
+    dragPin?.right === "shown" ? "is-drag-pin-right-shown" : "",
+    dragPin?.right === "hidden" ? "is-drag-pin-right-hidden" : "",
+    menuOpen ? "is-menu-open" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -122,16 +160,46 @@ export function CompactTitleBar({
         } as CSSProperties
       }
     >
-      <div
-        className="titlebar-compact-left"
-        data-tauri-drag-region
-        onMouseDownCapture={onCompactDragDown}
-        onDoubleClick={() => void onWin("maximize")}
+      <TitleBarHostMenus
+        onRestart={onRestart}
+        onStop={onStop}
+        onOpenDshHome={onOpenDshHome}
+        onOpenLogs={onOpenLogs}
+        onHideToTray={onHideToTray}
+        onAbout={onAbout}
+        onCopyVersion={onCopyVersion}
+        onOpenPlatform={onOpenPlatform}
+        onMenuOpenChange={onMenuOpenChange}
+        wrap={(menus) => (
+          <div
+            className="titlebar-compact-left"
+            onMouseEnter={() => {
+              leftHotRef.current = true;
+            }}
+            onMouseLeave={() => {
+              if (dragPinRef.current != null || menuOpen) return;
+              leftHotRef.current = false;
+            }}
+          >
+            <div
+              className="titlebar-compact-left-drag"
+              data-tauri-drag-region
+              onMouseDownCapture={onCompactDragDown}
+              onDoubleClick={() => void onWin("maximize")}
+            />
+            {wrapMenus(menus)}
+          </div>
+        )}
       />
       <div
         className="titlebar-compact-right"
-        onMouseEnter={onCompactRightEnter}
-        onMouseLeave={onCompactRightLeave}
+        onMouseEnter={() => {
+          rightHotRef.current = true;
+        }}
+        onMouseLeave={() => {
+          if (dragPinRef.current != null) return;
+          rightHotRef.current = false;
+        }}
       >
         <div
           className="titlebar-compact-right-drag"

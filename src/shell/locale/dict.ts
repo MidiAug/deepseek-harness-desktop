@@ -3,11 +3,29 @@ export type LocaleKey =
   | "settings.close"
   | "settings.nav"
   | "settings.section.network"
-  | "settings.section.window"
   | "settings.section.appearance"
   | "settings.section.runtime"
   | "settings.section.data"
   | "settings.section.about"
+  | "settings.group.sync"
+  | "settings.group.shellChrome"
+  | "settings.group.editing"
+  | "settings.group.status"
+  | "settings.group.controls"
+  | "settings.group.port"
+  | "settings.group.cli"
+  | "settings.group.paths"
+  | "settings.group.diagnostics"
+  | "settings.data.diagnostics.hint"
+  | "settings.group.recovery"
+  | "settings.group.danger"
+  | "settings.group.identity"
+  | "settings.group.updates"
+  | "settings.group.updateHarness"
+  | "settings.group.updateShell"
+  | "settings.group.links"
+  | "settings.group.runDetail"
+  | "settings.about.copyLog"
   | "settings.language.title"
   | "settings.language.description"
   | "settings.language.aria"
@@ -124,6 +142,11 @@ export type LocaleKey =
   | "settings.about.shellUpdate.check"
   | "settings.about.shellUpdate.install"
   | "settings.about.shellUpdate.safeHint"
+  | "settings.about.shellUpdate.rowTitle"
+  | "settings.about.shellUpdate.descDev"
+  | "settings.about.shellUpdate.descAuto"
+  | "settings.about.harnessUpdate.rowTitle"
+  | "settings.about.harnessUpdate.descIdle"
   | "settings.about.progress.busy"
   | "settings.about.progress.idle"
   | "settings.about.harnessUpdating"
@@ -236,11 +259,30 @@ export const zh: LocaleDict = {
   "settings.close": "关闭",
   "settings.nav": "设置分区",
   "settings.section.network": "网络",
-  "settings.section.window": "窗口",
-  "settings.section.appearance": "外观",
-  "settings.section.runtime": "运行时",
-  "settings.section.data": "数据与诊断",
-  "settings.section.about": "关于",
+  "settings.section.appearance": "界面",
+  "settings.section.runtime": "本地服务",
+  "settings.section.data": "数据与恢复",
+  "settings.section.about": "关于与更新",
+  "settings.group.sync": "与 DeepSeek Harness 同步",
+  "settings.group.shellChrome": "壳窗口",
+  "settings.group.editing": "编辑体验",
+  "settings.group.status": "服务状态",
+  "settings.group.controls": "控制",
+  "settings.group.port": "端口",
+  "settings.group.cli": "命令行 dsh",
+  "settings.group.paths": "数据位置",
+  "settings.group.diagnostics": "诊断",
+  "settings.data.diagnostics.hint":
+    "打包壳/harness 日志、版本与 digest，便于排障或提 issue。",
+  "settings.group.recovery": "恢复",
+  "settings.group.danger": "危险操作",
+  "settings.group.identity": "版本与身份",
+  "settings.group.updates": "更新",
+  "settings.group.updateHarness": "更新 · Harness",
+  "settings.group.updateShell": "更新 · 壳",
+  "settings.group.links": "链接",
+  "settings.group.runDetail": "运行详情",
+  "settings.about.copyLog": "复制日志",
   "settings.language.title": "语言",
   "settings.language.description":
     "与 DeepSeek Harness 共用同一偏好（~/.dsh/settings.yaml）。任一侧修改，另一侧同步。",
@@ -352,11 +394,11 @@ export const zh: LocaleDict = {
   "settings.about.openPlatform": "打开 DeepSeek API 平台",
   "settings.about.platformHint":
     "在主窗口顶栏下以子 WebView 打开 platform.deepseek.com；顶栏可返回官方 UI。",
-  "settings.about.checkUpdate": "检查 harness 更新",
-  "settings.about.applyUpdate": "更新并重启",
+  "settings.about.checkUpdate": "检查更新",
+  "settings.about.applyUpdate": "安装更新",
   "settings.about.applyNetwork": "应用网络设置并重启 harness",
   "settings.about.checking": "正在检查更新…",
-  "settings.about.upToDate": "已是最新 harness。",
+  "settings.about.upToDate": "已是最新",
   "settings.about.updateFound": "发现新版本",
   "settings.about.updated": "harness 已更新并重启。",
   "settings.about.networkRestarted": "已按当前网络设置重启 harness。",
@@ -369,10 +411,15 @@ export const zh: LocaleDict = {
     "壳更新：开发态或未配置发行端点时不可用；发行构建将自动检查（启动后 / 每 6 小时），下完再提示安装。",
   "settings.about.shellUpdate.idle":
     "壳更新：启动后与每 6 小时自动检查；有新版本后台下载，确认后重启安装。详细进度写入 AppData/logs/shell.log。",
-  "settings.about.shellUpdate.check": "检查壳更新",
-  "settings.about.shellUpdate.install": "立即重启安装壳",
+  "settings.about.shellUpdate.check": "检查更新",
+  "settings.about.shellUpdate.install": "立即重启安装",
   "settings.about.shellUpdate.safeHint":
     "壳更新只替换程序文件，不会删除 DSH_HOME 或自定义安装目录下的用户数据。",
+  "settings.about.shellUpdate.rowTitle": "壳",
+  "settings.about.shellUpdate.descDev": "开发态暂不可用",
+  "settings.about.shellUpdate.descAuto": "启动后与每 6 小时自动检查",
+  "settings.about.harnessUpdate.rowTitle": "Harness",
+  "settings.about.harnessUpdate.descIdle": "从 registry 检查是否有新版本",
   "settings.about.progress.busy": "处理中…",
   "settings.about.progress.idle": "最近进度",
   "settings.about.updateBanner.latest": "有可用更新",
@@ -478,7 +525,7 @@ export const zh: LocaleDict = {
   "closeAsk.title": "关闭窗口",
   "closeAsk.lead": "可最小化到托盘继续运行，或直接退出应用。",
   "closeAsk.remember": "记住选择",
-  "closeAsk.rememberHint": "设置 → 窗口可改",
+  "closeAsk.rememberHint": "设置 → 界面可改",
   "closeAsk.toTray": "最小化到托盘",
   "closeAsk.quit": "直接退出",
   "chrome.confirm.ok": "确定",
@@ -492,11 +539,30 @@ export const en: LocaleDict = {
   "settings.close": "Close",
   "settings.nav": "Settings sections",
   "settings.section.network": "Network",
-  "settings.section.window": "Window",
-  "settings.section.appearance": "Appearance",
-  "settings.section.runtime": "Runtime",
-  "settings.section.data": "Data & diagnostics",
-  "settings.section.about": "About",
+  "settings.section.appearance": "Interface",
+  "settings.section.runtime": "Local service",
+  "settings.section.data": "Data & recovery",
+  "settings.section.about": "About & updates",
+  "settings.group.sync": "Synced with DeepSeek Harness",
+  "settings.group.shellChrome": "Shell window",
+  "settings.group.editing": "Editing",
+  "settings.group.status": "Service status",
+  "settings.group.controls": "Controls",
+  "settings.group.port": "Port",
+  "settings.group.cli": "CLI dsh",
+  "settings.group.paths": "Data locations",
+  "settings.group.diagnostics": "Diagnostics",
+  "settings.data.diagnostics.hint":
+    "Bundle shell/harness logs, versions, and digest for troubleshooting or issues.",
+  "settings.group.recovery": "Recovery",
+  "settings.group.danger": "Danger zone",
+  "settings.group.identity": "Version & identity",
+  "settings.group.updates": "Updates",
+  "settings.group.updateHarness": "Update · Harness",
+  "settings.group.updateShell": "Update · Shell",
+  "settings.group.links": "Links",
+  "settings.group.runDetail": "Run details",
+  "settings.about.copyLog": "Copy log",
   "settings.language.title": "Language",
   "settings.language.description":
     "Shared with DeepSeek Harness (~/.dsh/settings.yaml). Changes sync both ways.",
@@ -611,11 +677,11 @@ export const en: LocaleDict = {
   "settings.about.openPlatform": "Open DeepSeek API platform",
   "settings.about.platformHint":
     "Opens platform.deepseek.com in a child WebView under the title bar; use Back to return to the official UI.",
-  "settings.about.checkUpdate": "Check harness update",
-  "settings.about.applyUpdate": "Update and restart",
+  "settings.about.checkUpdate": "Check for updates",
+  "settings.about.applyUpdate": "Install update",
   "settings.about.applyNetwork": "Apply network settings and restart harness",
   "settings.about.checking": "Checking for updates…",
-  "settings.about.upToDate": "Harness is up to date.",
+  "settings.about.upToDate": "Up to date",
   "settings.about.updateFound": "Update available",
   "settings.about.updated": "Harness updated and restarted.",
   "settings.about.networkRestarted": "Harness restarted with current network settings.",
@@ -628,10 +694,15 @@ export const en: LocaleDict = {
     "Shell auto-update is unavailable in dev builds or without a release endpoint.",
   "settings.about.shellUpdate.idle":
     "Shell updates check on start and every 6 hours; downloads in background. See AppData/logs/shell.log.",
-  "settings.about.shellUpdate.check": "Check shell update",
-  "settings.about.shellUpdate.install": "Restart to install shell",
+  "settings.about.shellUpdate.check": "Check for updates",
+  "settings.about.shellUpdate.install": "Restart to install",
   "settings.about.shellUpdate.safeHint":
     "Shell updates replace app files only. They do not delete DSH_HOME or data in a custom install location.",
+  "settings.about.shellUpdate.rowTitle": "Shell",
+  "settings.about.shellUpdate.descDev": "Unavailable in development builds",
+  "settings.about.shellUpdate.descAuto": "Checks on start and every 6 hours",
+  "settings.about.harnessUpdate.rowTitle": "Harness",
+  "settings.about.harnessUpdate.descIdle": "Check the registry for a newer version",
   "settings.about.progress.busy": "Working…",
   "settings.about.progress.idle": "Recent progress",
   "settings.about.updateBanner.latest": "Update available",
@@ -742,7 +813,7 @@ export const en: LocaleDict = {
   "closeAsk.title": "Close window",
   "closeAsk.lead": "Minimize to the tray to keep running, or quit the app.",
   "closeAsk.remember": "Remember",
-  "closeAsk.rememberHint": "Change in Settings → Window",
+  "closeAsk.rememberHint": "Change in Settings → Interface",
   "closeAsk.toTray": "Minimize to tray",
   "closeAsk.quit": "Quit",
   "chrome.confirm.ok": "Confirm",

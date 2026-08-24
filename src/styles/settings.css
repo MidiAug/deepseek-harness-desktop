@@ -69,10 +69,8 @@
   backdrop-filter: var(--mask-blur);
 }
 
-/* 设置：mask 与面板分层（对齐 DSH SettingsRoot overlay） */
+/* 设置：与通用 modal-backdrop 同遮罩；仅保留居中内边距 */
 .settings-overlay {
-  background: transparent;
-  backdrop-filter: none;
   padding: 24px;
 }
 
@@ -195,6 +193,8 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  /* 与弹窗 / 左栏同色，避免右栏 canvas 挖洞 */
+  background: transparent;
 }
 
 .settings-content-head {
@@ -358,7 +358,7 @@
   min-width: 180px;
   height: 36px;
   padding: 0 14px;
-  border: none;
+  border: 1px solid var(--color-line);
   border-radius: 18px;
   background: var(--color-btn-fill);
   color: var(--color-ink);
@@ -372,6 +372,7 @@
 
 .shell-select-trigger:hover:not(:disabled) {
   background: var(--color-btn-fill-hover);
+  border-color: var(--color-line-strong);
 }
 
 .shell-select-trigger:disabled {
@@ -411,13 +412,19 @@
   display: flex;
   flex-direction: column;
   border-radius: 12px;
-  border: 1px solid var(--color-line);
-  background: var(--color-panel-2);
+  border: 1px solid var(--color-line-strong);
+  /* 与分组卡区分：浅色白面；深色更高抬升 */
+  background: var(--color-panel);
   box-shadow: var(--shadow-lv3);
   max-height: min(360px, calc(100vh - 96px));
   overflow: auto;
   --dsh-scrollbar-thumb: var(--color-line-strong);
   --dsh-scrollbar-thumb-hover: var(--color-muted);
+}
+
+:root[data-shell-theme="dark"] .shell-select-menu {
+  background: var(--color-tooltip-bg);
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .shell-select-menu li {
@@ -486,23 +493,16 @@
   gap: 12px !important;
 }
 
-.settings-about-card {
-  padding: 16px 16px 14px;
-  border-radius: 14px;
-  background: linear-gradient(
-    160deg,
-    rgba(255, 255, 255, 0.04) 0%,
-    rgba(255, 255, 255, 0.02) 100%
-  );
-  border: 1px solid var(--color-line);
+.settings-about-identity {
+  padding: 4px 2px 2px;
 }
 
 .settings-about-brand {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin-bottom: 14px;
-  padding-bottom: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
   border-bottom: 1px solid var(--color-line);
 }
 
@@ -532,6 +532,11 @@
   grid-template-columns: 72px 1fr;
   gap: 10px;
   align-items: center;
+}
+
+.settings-about-safe-hint {
+  margin: 4px 2px 0;
+  padding: 0 2px;
 }
 
 .settings-about-meta dt {
@@ -565,25 +570,41 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* 浅色默认：深绿字；深色覆盖为亮字 */
 .settings-pill {
   display: inline-flex;
   align-items: center;
   height: 20px;
   padding: 0 8px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: 11px;
   line-height: 1;
-  font-weight: 500;
+  font-weight: 600;
+  border: 1px solid transparent;
 }
 
 .settings-pill.ok {
-  background: rgba(72, 187, 120, 0.16);
-  color: #7ddea3;
+  background: rgba(14, 110, 58, 0.1);
+  color: #0a6b38;
+  border-color: rgba(14, 110, 58, 0.28);
 }
 
 .settings-pill.warn {
+  background: rgba(158, 90, 12, 0.1);
+  color: #9a4e00;
+  border-color: rgba(158, 90, 12, 0.28);
+}
+
+:root[data-shell-theme="dark"] .settings-pill.ok {
+  background: rgba(72, 187, 120, 0.16);
+  color: #9eecc0;
+  border-color: rgba(72, 187, 120, 0.32);
+}
+
+:root[data-shell-theme="dark"] .settings-pill.warn {
   background: rgba(255, 184, 77, 0.14);
   color: #ffc96b;
+  border-color: rgba(255, 184, 77, 0.28);
 }
 
 .settings-update-banner {
@@ -592,18 +613,23 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid var(--color-line);
-  background: var(--color-canvas);
+  margin: 0 0 4px;
+  padding: 8px 2px 10px;
+  border: none;
+  border-bottom: 1px solid var(--color-line);
+  border-radius: 0;
+  background: transparent;
   font-size: 13px;
   line-height: 20px;
   color: var(--color-muted);
 }
 
 .settings-update-banner.has-update {
-  border-color: rgba(103, 158, 254, 0.35);
-  background: rgba(103, 158, 254, 0.08);
+  border-bottom-color: color-mix(
+    in srgb,
+    var(--color-accent, #679efe) 45%,
+    var(--color-line)
+  );
   color: var(--color-ink);
 }
 
@@ -617,10 +643,10 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(103, 158, 254, 0.28);
-  background: rgba(103, 158, 254, 0.08);
+  padding: 4px 0 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
 }
 
 .settings-progress-head {
@@ -651,6 +677,10 @@
   height: 6px;
   border-radius: 999px;
   overflow: hidden;
+  background: color-mix(in srgb, var(--color-ink) 14%, transparent);
+}
+
+:root[data-shell-theme="dark"] .settings-progress-bar {
   background: rgba(255, 255, 255, 0.08);
 }
 
@@ -680,14 +710,20 @@
   overflow: auto;
   padding: 8px 10px;
   border-radius: 8px;
-  background: rgba(0, 0, 0, 0.35);
   border: 1px solid var(--color-line);
   font-family: "SF Mono", "JetBrains Mono", Consolas, "Segoe UI Mono", monospace;
   font-size: 11px;
   line-height: 17px;
-  color: rgba(220, 224, 230, 0.92);
+  /* 浅色：浅底深字 */
+  background: color-mix(in srgb, var(--color-ink) 6%, var(--color-panel));
+  color: var(--color-ink);
   scrollbar-width: thin;
   scrollbar-color: var(--dsh-scrollbar-thumb) transparent;
+}
+
+:root[data-shell-theme="dark"] .settings-log {
+  background: rgba(0, 0, 0, 0.35);
+  color: rgba(220, 224, 230, 0.92);
 }
 
 .settings-log::-webkit-scrollbar {
@@ -994,3 +1030,113 @@
   font-size: 14px;
   line-height: 22px;
 }
+
+/* B32：组间距加大；卡片与下拉分表面 */
+.settings-section {
+  gap: 22px;
+}
+
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+}
+
+.settings-group-title {
+  margin: 0;
+  padding: 0 4px;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-muted);
+}
+
+.settings-group--danger .settings-group-title {
+  color: var(--color-danger);
+}
+
+.settings-group-body {
+  display: flex;
+  flex-direction: column;
+  padding: 2px 12px 6px;
+  border-radius: 10px;
+  border: 1px solid var(--color-line-strong);
+  /* 浅：纯 panel，与灰底按钮/下拉拉开 */
+  background: var(--color-panel);
+}
+
+:root[data-shell-theme="dark"] .settings-group-body {
+  border-color: var(--color-line-strong);
+  /* 深：略沉于 btn-fill / panel-2，避免与下拉触发钮融色 */
+  background: color-mix(
+    in srgb,
+    var(--color-canvas) 42%,
+    var(--color-panel)
+  );
+}
+
+.settings-group--danger .settings-group-body {
+  border-color: color-mix(
+    in srgb,
+    var(--color-danger) 40%,
+    var(--color-line)
+  );
+  background: color-mix(
+    in srgb,
+    var(--color-danger) 6%,
+    var(--color-panel)
+  );
+}
+
+:root[data-shell-theme="dark"] .settings-group--danger .settings-group-body {
+  background: color-mix(
+    in srgb,
+    var(--color-danger) 8%,
+    color-mix(in srgb, var(--color-canvas) 42%, var(--color-panel))
+  );
+}
+
+.settings-status-block {
+  padding: 8px 2px 6px;
+}
+
+.settings-status-block__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 10px;
+}
+
+.settings-status-block__meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+  margin: 0;
+}
+
+.settings-status-block__meta dt {
+  margin: 0;
+  font-size: 11px;
+  color: var(--color-muted);
+}
+
+.settings-status-block__meta dd {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--color-ink);
+}
+
+.settings-cell-actions--primary {
+  margin: 4px 0 2px;
+  padding: 4px 0;
+}
+
+.settings-detail-toggle {
+  align-self: flex-start;
+  margin: 6px 0 4px;
+}
+
+

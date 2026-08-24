@@ -31,6 +31,15 @@
   height: var(--titlebar-compact-left-h);
   background: transparent;
   pointer-events: auto;
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  z-index: 45;
+}
+
+.titlebar-compact-left-drag {
+  position: absolute;
+  inset: 0;
 }
 
 .titlebar-compact-right {
@@ -52,30 +61,47 @@
   right: 7.5rem;
 }
 
-.titlebar-compact .titlebar-right-reveal {
+.titlebar-compact .titlebar-right-reveal,
+.titlebar-compact .titlebar-left-reveal {
   position: relative;
   z-index: 1;
   opacity: 0;
-  /* 仅显现淡入；隐藏瞬时，避免拖窗清 :hover 时先淡出再被 pin 拉回 */
   transition: none;
   pointer-events: none;
   align-self: stretch;
+  display: flex;
+  align-items: center;
+}
+
+.titlebar-compact .titlebar-left-reveal {
+  padding-left: 0.35rem;
+  height: 100%;
+}
+
+.titlebar-compact .titlebar-left-reveal .titlebar-left {
+  height: 100%;
 }
 
 .titlebar-compact .icon-btn,
-.titlebar-compact .win-btn {
+.titlebar-compact .win-btn,
+.titlebar-compact .menu-trigger {
   color: var(--color-muted);
 }
 
 .titlebar-compact .icon-btn:hover,
-.titlebar-compact .win-btn:hover {
+.titlebar-compact .win-btn:hover,
+.titlebar-compact .menu-trigger:hover,
+.titlebar-compact .menu-trigger.open {
   background: var(--color-nav-hover);
   color: var(--color-ink);
 }
 
-/* 仅右侧条悬停显窗控 */
+/* 左右条悬停显控件；菜单打开时保持左侧可见 */
 .titlebar-compact-right:hover .titlebar-right-reveal,
-.titlebar-compact-right:focus-within .titlebar-right-reveal {
+.titlebar-compact-right:focus-within .titlebar-right-reveal,
+.titlebar-compact-left:hover .titlebar-left-reveal,
+.titlebar-compact-left:focus-within .titlebar-left-reveal,
+.titlebar-compact.is-menu-open .titlebar-left-reveal {
   opacity: 1;
   transition: opacity 0.12s ease;
   pointer-events: auto;
@@ -85,30 +111,40 @@
  * 拖窗第一性：mousedown 后 OS/WebView 会清掉 :hover。
  * 必须在按下时采样并冻结显隐，禁止再靠 :hover，也禁止「拖就强制藏」。
  */
-.titlebar-compact.is-drag-pin-shown .titlebar-right-reveal {
+.titlebar-compact.is-drag-pin-right-shown .titlebar-right-reveal,
+.titlebar-compact.is-drag-pin-left-shown .titlebar-left-reveal {
   opacity: 1 !important;
   transition: none !important;
   pointer-events: none !important;
 }
 
-.titlebar-compact.is-drag-pin-hidden .titlebar-right-reveal {
+.titlebar-compact.is-drag-pin-right-hidden .titlebar-right-reveal,
+.titlebar-compact.is-drag-pin-left-hidden .titlebar-left-reveal {
   opacity: 0 !important;
   transition: none !important;
   pointer-events: none !important;
 }
 
 /* 冻结时去掉依赖 :hover 的按钮底色，避免 hover 被清掉时集体「变色」 */
-.titlebar-compact.is-drag-pin-shown .icon-btn,
-.titlebar-compact.is-drag-pin-shown .win-btn,
-.titlebar-compact.is-drag-pin-shown .icon-btn:hover,
-.titlebar-compact.is-drag-pin-shown .win-btn:hover {
+.titlebar-compact.is-drag-pin-right-shown .icon-btn,
+.titlebar-compact.is-drag-pin-right-shown .win-btn,
+.titlebar-compact.is-drag-pin-right-shown .icon-btn:hover,
+.titlebar-compact.is-drag-pin-right-shown .win-btn:hover,
+.titlebar-compact.is-drag-pin-left-shown .menu-trigger,
+.titlebar-compact.is-drag-pin-left-shown .menu-trigger:hover {
   background: transparent;
   color: var(--color-muted);
 }
 
-body.suppress-hover .titlebar-compact-right:hover .titlebar-right-reveal {
+body.suppress-hover .titlebar-compact-right:hover .titlebar-right-reveal,
+body.suppress-hover .titlebar-compact-left:hover .titlebar-left-reveal {
   opacity: 0;
   pointer-events: none;
+}
+
+body.suppress-hover .titlebar-compact.is-menu-open .titlebar-left-reveal {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* 仅简洁：顶栏叠在主区之上（不占 flex 高度） */

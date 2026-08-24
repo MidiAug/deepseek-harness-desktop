@@ -3,7 +3,6 @@ import {
   IconCordisPluginOutline14,
   IconDataOutline16,
   IconGlobeOutline14,
-  IconPanelLeftOutline16,
   IconPersonalizationOutline16,
   IconSettingsOutline16,
 } from "../chrome/DshIcons";
@@ -12,12 +11,10 @@ import {
 export function settingsNavIcon(id: SettingsSection) {
   const iconProps = { size: 16, className: "settings-nav-icon" };
   switch (id) {
-    case "network":
-      return <IconGlobeOutline14 {...iconProps} />;
-    case "window":
-      return <IconPanelLeftOutline16 {...iconProps} />;
     case "appearance":
       return <IconPersonalizationOutline16 {...iconProps} />;
+    case "network":
+      return <IconGlobeOutline14 {...iconProps} />;
     case "runtime":
       return <IconCordisPluginOutline14 {...iconProps} />;
     case "data":

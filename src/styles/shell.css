@@ -27,6 +27,11 @@
   cursor: default;
 }
 
+/* 简洁顶栏自身 pointer-events:none，dismiss 必须可点以接住 iframe 上的点外 */
+.titlebar-compact > .menu-dismiss {
+  pointer-events: auto;
+}
+
 .shell-update-banner {
   flex: none;
   z-index: 45;

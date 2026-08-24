@@ -93,6 +93,14 @@ export function ShellTitleBar({
         }
         onSessionLog={onSessionLog}
         onOpenSettings={onOpenSettings}
+        onRestart={onRestart}
+        onStop={onStop}
+        onOpenDshHome={onOpenDshHome}
+        onOpenLogs={onOpenLogs}
+        onHideToTray={onHideToTray}
+        onAbout={onAbout}
+        onCopyVersion={onCopyVersion}
+        onOpenPlatform={onOpenPlatform}
         onWin={onWin}
       />
     );

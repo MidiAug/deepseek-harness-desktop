@@ -15,9 +15,8 @@ import { detectBrowserLocale, prefToLocale } from "./detect";
 import { DOCUMENT_LANG, type ShellLocale } from "./types";
 
 export type SettingsSectionId =
-  | "network"
-  | "window"
   | "appearance"
+  | "network"
   | "runtime"
   | "data"
   | "about";
@@ -112,9 +111,8 @@ export function useSectionLabels(): {
   const { t } = useLocale();
   return useMemo(
     () => [
-      { id: "network", label: t("settings.section.network") },
-      { id: "window", label: t("settings.section.window") },
       { id: "appearance", label: t("settings.section.appearance") },
+      { id: "network", label: t("settings.section.network") },
       { id: "runtime", label: t("settings.section.runtime") },
       { id: "data", label: t("settings.section.data") },
       { id: "about", label: t("settings.section.about") },
