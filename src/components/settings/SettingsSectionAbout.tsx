@@ -15,7 +15,7 @@ type Props = {
   runtime: RuntimeStatus | null;
 };
 
-/** 关于与更新：身份只读 + 更新 PrefRow；重操作才用运行详情。 */
+/** 关于与更新：身份只读 + 更新 PrefRow；忙时进度条 + 启动日志组。 */
 export function SettingsSectionAbout({ runtime }: Props) {
   const { t } = useLocale();
   const life = useHostLifecycle();
@@ -27,14 +27,12 @@ export function SettingsSectionAbout({ runtime }: Props) {
     onApplyUpdate,
   } = useHarnessSettingsOps();
   const logEndRef = useRef<HTMLDivElement>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
+  const [identityAdvanced, setIdentityAdvanced] = useState(false);
 
   const locked = life.locked;
   const hasLog = life.logLines.length > 0;
-  const showProgress = locked || hasLog;
   const barIndeterminate =
     locked && (life.percent == null || life.percent === 75);
-  const detailExpanded = detailOpen || locked;
 
   const shellChecking =
     shellUpd.phase === "checking" ||
@@ -66,13 +64,9 @@ export function SettingsSectionAbout({ runtime }: Props) {
         : t("settings.about.harnessUpdate.descIdle");
 
   useEffect(() => {
-    if (!detailExpanded || life.logLines.length === 0) return;
+    if (life.logLines.length === 0) return;
     logEndRef.current?.scrollIntoView({ block: "end" });
-  }, [detailExpanded, life.logLines]);
-
-  useEffect(() => {
-    if (locked) setDetailOpen(true);
-  }, [locked]);
+  }, [life.logLines]);
 
   function copyLog() {
     const text = life.logLines.join("\n");
@@ -119,29 +113,48 @@ export function SettingsSectionAbout({ runtime }: Props) {
                 ) : null}
               </dd>
             </div>
-            <div>
-              <dt>{t("settings.about.digest")}</dt>
-              <dd className="mono">{runtime?.harnessDigest ?? "—"}</dd>
-            </div>
-            <div>
-              <dt>{t("settings.about.port")}</dt>
-              <dd className="mono">{runtime?.port ?? "—"}</dd>
-            </div>
-            <div>
-              <dt>{t("settings.about.node")}</dt>
-              <dd>
-                {runtime?.nodeReady ? (
-                  <span className="settings-pill ok">
-                    {t("settings.about.ready")}
-                  </span>
-                ) : (
-                  <span className="settings-pill warn">
-                    {t("settings.about.nodeMissing")}
-                  </span>
-                )}
-              </dd>
-            </div>
           </dl>
+          <div className="settings-about-advanced-head">
+            <button
+              type="button"
+              className="settings-about-advanced-toggle"
+              aria-expanded={identityAdvanced}
+              onClick={() => setIdentityAdvanced((v) => !v)}
+            >
+              <span className="settings-about-advanced-label">
+                {t("settings.about.identityAdvanced")}
+              </span>
+              <span className="settings-disclosure-marker" aria-hidden>
+                {identityAdvanced ? "▾" : "▸"}
+              </span>
+            </button>
+          </div>
+          {identityAdvanced && (
+            <dl className="settings-about-meta settings-about-meta-advanced">
+              <div>
+                <dt>{t("settings.about.digest")}</dt>
+                <dd className="mono">{runtime?.harnessDigest ?? "—"}</dd>
+              </div>
+              <div>
+                <dt>{t("settings.about.port")}</dt>
+                <dd className="mono">{runtime?.port ?? "—"}</dd>
+              </div>
+              <div>
+                <dt>{t("settings.about.node")}</dt>
+                <dd>
+                  {runtime?.nodeReady ? (
+                    <span className="settings-pill ok">
+                      {t("settings.about.ready")}
+                    </span>
+                  ) : (
+                    <span className="settings-pill warn">
+                      {t("settings.about.nodeMissing")}
+                    </span>
+                  )}
+                </dd>
+              </div>
+            </dl>
+          )}
         </div>
       </SettingsGroup>
 
@@ -195,6 +208,40 @@ export function SettingsSectionAbout({ runtime }: Props) {
             )}
           </div>
         </SettingsPrefRow>
+        {locked && (
+          <div
+            className="settings-ops-progress"
+            role="status"
+            aria-live="polite"
+          >
+            <div className="settings-progress-head">
+              <span className="settings-progress-msg">
+                {life.message || t("settings.about.progress.busy")}
+              </span>
+              {life.percent != null && !barIndeterminate && (
+                <span className="settings-progress-pct">{life.percent}%</span>
+              )}
+            </div>
+            <div
+              className={`settings-progress-bar${barIndeterminate ? " indeterminate" : ""}`}
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={
+                barIndeterminate ? undefined : (life.percent ?? undefined)
+              }
+            >
+              <div
+                className="settings-progress-fill"
+                style={
+                  barIndeterminate
+                    ? undefined
+                    : { width: `${life.percent ?? 0}%` }
+                }
+              />
+            </div>
+          </div>
+        )}
         <p className="settings-live-hint settings-live-hint-subtle settings-about-safe-hint">
           {t("settings.about.shellUpdate.safeHint")}
         </p>
@@ -219,83 +266,37 @@ export function SettingsSectionAbout({ runtime }: Props) {
         </SettingsPrefRow>
       </SettingsGroup>
 
-      {showProgress && (
-        <SettingsGroup title={t("settings.group.runDetail")}>
-          {!locked && (
-            <button
-              type="button"
-              className="btn ghost settings-detail-toggle"
-              onClick={() => setDetailOpen((v) => !v)}
-              aria-expanded={detailExpanded}
-            >
-              {detailExpanded
-                ? t("settings.about.progress.busy")
-                : t("settings.about.progress.idle")}
-            </button>
-          )}
-          {detailExpanded && (
-            <div
-              className="settings-progress-panel"
-              role="status"
-              aria-live="polite"
-            >
-              <div className="settings-progress-head">
-                <span className="settings-progress-msg">
-                  {life.message ||
-                    (locked
-                      ? t("settings.about.progress.busy")
-                      : t("settings.about.progress.idle"))}
-                </span>
-                {life.percent != null && !barIndeterminate && (
-                  <span className="settings-progress-pct">
-                    {life.percent}%
-                  </span>
-                )}
-              </div>
-              <div
-                className={`settings-progress-bar${barIndeterminate ? " indeterminate" : ""}`}
-                role="progressbar"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={
-                  barIndeterminate ? undefined : (life.percent ?? undefined)
-                }
+      {hasLog && (
+        <SettingsGroup title={t("settings.about.viewLogs")}>
+          <div className="settings-ops-log-body">
+            <div className="settings-cell-actions">
+              <button type="button" className="btn ghost" onClick={copyLog}>
+                {t("settings.about.copyLog")}
+              </button>
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() => {
+                  void shellApi
+                    .openKnownPath("logs")
+                    .catch((e) => shellLog.error("about", "open logs", e));
+                }}
               >
-                <div
-                  className="settings-progress-fill"
-                  style={
-                    barIndeterminate
-                      ? undefined
-                      : { width: `${life.percent ?? 0}%` }
-                  }
-                />
-              </div>
-              {hasLog && (
-                <>
-                  <div className="settings-cell-actions">
-                    <button
-                      type="button"
-                      className="btn ghost"
-                      onClick={copyLog}
-                    >
-                      {t("settings.about.copyLog")}
-                    </button>
-                  </div>
-                  <div className="settings-log" aria-label="log">
-                    {life.logLines.map((line, i) => (
-                      <div
-                        key={`${i}-${line.slice(0, 24)}`}
-                        className="settings-log-line"
-                      >
-                        {line}
-                      </div>
-                    ))}
-                    <div ref={logEndRef} />
-                  </div>
-                </>
-              )}
+                {t("settings.about.openLogsDir")}
+              </button>
             </div>
-          )}
+            <div className="settings-log" aria-label="log">
+              {life.logLines.map((line, i) => (
+                <div
+                  key={`${i}-${line.slice(0, 24)}`}
+                  className="settings-log-line"
+                >
+                  {line}
+                </div>
+              ))}
+              <div ref={logEndRef} />
+            </div>
+          </div>
         </SettingsGroup>
       )}
     </div>

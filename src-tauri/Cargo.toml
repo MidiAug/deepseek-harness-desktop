@@ -37,6 +37,7 @@ tauri-plugin-opener = "2"
 log = "0.4"
 # 监视 DSH_HOME/settings.yaml 主题变更（事件驱动，替代轮询）
 notify = "6"
+tauri-plugin-autostart = "2"
 
 # Windows：CreateProcessW 隐藏控制台 + 保留进程 HANDLE（R1）
 [target.'cfg(windows)'.dependencies]

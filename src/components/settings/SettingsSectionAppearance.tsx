@@ -1,6 +1,6 @@
-﻿import type { ComponentType } from "react";
+﻿import { useEffect, useState, type ComponentType } from "react";
 import type { ShellSettings, ShellTheme } from "../../shell/settings";
-import { useAppToast } from "../../shell";
+import { shellApi, useAppToast, useChrome } from "../../shell";
 import { LOCALE_OPTIONS, useLocale } from "../../shell/locale";
 import {
   IconDarkOutline16,
@@ -13,7 +13,6 @@ import { SettingsPrefRow } from "./SettingsPrefRow";
 
 type Props = {
   settings: ShellSettings;
-  compactOn: boolean;
   patchRuntime: (
     patch: Partial<ShellSettings>,
     opts?: { debounceMs?: number; softHint?: string },
@@ -33,14 +32,35 @@ type Props = {
 
 export function SettingsSectionAppearance({
   settings,
-  compactOn,
   patchRuntime,
   patchAppearance,
 }: Props) {
   const { locale, setLocale, t } = useLocale();
   const { showToast } = useAppToast();
-  const hygieneOn = settings.selectionHygiene;
-  const sessionLogOn = settings.sessionLogInTitlebar;
+  const { chrome } = useChrome();
+  const compactOn = chrome.titlebarCompact;
+  const hygieneOn = chrome.selectionHygiene;
+  const sessionLogOn = chrome.sessionLogInTitlebar;
+  const [autostartOn, setAutostartOn] = useState(false);
+  const [autostartReady, setAutostartReady] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void shellApi
+      .getAutostartEnabled()
+      .then((on) => {
+        if (!cancelled) {
+          setAutostartOn(on);
+          setAutostartReady(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setAutostartReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const themeCubes: {
     id: ShellTheme;
@@ -85,7 +105,7 @@ export function SettingsSectionAppearance({
             aria-label={t("settings.theme.aria")}
           >
             {themeCubes.map(({ id, label, Icon }) => {
-              const selected = settings.shellTheme === id;
+              const selected = chrome.shellTheme === id;
               return (
                 <button
                   key={id}
@@ -168,6 +188,38 @@ export function SettingsSectionAppearance({
                   ? t("settings.window.toastTray")
                   : t("settings.window.toastQuit"),
               );
+            }}
+          >
+            <span className="settings-switch-knob" />
+          </button>
+        </SettingsPrefRow>
+        <SettingsPrefRow
+          title={t("settings.autostart.title")}
+          description={t("settings.autostart.description")}
+        >
+          <button
+            type="button"
+            className={`settings-switch${autostartOn ? " on" : ""}`}
+            role="switch"
+            aria-checked={autostartOn}
+            aria-label={t("settings.autostart.aria")}
+            disabled={!autostartReady}
+            onClick={() => {
+              const next = !autostartOn;
+              setAutostartOn(next);
+              void shellApi
+                .setAutostartEnabled(next)
+                .then(() => {
+                  showToast(
+                    next
+                      ? t("settings.autostart.toastOn")
+                      : t("settings.autostart.toastOff"),
+                  );
+                })
+                .catch(() => {
+                  setAutostartOn(!next);
+                  showToast(t("settings.autostart.toastFail"));
+                });
             }}
           >
             <span className="settings-switch-knob" />

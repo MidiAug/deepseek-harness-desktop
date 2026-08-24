@@ -420,6 +420,8 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
+        // 开机自启：官方插件写 OS 启动项（Windows Run 键），免手写注册表
+        .plugin(tauri_plugin_autostart::Builder::new().build())
         .manage(HarnessState::default())
         .invoke_handler(tauri::generate_handler![
             ensure_and_start,

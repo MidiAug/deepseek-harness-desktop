@@ -80,20 +80,55 @@ export function ChromeProvider({ children }: { children: ReactNode }) {
     [chrome.shellTheme, osDark],
   );
 
+  // 跟随系统：用 Tauri theme() / onThemeChanged（WebView 内 matchMedia 会被 setTheme 污染）
   useEffect(() => {
-    applyDomTheme(resolvedTheme);
-    void getCurrentWindow()
-      .setTheme(resolvedTheme)
-      .catch(() => undefined);
-  }, [resolvedTheme]);
+    const win = getCurrentWindow();
+    let cancelled = false;
+    let unlisten: (() => void) | undefined;
+
+    const syncSystemTheme = async () => {
+      if (chrome.shellTheme !== "system") return;
+      try {
+        await win.setTheme(null);
+        const t = await win.theme();
+        if (!cancelled && (t === "light" || t === "dark")) {
+          setOsDark(t === "dark");
+        }
+      } catch {
+        if (!cancelled) setOsDark(osPrefersDark());
+      }
+    };
+
+    if (chrome.shellTheme === "system") {
+      void syncSystemTheme();
+      void win
+        .onThemeChanged(({ payload }) => {
+          if (payload === "light" || payload === "dark") {
+            setOsDark(payload === "dark");
+          }
+        })
+        .then((fn) => {
+          if (cancelled) fn();
+          else unlisten = fn;
+        })
+        .catch(() => undefined);
+    }
+
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, [chrome.shellTheme]);
 
   useEffect(() => {
-    const mq = window.matchMedia?.("(prefers-color-scheme: dark)");
-    if (!mq) return;
-    const onOs = () => setOsDark(mq.matches);
-    mq.addEventListener?.("change", onOs);
-    return () => mq.removeEventListener?.("change", onOs);
-  }, []);
+    applyDomTheme(resolvedTheme);
+    const win = getCurrentWindow();
+    if (chrome.shellTheme === "system") {
+      void win.setTheme(null).catch(() => undefined);
+    } else {
+      void win.setTheme(resolvedTheme).catch(() => undefined);
+    }
+  }, [resolvedTheme, chrome.shellTheme]);
 
   const refreshFromDisk = useCallback(() => {
     void Promise.all([

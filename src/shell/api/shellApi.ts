@@ -1,6 +1,11 @@
 /** 壳 IPC 薄封装：类型集中，调用点不散落 invoke 字符串。 */
 
 import { invoke } from "@tauri-apps/api/core";
+import {
+  disable as disableAutostart,
+  enable as enableAutostart,
+  isEnabled as isAutostartEnabled,
+} from "@tauri-apps/plugin-autostart";
 import type {
   RuntimeSettings,
   ShellSettings,
@@ -184,4 +189,14 @@ export function getCliLinkStatus(): Promise<CliLinkStatus> {
 
 export function setCliLinkEnabled(enabled: boolean): Promise<CliLinkStatus> {
   return invoke<CliLinkStatus>("set_cli_link_enabled", { enabled });
+}
+
+/** OS 开机自启（真源为启动项，不落 settings.json）。 */
+export function getAutostartEnabled(): Promise<boolean> {
+  return isAutostartEnabled();
+}
+
+export async function setAutostartEnabled(enabled: boolean): Promise<void> {
+  if (enabled) await enableAutostart();
+  else await disableAutostart();
 }

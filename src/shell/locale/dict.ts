@@ -26,6 +26,9 @@ export type LocaleKey =
   | "settings.group.links"
   | "settings.group.runDetail"
   | "settings.about.copyLog"
+  | "settings.about.viewLogs"
+  | "settings.about.openLogsDir"
+  | "settings.about.identityAdvanced"
   | "settings.language.title"
   | "settings.language.description"
   | "settings.language.aria"
@@ -68,6 +71,12 @@ export type LocaleKey =
   | "settings.window.reaskDone"
   | "settings.window.toastTray"
   | "settings.window.toastQuit"
+  | "settings.autostart.title"
+  | "settings.autostart.description"
+  | "settings.autostart.aria"
+  | "settings.autostart.toastOn"
+  | "settings.autostart.toastOff"
+  | "settings.autostart.toastFail"
   | "settings.port.title"
   | "settings.port.description"
   | "settings.port.placeholder"
@@ -98,6 +107,13 @@ export type LocaleKey =
   | "settings.data.path.dshHome"
   | "settings.data.path.appData"
   | "settings.data.path.logs"
+  | "settings.data.path.open"
+  | "settings.data.path.logsTitle"
+  | "settings.data.path.logsDesc"
+  | "settings.data.path.appDataTitle"
+  | "settings.data.path.appDataDesc"
+  | "settings.data.path.dshHomeTitle"
+  | "settings.data.path.dshHomeDesc"
   | "settings.data.reset.title"
   | "settings.data.reset.description"
   | "settings.data.reset.button"
@@ -283,6 +299,9 @@ export const zh: LocaleDict = {
   "settings.group.links": "链接",
   "settings.group.runDetail": "运行详情",
   "settings.about.copyLog": "复制日志",
+  "settings.about.viewLogs": "启动日志",
+  "settings.about.openLogsDir": "打开日志目录",
+  "settings.about.identityAdvanced": "高级",
   "settings.language.title": "语言",
   "settings.language.description":
     "与 DeepSeek Harness 共用同一偏好（~/.dsh/settings.yaml）。任一侧修改，另一侧同步。",
@@ -330,6 +349,12 @@ export const zh: LocaleDict = {
   "settings.window.reaskDone": "已恢复：下次关闭窗口时将再次询问",
   "settings.window.toastTray": "已设为：关闭时最小化到托盘",
   "settings.window.toastQuit": "已设为：关闭时直接退出",
+  "settings.autostart.title": "开机时启动",
+  "settings.autostart.description": "登录 Windows 后自动打开本应用",
+  "settings.autostart.aria": "开机时启动",
+  "settings.autostart.toastOn": "已开启开机自启",
+  "settings.autostart.toastOff": "已关闭开机自启",
+  "settings.autostart.toastFail": "无法更改开机自启，请稍后重试",
   "settings.port.title": "首选端口",
   "settings.port.description":
     "0 或留空 = 壳默认（开发 3081 / 发行 3080）；被占用时自动顺延。改后需重启 harness。",
@@ -362,6 +387,13 @@ export const zh: LocaleDict = {
   "settings.data.path.dshHome": "DSH_HOME",
   "settings.data.path.appData": "AppData",
   "settings.data.path.logs": "日志",
+  "settings.data.path.open": "打开",
+  "settings.data.path.logsTitle": "日志目录",
+  "settings.data.path.logsDesc": "shell.log 与 harness 运行日志",
+  "settings.data.path.appDataTitle": "AppData",
+  "settings.data.path.appDataDesc": "托管 Node、harness 与壳配置",
+  "settings.data.path.dshHomeTitle": "DSH_HOME",
+  "settings.data.path.dshHomeDesc": "Harness 用户数据与会话",
   "settings.data.reset.title": "重置托管运行时",
   "settings.data.reset.description":
     "清除 AppData 下的 harness 并重新安装；保留已下载的 Node；不会删除 DSH_HOME / ~/.dsh 会话与插件",
@@ -392,8 +424,7 @@ export const zh: LocaleDict = {
   "settings.about.notInstalled": "未安装",
   "settings.about.nodeMissing": "未装",
   "settings.about.openPlatform": "打开 DeepSeek API 平台",
-  "settings.about.platformHint":
-    "在主窗口顶栏下以子 WebView 打开 platform.deepseek.com；顶栏可返回官方 UI。",
+  "settings.about.platformHint": "在壳内打开 platform.deepseek.com",
   "settings.about.checkUpdate": "检查更新",
   "settings.about.applyUpdate": "安装更新",
   "settings.about.applyNetwork": "应用网络设置并重启 harness",
@@ -563,6 +594,9 @@ export const en: LocaleDict = {
   "settings.group.links": "Links",
   "settings.group.runDetail": "Run details",
   "settings.about.copyLog": "Copy log",
+  "settings.about.viewLogs": "View startup log",
+  "settings.about.openLogsDir": "Open logs folder",
+  "settings.about.identityAdvanced": "Advanced",
   "settings.language.title": "Language",
   "settings.language.description":
     "Shared with DeepSeek Harness (~/.dsh/settings.yaml). Changes sync both ways.",
@@ -613,6 +647,12 @@ export const en: LocaleDict = {
   "settings.window.reaskDone": "Next close will ask again",
   "settings.window.toastTray": "Close will minimize to tray",
   "settings.window.toastQuit": "Close will quit the app",
+  "settings.autostart.title": "Launch at login",
+  "settings.autostart.description": "Open this app automatically when you sign in to Windows",
+  "settings.autostart.aria": "Launch at login",
+  "settings.autostart.toastOn": "Launch at login enabled",
+  "settings.autostart.toastOff": "Launch at login disabled",
+  "settings.autostart.toastFail": "Could not change launch at login. Try again.",
   "settings.port.title": "Preferred port",
   "settings.port.description":
     "0 or empty = shell default (dev 3081 / release 3080); auto-increments if busy. Restart harness after change.",
@@ -645,6 +685,13 @@ export const en: LocaleDict = {
   "settings.data.path.dshHome": "DSH_HOME",
   "settings.data.path.appData": "AppData",
   "settings.data.path.logs": "Logs",
+  "settings.data.path.open": "Open",
+  "settings.data.path.logsTitle": "Logs folder",
+  "settings.data.path.logsDesc": "shell.log and harness runtime logs",
+  "settings.data.path.appDataTitle": "AppData",
+  "settings.data.path.appDataDesc": "Hosted Node, harness, and shell config",
+  "settings.data.path.dshHomeTitle": "DSH_HOME",
+  "settings.data.path.dshHomeDesc": "Harness user data and sessions",
   "settings.data.reset.title": "Reset hosted runtime",
   "settings.data.reset.description":
     "Clears harness under AppData and reinstalls; keeps downloaded Node; does not delete DSH_HOME sessions/plugins",
@@ -675,8 +722,7 @@ export const en: LocaleDict = {
   "settings.about.notInstalled": "Not installed",
   "settings.about.nodeMissing": "Missing",
   "settings.about.openPlatform": "Open DeepSeek API platform",
-  "settings.about.platformHint":
-    "Opens platform.deepseek.com in a child WebView under the title bar; use Back to return to the official UI.",
+  "settings.about.platformHint": "Opens platform.deepseek.com inside the shell",
   "settings.about.checkUpdate": "Check for updates",
   "settings.about.applyUpdate": "Install update",
   "settings.about.applyNetwork": "Apply network settings and restart harness",

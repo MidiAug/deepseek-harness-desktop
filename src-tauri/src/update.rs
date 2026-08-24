@@ -32,8 +32,8 @@ pub async fn check_harness_update<R: Runtime>(
     let encoded = DSH_PACKAGE.replace('/', "%2F");
     let url = format!("{registry}/{encoded}/latest");
 
+    // 轻检查：只落 shell.log，不 emit_progress（避免灌进 HostLifecycle 标题态）
     log::info!(target: "shell::update", "check_harness_update GET {url}");
-    progress::emit_progress(app, "check-update", "正在查询 harness 最新版本…", None);
     progress::append_shell_log(app, &format!("check_harness_update GET {url}"));
 
     let client = http_client(&cfg)?;

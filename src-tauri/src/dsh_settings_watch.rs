@@ -31,6 +31,17 @@ fn read_prefs(home: &Path) -> (String, String) {
     )
 }
 
+fn read_prefs_settled(home: &Path) -> (String, String) {
+    let first = read_prefs(home);
+    std::thread::sleep(Duration::from_millis(100));
+    let second = read_prefs(home);
+    if second != first {
+        std::thread::sleep(Duration::from_millis(80));
+        return read_prefs(home);
+    }
+    second
+}
+
 pub fn spawn_watch<R: Runtime>(app: &AppHandle<R>) {
     let app = app.clone();
     std::thread::Builder::new()
@@ -55,7 +66,7 @@ pub fn spawn_watch<R: Runtime>(app: &AppHandle<R>) {
                 log::warn!(target: "shell::watch", "dsh settings watch dir: {e}");
                 return;
             }
-            let (mut last_theme, mut last_locale) = read_prefs(&home);
+            let (mut last_theme, mut last_locale) = read_prefs_settled(&home);
             let mut last_emit = Instant::now()
                 .checked_sub(Duration::from_secs(1))
                 .unwrap_or_else(Instant::now);
@@ -71,7 +82,7 @@ pub fn spawn_watch<R: Runtime>(app: &AppHandle<R>) {
                     continue;
                 }
                 std::thread::sleep(Duration::from_millis(80));
-                let (theme, locale) = read_prefs(&home);
+                let (theme, locale) = read_prefs_settled(&home);
                 let theme_changed = theme != last_theme;
                 let locale_changed = locale != last_locale;
                 if !theme_changed && !locale_changed {

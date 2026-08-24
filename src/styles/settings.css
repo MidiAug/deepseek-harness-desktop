@@ -490,7 +490,7 @@
 }
 
 .settings-about {
-  gap: 12px !important;
+  gap: 26px;
 }
 
 .settings-about-identity {
@@ -532,6 +532,57 @@
   grid-template-columns: 72px 1fr;
   gap: 10px;
   align-items: center;
+}
+
+.settings-about-meta-advanced {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-line);
+}
+
+.settings-about-advanced-head {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 0;
+}
+
+.settings-about-advanced-toggle {
+  grid-column: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.settings-about-advanced-label {
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 400;
+  color: var(--color-muted);
+}
+
+.settings-about-advanced-toggle:hover .settings-about-advanced-label {
+  color: var(--color-ink);
+}
+
+.settings-about-advanced-toggle .settings-disclosure-marker {
+  flex: none;
+  width: auto;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--color-ink);
+  opacity: 0.72;
+}
+
+.settings-about-advanced-toggle:hover .settings-disclosure-marker {
+  opacity: 1;
 }
 
 .settings-about-safe-hint {
@@ -1031,9 +1082,9 @@
   line-height: 22px;
 }
 
-/* B32：组间距加大；卡片与下拉分表面 */
+/* B32+：组间距；卡片与下拉分表面 */
 .settings-section {
-  gap: 22px;
+  gap: 26px;
 }
 
 .settings-group {
@@ -1051,6 +1102,34 @@
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--color-muted);
+}
+
+.settings-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 4px;
+}
+
+.settings-group-head .settings-group-title {
+  padding: 0;
+}
+
+.settings-group-toggle {
+  flex: none;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+
+.settings-group-toggle:hover {
+  color: var(--color-ink);
 }
 
 .settings-group--danger .settings-group-title {
@@ -1137,6 +1216,50 @@
 .settings-detail-toggle {
   align-self: flex-start;
   margin: 6px 0 4px;
+}
+
+/* 忙时：更新组内紧凑进度（无独立「运行详情」大组） */
+.settings-ops-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 6px 2px 2px;
+  padding: 8px 2px 2px;
+  border-top: 1px solid var(--color-line);
+}
+
+.settings-ops-log-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 6px 0 4px;
+}
+
+.settings-disclosure {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  margin: 0;
+  padding: 2px 0;
+  border: none;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 18px;
+  cursor: pointer;
+}
+
+.settings-disclosure:hover {
+  color: var(--color-ink);
+}
+
+.settings-disclosure-marker {
+  display: inline-block;
+  width: 0.75em;
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0.85;
 }
 
 

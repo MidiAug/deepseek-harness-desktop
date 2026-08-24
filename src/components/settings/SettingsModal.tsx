@@ -246,7 +246,6 @@ function SettingsModalPanel({
     patchChrome(patch);
   }
 
-  const compactOn = settings.titlebarCompact;
   const locked = life.locked;
 
   return (
@@ -302,7 +301,6 @@ function SettingsModalPanel({
             {section === "appearance" && (
               <SettingsSectionAppearance
                 settings={settings}
-                compactOn={compactOn}
                 patchRuntime={patchRuntime}
                 patchAppearance={patchAppearance}
               />

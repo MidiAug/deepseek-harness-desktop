@@ -29,21 +29,27 @@ type Props = {
   ) => void;
 };
 
-function PathButton({
+function PathOpenRow({
   which,
-  label,
+  title,
+  description,
+  openLabel,
 }: {
   which: "dshHome" | "appData" | "logs";
-  label: string;
+  title: string;
+  description: string;
+  openLabel: string;
 }) {
   return (
-    <button
-      type="button"
-      className="btn ghost"
-      onClick={() => void shellApi.openKnownPath(which)}
-    >
-      {label}
-    </button>
+    <SettingsPrefRow title={title} description={description}>
+      <button
+        type="button"
+        className="btn ghost"
+        onClick={() => void shellApi.openKnownPath(which)}
+      >
+        {openLabel}
+      </button>
+    </SettingsPrefRow>
   );
 }
 
@@ -133,11 +139,24 @@ export function SettingsSectionData({
             }
           />
         </SettingsPrefRow>
-        <div className="settings-cell-actions">
-          <PathButton which="dshHome" label={t("settings.data.path.dshHome")} />
-          <PathButton which="appData" label={t("settings.data.path.appData")} />
-          <PathButton which="logs" label={t("settings.data.path.logs")} />
-        </div>
+        <PathOpenRow
+          which="logs"
+          title={t("settings.data.path.logsTitle")}
+          description={t("settings.data.path.logsDesc")}
+          openLabel={t("settings.data.path.open")}
+        />
+        <PathOpenRow
+          which="appData"
+          title={t("settings.data.path.appDataTitle")}
+          description={t("settings.data.path.appDataDesc")}
+          openLabel={t("settings.data.path.open")}
+        />
+        <PathOpenRow
+          which="dshHome"
+          title={t("settings.data.path.dshHomeTitle")}
+          description={t("settings.data.path.dshHomeDesc")}
+          openLabel={t("settings.data.path.open")}
+        />
       </SettingsGroup>
 
       <SettingsGroup title={t("settings.group.diagnostics")}>
