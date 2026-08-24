@@ -73,12 +73,12 @@ export function SettingsSectionAbout({
         <dl className="settings-about-meta">
           <div>
             <dt>{t("settings.about.shellVersion")}</dt>
-            <dd>{runtime?.shellVersion ?? "—"}</dd>
+            <dd className="shell-copyable">{runtime?.shellVersion ?? "—"}</dd>
           </div>
           <div>
             <dt>{t("settings.about.harness")}</dt>
             <dd>
-              <span className="settings-about-ver">
+              <span className="settings-about-ver shell-copyable">
                 {runtime?.harnessVersion ??
                   (locked ? t("settings.about.installing") : t("settings.about.notInstalled"))}
               </span>
@@ -95,7 +95,7 @@ export function SettingsSectionAbout({
           </div>
           <div>
             <dt>{t("settings.about.port")}</dt>
-            <dd>{runtime?.port ?? "—"}</dd>
+            <dd className="mono">{runtime?.port ?? "—"}</dd>
           </div>
           <div>
             <dt>{t("settings.about.node")}</dt>

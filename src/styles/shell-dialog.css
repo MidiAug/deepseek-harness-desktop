@@ -3,6 +3,22 @@
   gap: 0;
   padding: 0;
   width: min(400px, 100%);
+  /* 壳 chrome 默认不可选；可复制值用 .mono / .shell-copyable */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.shell-dialog .mono,
+.shell-dialog .shell-copyable,
+.shell-copyable {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.shell-dialog input,
+.shell-dialog textarea {
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 /* 关窗询问：正文说明 + 页脚「勾选左 / 操作右」（Esc / 点遮罩取消） */

@@ -118,6 +118,12 @@
   -webkit-user-select: none;
 }
 
+.settings-modal .mono,
+.settings-modal .shell-copyable {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
 .settings-nav {
   flex: none;
   display: flex;
@@ -551,6 +557,8 @@
   font-family: "SF Mono", "JetBrains Mono", "Fira Code", Consolas, "Segoe UI Mono",
     monospace;
   font-size: 12px;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .settings-about-ver {

@@ -34,8 +34,8 @@ import { SettingsSectionAbout } from "./SettingsSectionAbout";
 import { settingsNavIcon } from "./settingsNavIcon";
 import { FaultRecoveryBlock } from "../chrome/FaultRecoveryBlock";
 import { ShellConfirmDialog } from "../chrome/ShellConfirmDialog";
+import { ShellDialogFrame } from "../chrome/ShellDialogFrame";
 import type { FaultCta } from "../../shell/errors/recoveryMatrix";
-import { blockModalSelectAll } from "../../shell/modalKeydown";
 
 export type { SettingsSection } from "./settingsTypes";
 
@@ -111,7 +111,6 @@ function SettingsModalPanel({
   settingsRef.current = settings;
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const faultRef = useRef<FaultState | null>(null);
-  const modalRef = useRef<HTMLDivElement | null>(null);
   faultRef.current = fault;
 
   useEffect(() => {
@@ -142,20 +141,6 @@ function SettingsModalPanel({
         : { ...s, shellTheme: chrome.shellTheme },
     );
   }, [chrome.shellTheme]);
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-      blockModalSelectAll(e);
-    }
-    document.addEventListener("keydown", onKey, true);
-    return () => document.removeEventListener("keydown", onKey, true);
-  }, [onClose]);
-
-  useEffect(() => {
-    window.getSelection()?.removeAllRanges();
-    modalRef.current?.focus({ preventScroll: true });
-  }, []);
 
   useEffect(() => {
     return () => {
@@ -269,22 +254,13 @@ function SettingsModalPanel({
   const locked = life.locked;
 
   return (
-    <div className="modal-backdrop settings-overlay" role="presentation">
-      <button
-        type="button"
-        className="modal-mask"
-        aria-label={t("settings.close")}
-        tabIndex={-1}
-        onClick={onClose}
-      />
-      <div
-        ref={modalRef}
-        tabIndex={-1}
-        className="modal settings-modal"
-        role="dialog"
-        aria-modal="true"
+    <>
+      <ShellDialogFrame
+        open
+        onDismiss={onClose}
+        className="settings-modal"
+        backdropClassName="settings-overlay"
         aria-labelledby="settings-title"
-        onClick={(e) => e.stopPropagation()}
       >
         <nav className="settings-nav" aria-label={t("settings.nav")}>
           <div className="settings-nav-title" id="settings-title">
@@ -398,7 +374,7 @@ function SettingsModalPanel({
             )}
           </div>
         </div>
-      </div>
+      </ShellDialogFrame>
       <ShellConfirmDialog
         open={cleanProfileConfirmOpen}
         titleKey="boot.cleanProfile.confirmTitle"
@@ -409,7 +385,7 @@ function SettingsModalPanel({
         }}
         onConfirm={runCleanProfileFromFault}
       />
-    </div>
+    </>
   );
 }
 
