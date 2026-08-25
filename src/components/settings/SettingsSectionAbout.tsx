@@ -6,11 +6,10 @@ import {
   useHostLifecycle,
   useShellUpdate,
   useAppToast,
+  useSettingsPanelContext,
   runtimeFromSettings,
   normalizeShellSettings,
-  type RuntimeStatus,
 } from "../../shell";
-import type { FaultCta } from "../../shell/errors/recoveryMatrix";
 import { resolveInstallMode } from "../../shell/runtime/installMode";
 import { useLocale } from "../../shell/locale";
 import { SettingsGroup } from "./SettingsGroup";
@@ -19,12 +18,7 @@ import { SettingsUpdateRow } from "./SettingsUpdateRow";
 import { SettingsUpdateNotice } from "./SettingsUpdateNotice";
 import { SettingsUpdateProgress } from "./SettingsUpdateProgress";
 import { parseFaultDisplay, CTA_LABEL_KEYS } from "../../shell/errors";
-
-type Props = {
-  runtime: RuntimeStatus | null;
-  fault: { message: string } | null;
-  onFaultCta: (cta: FaultCta) => void;
-};
+import type { RuntimeStatus } from "../../shell";
 
 function harnessVersionLabel(
   runtime: RuntimeStatus | null,
@@ -38,7 +32,8 @@ function harnessVersionLabel(
 }
 
 /** 关于与更新：身份只读 + 内联更新行（进度/错误不沉底）。 */
-export function SettingsSectionAbout({ runtime, fault, onFaultCta }: Props) {
+export function SettingsSectionAbout() {
+  const { runtime, fault, onFaultCta } = useSettingsPanelContext();
   const { t } = useLocale();
   const { showToast } = useAppToast();
   const life = useHostLifecycle();

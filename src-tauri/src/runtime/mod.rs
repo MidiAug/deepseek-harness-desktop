@@ -3,16 +3,18 @@
 pub mod package;
 mod probe;
 mod status;
+#[cfg(test)]
+mod lifecycle_guard;
 
 pub use probe::{probe_environment, EnvironmentProbe};
-pub use status::build_runtime_status_json;
+pub use status::{build_runtime_status, build_runtime_status_json, RuntimeStatus};
 
 use tauri::{AppHandle, Runtime};
 
 use crate::error::HostError;
 use crate::install;
 use crate::paths;
-use crate::progress::{self, ReadyPayload};
+use crate::progress::{self, InstallStage, ReadyPayload};
 use crate::runtime_lock::{self, LockPurpose};
 use crate::settings;
 use crate::supervise::{self, HarnessState, LaunchPlan};
@@ -55,7 +57,7 @@ pub async fn upgrade_system_harness<R: Runtime>(
 ) -> Result<ReadyPayload, String> {
     let _guard = state.boot_lock.lock().await;
     let _rt_lock = runtime_lock::acquire(app, LockPurpose::HarnessUpdate)?;
-    progress::emit_progress(app, "update-dsh", "正在停止 harness…", Some(10));
+    progress::emit_progress(app, InstallStage::UpdateDsh, "正在停止 harness…", Some(10));
     supervise::stop_and_clear_pid(app, state);
     tokio::time::sleep(std::time::Duration::from_millis(1200)).await;
 
@@ -67,7 +69,7 @@ pub async fn upgrade_system_harness<R: Runtime>(
     let (port, url) = supervise::spawn_and_wait_healthy(app, state).await?;
     progress::emit_progress(
         app,
-        "update-dsh",
+        InstallStage::UpdateDsh,
         &format!("更新完成 · 端口 {port}"),
         Some(100),
     );
@@ -86,9 +88,9 @@ pub async fn ensure_and_start<R: Runtime>(
         return Ok(ready);
     }
     let _rt_lock = runtime_lock::acquire(app, LockPurpose::Ensure)?;
-    progress::emit_progress(app, "detect", "清扫残留进程…", Some(2));
+    progress::emit_progress(app, InstallStage::Detect, "清扫残留进程…", Some(2));
     supervise::sweep_orphans(app);
-    progress::emit_progress(app, "detect", "检查运行时…", Some(5));
+    progress::emit_progress(app, InstallStage::Detect, "检查运行时…", Some(5));
 
     let cfg = settings::load(app);
     let plan = resolve_launch_plan(app, &cfg).await?;
@@ -123,7 +125,7 @@ pub async fn start_clean_profile<R: Runtime>(
     log::info!(target: "shell::runtime", "start_clean_profile begin");
     let _guard = state.boot_lock.lock().await;
     let _rt_lock = runtime_lock::acquire(app, LockPurpose::Ensure)?;
-    progress::emit_progress(app, "start", "正在准备干净 profile 会话…", Some(5));
+    progress::emit_progress(app, InstallStage::Start, "正在准备干净 profile 会话…", Some(5));
     supervise::stop_and_clear_pid(app, state);
     tokio::time::sleep(std::time::Duration::from_millis(800)).await;
     let dir = supervise::activate_clean_profile_session(app, state)?;
@@ -148,7 +150,7 @@ pub async fn start_clean_profile<R: Runtime>(
     let (port, url) = supervise::spawn_and_wait_healthy(app, state).await?;
     progress::emit_progress(
         app,
-        "ready",
+        InstallStage::Ready,
         &format!("干净 profile 已就绪 · {url}"),
         Some(100),
     );
@@ -168,7 +170,7 @@ pub async fn exit_clean_profile<R: Runtime>(
     let (port, url) = supervise::spawn_and_wait_healthy(app, state).await?;
     progress::emit_progress(
         app,
-        "ready",
+        InstallStage::Ready,
         &format!("已回到正式 profile · {url}"),
         Some(100),
     );
@@ -186,7 +188,7 @@ pub async fn reset_dsh_home<R: Runtime>(
     if supervise::is_clean_profile_active(state) {
         supervise::deactivate_clean_profile_session(app, state);
     }
-    progress::emit_progress(app, "reset", "正在停止 harness…", Some(5));
+    progress::emit_progress(app, InstallStage::Reset, "正在停止 harness…", Some(5));
     supervise::stop_and_clear_pid(app, state);
     tokio::time::sleep(std::time::Duration::from_millis(1200)).await;
 
@@ -195,7 +197,7 @@ pub async fn reset_dsh_home<R: Runtime>(
     paths::validate_dsh_home_reset_target(app, &home)?;
     progress::emit_progress(
         app,
-        "reset",
+        InstallStage::Reset,
         &format!("正在清空数据目录 {}…", home.display()),
         Some(25),
     );
@@ -215,7 +217,7 @@ pub async fn reset_dsh_home<R: Runtime>(
     let (port, url) = supervise::spawn_and_wait_healthy(app, state).await?;
     progress::emit_progress(
         app,
-        "ready",
+        InstallStage::Ready,
         &format!("配置已重置 · {url}"),
         Some(100),
     );
@@ -248,7 +250,7 @@ async fn reinstall_system_dsh<R: Runtime>(
     log::info!(target: "shell::runtime", "reinstall_system_dsh begin");
     let _guard = state.boot_lock.lock().await;
     let _rt_lock = runtime_lock::acquire(app, LockPurpose::Reset)?;
-    progress::emit_progress(app, "reset", "正在停止 harness…", Some(5));
+    progress::emit_progress(app, InstallStage::Reset, "正在停止 harness…", Some(5));
     supervise::stop_and_clear_pid(app, state);
     tokio::time::sleep(std::time::Duration::from_millis(1200)).await;
 
@@ -260,7 +262,7 @@ async fn reinstall_system_dsh<R: Runtime>(
     let (port, url) = supervise::spawn_and_wait_healthy(app, state).await?;
     progress::emit_progress(
         app,
-        "ready",
+        InstallStage::Ready,
         &format!("本机 dsh 已重装 · {url}"),
         Some(100),
     );
@@ -280,7 +282,7 @@ async fn resolve_launch_plan<R: Runtime>(
             } else {
                 progress::emit_progress(
                     app,
-                    "detect",
+                    InstallStage::Detect,
                     "未检测到本机 dsh，改用托管安装…",
                     Some(8),
                 );
@@ -304,13 +306,13 @@ pub async fn reset_hosted_runtime<R: Runtime>(
         )));
     }
     let _rt_lock = runtime_lock::acquire(app, LockPurpose::Reset)?;
-    progress::emit_progress(app, "reset", "正在停止 harness…", Some(5));
+    progress::emit_progress(app, InstallStage::Reset, "正在停止 harness…", Some(5));
     supervise::stop_and_clear_pid(app, state);
     tokio::time::sleep(std::time::Duration::from_millis(1200)).await;
 
     let harness = crate::paths::harness_dir(app)?;
     if harness.exists() {
-        progress::emit_progress(app, "reset", "正在清除托管 harness…", Some(20));
+        progress::emit_progress(app, InstallStage::Reset, "正在清除托管 harness…", Some(20));
         progress::append_shell_log(
             app,
             &format!("reset_hosted_runtime wipe {}", harness.display()),
@@ -318,11 +320,11 @@ pub async fn reset_hosted_runtime<R: Runtime>(
         fs_remove_dir_all_retry(&harness).await?;
     }
 
-    progress::emit_progress(app, "detect", "重新安装托管运行时…", Some(40));
+    progress::emit_progress(app, InstallStage::Detect, "重新安装托管运行时…", Some(40));
     let plan = ensure_hosted_then_plan(app).await?;
     supervise::set_pending_launch(state, plan)?;
     let (port, url) = supervise::spawn_and_wait_healthy(app, state).await?;
-    progress::emit_progress(app, "ready", &format!("重置完成 · 端口 {port}"), Some(100));
+    progress::emit_progress(app, InstallStage::Ready, &format!("重置完成 · 端口 {port}"), Some(100));
     Ok(ReadyPayload { url, port })
 }
 
@@ -394,7 +396,7 @@ pub async fn restart_harness<R: Runtime>(
 ) -> Result<ReadyPayload, String> {
     log::info!(target: "shell::runtime", "restart_harness begin");
     let _guard = state.boot_lock.lock().await;
-    progress::emit_progress(app, "start", "正在停止旧进程…", Some(80));
+    progress::emit_progress(app, InstallStage::Start, "正在停止旧进程…", Some(80));
     supervise::stop_and_clear_pid(app, state);
     let (port, url) = supervise::spawn_and_wait_healthy(app, state).await?;
     log::info!(target: "shell::runtime", "restart_harness ok port={port}");
@@ -412,7 +414,12 @@ mod import_hygiene {
 
     #[test]
     fn leaf_modules_import_runtime_package() {
-        for file in ["install.rs", "supervise.rs", "update.rs", "cli_link.rs"] {
+        for file in [
+            "install/dsh.rs",
+            "supervise.rs",
+            "update.rs",
+            "cli_link.rs",
+        ] {
             let text = read_src(file);
             assert!(
                 text.contains("runtime::package::"),

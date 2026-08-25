@@ -1,0 +1,257 @@
+.drawer-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 18px 14px 8px 24px;
+  margin: 0;
+}
+
+.drawer-head h2 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+  color: var(--color-ink);
+}
+
+.drawer-head .icon-btn {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  margin: 0;
+  border-radius: 8px;
+  color: var(--color-muted);
+}
+
+.drawer-head .icon-btn:hover {
+  background: var(--color-nav-hover);
+  color: var(--color-ink);
+}
+
+/* 设置：与通用 modal-backdrop 同遮罩；仅保留居中内边距 */
+.settings-overlay {
+  padding: 24px;
+}
+
+/* 横屏两栏：照搬 DSH SettingsRoot（800 宽 · 左 188 导航 · 固定高度） */
+.modal.settings-modal {
+  flex-direction: row;
+  align-items: stretch;
+  width: min(800px, calc(100vw - 48px));
+  /* 随窗高收缩，上下各留约 48px，避免贴满窗口 */
+  height: min(640px, calc(100vh - 96px));
+  max-height: calc(100vh - 96px);
+  gap: 0;
+  padding: 0;
+  border: none;
+  /* 仅说明文字可复制；导航/标题/控件标签避免误拖选 */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.settings-modal .mono,
+.settings-modal .shell-copyable {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.settings-nav {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 188px;
+  padding: 22px 12px 16px;
+  box-sizing: border-box;
+  border-right: 1px solid var(--color-line);
+}
+
+.settings-nav-title {
+  padding: 0 12px;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+  color: var(--color-ink);
+}
+
+.settings-nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-nav-cell {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 9px 16px 9px 12px;
+  box-sizing: border-box;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 400;
+  color: var(--color-ink);
+  text-align: left;
+}
+
+.settings-nav-cell:hover {
+  background: var(--color-nav-hover);
+}
+
+.settings-nav-cell.active {
+  background: var(--color-nav-active);
+}
+
+.settings-nav-icon {
+  flex: none;
+}
+
+.settings-nav-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.settings-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  /* 与弹窗 / 左栏同色，避免右栏 canvas 挖洞 */
+  background: transparent;
+}
+
+.settings-content-head {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  height: 54px;
+  padding: 20px 14px 8px 10px;
+  box-sizing: border-box;
+}
+
+.settings-section-title {
+  margin: 0;
+  padding: 0 0 0 14px;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+  color: var(--color-ink);
+}
+
+.settings-close {
+  appearance: none;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 28px;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--color-ink);
+}
+
+.settings-close:hover {
+  background: var(--color-nav-hover);
+}
+
+.settings-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0 24px 16px;
+  --dsh-scrollbar-thumb: rgba(255, 255, 255, 0.18);
+  --dsh-scrollbar-thumb-hover: rgba(255, 255, 255, 0.32);
+}
+
+/* 暗色细滚动条（照搬 DSH scrollbar.css 思路：WebKit 伪元素路径） */
+.settings-scroll::-webkit-scrollbar {
+  width: var(--dsh-scrollbar-width);
+  height: var(--dsh-scrollbar-width);
+}
+
+.settings-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.settings-scroll::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: var(--dsh-scrollbar-thumb);
+}
+
+.settings-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--dsh-scrollbar-thumb-hover);
+}
+
+.settings-scroll::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.modal-footer {
+  flex: none;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 0;
+  padding: 12px 24px 20px;
+  width: auto;
+  border-top: 1px solid var(--color-line);
+  background: var(--color-panel);
+}
+
+.settings-content > .modal-footer {
+  border-top: 1px solid var(--color-line);
+}
+
+/* 设置弹窗无底栏：仅左导航 + 右内容 */
+.settings-modal .settings-content > .modal-footer {
+  display: none;
+}
+
+.close-ask-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 0;
+  padding: 0 24px 4px;
+}
+
+.settings-scroll .status-line {
+  padding: 0;
+  margin: 0 0 4px;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.settings-scroll .status-line:last-child {
+  margin-bottom: 0;
+}
+
+.settings-scroll .error {
+  margin: 12px 0 0;
+}

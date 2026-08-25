@@ -22,72 +22,20 @@ import {
   useShellSession,
   useSidebarLayout,
   useHarnessContextMenu,
-  useAppToast,
+  useSessionLogDownload,
 } from "./shell";
-import type { DownloadFinishedPayload } from "./shell/api/shellApi";
 import {
   clearShellSelections,
-  dismissSessionExportDialog,
   focusHarnessFrame,
   requestHarnessSelectAll,
   setHarnessShellModalOpen,
 } from "./shell/harnessFramePost";
+import {
+  postSelectionHygiene,
+  postSessionLogProxy,
+  suppressHoverResidue,
+} from "./shell/harnessFrameBridge";
 import "./App.css";
-
-/** 托盘恢复时清掉 :hover 残留（关闭钮曾压在鼠标下） */
-function suppressHoverResidue() {
-  document.body.classList.add("suppress-hover");
-  const active = document.activeElement;
-  // 勿 blur harness iframe：窗口重新聚焦时用户常正点选区，blur 会导致灰→蓝→灰闪烁
-  if (
-    active instanceof HTMLElement &&
-    !(active instanceof HTMLIFrameElement)
-  ) {
-    active.blur();
-  }
-  window.setTimeout(() => {
-    document.body.classList.remove("suppress-hover");
-  }, 200);
-}
-
-function postSelectionHygiene(
-  frame: HTMLIFrameElement | null,
-  enabled: boolean,
-) {
-  try {
-    frame?.contentWindow?.postMessage(
-      { source: "dsh-shell", type: "selection-hygiene", enabled },
-      "*",
-    );
-  } catch {
-    /* cross-origin 或未就绪 */
-  }
-}
-
-function postSessionLogProxy(
-  frame: HTMLIFrameElement | null,
-  enabled: boolean,
-) {
-  try {
-    frame?.contentWindow?.postMessage(
-      { source: "dsh-shell", type: "session-log-proxy", enabled },
-      "*",
-    );
-  } catch {
-    /* cross-origin 或未就绪 */
-  }
-}
-
-function postSessionLogClick(frame: HTMLIFrameElement | null) {
-  try {
-    frame?.contentWindow?.postMessage(
-      { source: "dsh-shell", type: "session-log-click" },
-      "*",
-    );
-  } catch {
-    /* cross-origin 或未就绪 */
-  }
-}
 
 export default function App() {
   const { t } = useLocale();
@@ -112,9 +60,9 @@ export default function App() {
     "loading" | "wizard" | "ready"
   >("loading");
   const [sessionLogAvailable, setSessionLogAvailable] = useState(false);
-  const sessionLogDownloadPending = useRef(false);
-  const sessionLogDownloadTimer = useRef<number | null>(null);
-  const { showToast } = useAppToast();
+  const { onSessionLog, resetSessionLogPending } = useSessionLogDownload(
+    harnessFrameRef,
+  );
 
   const openSettings = useCallback((section?: SettingsSection) => {
     setSettingsSection(section);
@@ -214,71 +162,8 @@ export default function App() {
   // 换页 / 重载 iframe 时先隐藏，等 harness 再上报
   useEffect(() => {
     setSessionLogAvailable(false);
-    sessionLogDownloadPending.current = false;
-    if (sessionLogDownloadTimer.current != null) {
-      window.clearTimeout(sessionLogDownloadTimer.current);
-      sessionLogDownloadTimer.current = null;
-    }
-  }, [session.iframeKey, bodyView]);
-
-  useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    void listen<DownloadFinishedPayload>("shell-download-finished", (ev) => {
-      shellLog.info(
-        "download",
-        `event finished success=${ev.payload.success} path=${ev.payload.path ?? "?"} url=${ev.payload.url ?? "?"}`,
-      );
-      if (!sessionLogDownloadPending.current) {
-        shellLog.info("download", "ignored (no pending session-log click)");
-        return;
-      }
-      sessionLogDownloadPending.current = false;
-      if (sessionLogDownloadTimer.current != null) {
-        window.clearTimeout(sessionLogDownloadTimer.current);
-        sessionLogDownloadTimer.current = null;
-      }
-      if (!ev.payload.success || !ev.payload.path) {
-        shellLog.warn(
-          "download",
-          `session-log finished but unusable payload success=${ev.payload.success} path=${ev.payload.path ?? ""}`,
-        );
-        return;
-      }
-      const filePath = ev.payload.path;
-      shellLog.info("download", `session-log toast path=${filePath}`);
-      dismissSessionExportDialog(harnessFrameRef.current);
-      showToast(t("chrome.sessionLog.downloaded"), {
-        action: {
-          label: t("chrome.sessionLog.open"),
-          onClick: () => {
-            shellLog.info("download", `session-log reveal path=${filePath}`);
-            dismissSessionExportDialog(harnessFrameRef.current);
-            void shellApi.revealDownloadedFile(filePath).catch((e) => {
-              shellLog.error("download", `reveal path=${filePath}`, e);
-            });
-          },
-        },
-      });
-    }).then((fn) => {
-      unlisten = fn;
-    });
-    return () => {
-      unlisten?.();
-    };
-  }, [showToast, t]);
-
-  const onSessionLog = useCallback(() => {
-    shellLog.info("download", "session-log click (pending download toast)");
-    sessionLogDownloadPending.current = true;
-    if (sessionLogDownloadTimer.current != null) {
-      window.clearTimeout(sessionLogDownloadTimer.current);
-    }
-    sessionLogDownloadTimer.current = window.setTimeout(() => {
-      sessionLogDownloadPending.current = false;
-      sessionLogDownloadTimer.current = null;
-    }, 60_000);
-    postSessionLogClick(harnessFrameRef.current);
-  }, []);
+    resetSessionLogPending();
+  }, [session.iframeKey, bodyView, resetSessionLogPending]);
 
   const shellOverlay = chrome.titlebarCompact && bodyView === "harness";
   const shellBackdropOpen = settingsOpen || closeAskOpen;

@@ -1,17 +1,11 @@
-import type { MirrorKind, ProxyMode, ShellSettings } from "../../shell/settings";
+import type { MirrorKind, ProxyMode } from "../../shell/settings";
+import { useSettingsPanelContext } from "../../shell";
 import { useLocale } from "../../shell/locale";
 import { SettingsPrefRow } from "./SettingsPrefRow";
 import { ShellSelect } from "../chrome/ShellSelect";
 
-type Props = {
-  settings: ShellSettings;
-  patchRuntime: (
-    patch: Partial<ShellSettings>,
-    opts?: { debounceMs?: number; softHint?: string },
-  ) => void;
-};
-
-export function SettingsSectionNetwork({ settings, patchRuntime }: Props) {
+export function SettingsSectionNetwork() {
+  const { settings, patchRuntime } = useSettingsPanelContext();
   const { t } = useLocale();
 
   const mirrorOptions = [

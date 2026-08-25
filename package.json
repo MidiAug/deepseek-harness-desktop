@@ -9,11 +9,18 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "check:release": "node scripts/check-release.mjs",
-    "test:unit": "node --test --experimental-strip-types src/shell/errors/recoveryMatrix.test.ts src/shell/errors/parseFaultDisplay.test.ts src/shell/hostProgressMap.test.ts src/shell/settings.test.ts src/shell/formatPathShort.test.ts",
+    "test:unit": "node --test --experimental-strip-types src/shell/errors/recoveryMatrix.test.ts src/shell/errors/parseFaultDisplay.test.ts src/shell/hostProgressMap.test.ts src/shell/settings.test.ts src/shell/formatPathShort.test.ts src/shell/hooks/useHarnessRecoveryActions.test.ts",
     "audit:snapshot": "node scripts/audit-system-snapshot.mjs",
     "audit:runtime": "node scripts/audit-runtime-probe.mjs",
     "audit:cdp": "node scripts/audit-cdp-capture.mjs",
-    "audit:matrix": "node scripts/audit-run-matrix.mjs"
+    "audit:matrix": "node scripts/audit-run-matrix.mjs",
+    "audit:dup": "jscpd src --min-lines 8 --min-tokens 60 --reporters console",
+    "audit:dead": "knip",
+    "gen:bindings": "node scripts/gen-bindings.mjs",
+    "check:bindings": "node scripts/check-bindings.mjs",
+    "fitness": "node scripts/fitness.mjs",
+    "fitness:import": "node scripts/fitness-import.mjs",
+    "fitness:invoke": "node scripts/fitness-invoke.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
@@ -30,6 +37,8 @@
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
+    "jscpd": "^4.0.5",
+    "knip": "^5.46.0",
     "typescript": "~5.8.3",
     "vite": "^7.0.4"
   },

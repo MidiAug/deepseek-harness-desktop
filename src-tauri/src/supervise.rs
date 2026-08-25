@@ -14,7 +14,7 @@ use tauri::{AppHandle, Runtime};
 
 use crate::error::HostError;
 use crate::paths;
-use crate::progress;
+use crate::progress::{self, InstallStage};
 use crate::runtime::package::resolve_dsh_entry;
 use crate::settings;
 use crate::system_runtime::{ActiveRuntimeKind, SystemRuntime};
@@ -261,7 +261,7 @@ pub async fn spawn_and_wait_healthy<R: Runtime>(
         if port != preferred {
             progress::emit_progress(
                 app,
-                "start",
+                InstallStage::Start,
                 &format!("端口 {preferred} 被占用，改用 {port}"),
                 Some(88),
             );
@@ -305,7 +305,7 @@ pub async fn spawn_and_wait_healthy<R: Runtime>(
 
         progress::emit_progress(
             app,
-            "start",
+            InstallStage::Start,
             &format!("正在启动官方 UI（127.0.0.1:{port}）…"),
             Some(90),
         );
@@ -349,7 +349,7 @@ pub async fn spawn_and_wait_healthy<R: Runtime>(
 
         let url = paths::service_url(port);
         wait_healthy(app, &url, state, pid, port, Duration::from_secs(90)).await?;
-        progress::emit_progress(app, "start", &format!("官方 UI 已就绪：{url}"), Some(100));
+        progress::emit_progress(app, InstallStage::Start, &format!("官方 UI 已就绪：{url}"), Some(100));
         Ok((port, url))
         }
 }
@@ -409,7 +409,7 @@ pub async fn try_reuse_healthy<R: Runtime>(
         }
         progress::emit_progress(
             app,
-            "start",
+            InstallStage::Start,
             &format!("复用已就绪服务：{url}"),
             Some(100),
         );
@@ -494,7 +494,7 @@ async fn wait_healthy<R: Runtime>(
                 if tick % 3 == 0 {
                     progress::emit_progress(
                         app,
-                        "start",
+                        InstallStage::Start,
                         &format!(
                             "等待官方 UI… HTTP {}（{url}）",
                             resp.status().as_u16()
@@ -509,7 +509,7 @@ async fn wait_healthy<R: Runtime>(
                 if tick % 2 == 0 {
                     progress::emit_progress(
                         app,
-                        "start",
+                        InstallStage::Start,
                         &format!("等待官方 UI 监听 {url}…"),
                         Some(91),
                     );

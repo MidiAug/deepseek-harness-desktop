@@ -16,6 +16,21 @@ export {
   HarnessSettingsOpsProvider,
   useHarnessSettingsOps,
 } from "./hooks/useHarnessSettingsOps";
+export {
+  SettingsPanelProvider,
+  useSettingsPanelContext,
+} from "./hooks/useSettingsPanelContext";
+export type { SettingsPanelContextValue } from "./hooks/useSettingsPanelContext";
+export type {
+  HarnessRecoveryCallbacks,
+  RecoveryActionId,
+  RecoveryDialogState,
+  RecoverySurface,
+} from "./hooks/useHarnessRecoveryActions";
+export { useHarnessRecoveryActions } from "./hooks/useHarnessRecoveryActions";
+export { useBootPanel } from "./hooks/useBootPanel";
+export { useOnboardingWizard } from "./hooks/useOnboardingWizard";
+export { useSessionLogDownload } from "./hooks/useSessionLogDownload";
 export { useShellSession } from "./hooks/useShellSession";
 export { useSidebarLayout, SIDEBAR_FALLBACK_PX } from "./hooks/useSidebarLayout";
 export { useHarnessContextMenu } from "./hooks/useHarnessContextMenu";

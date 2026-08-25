@@ -1,6 +1,6 @@
 ﻿import { useEffect, useState, type ComponentType } from "react";
-import type { ShellSettings, ShellTheme } from "../../shell/settings";
-import { shellApi, useAppToast, useChrome } from "../../shell";
+import type { ShellTheme } from "../../shell/settings";
+import { shellApi, useAppToast, useChrome, useSettingsPanelContext } from "../../shell";
 import { LOCALE_OPTIONS, useLocale } from "../../shell/locale";
 import {
   IconDarkOutline16,
@@ -11,30 +11,8 @@ import { ShellSelect } from "../chrome/ShellSelect";
 import { SettingsGroup } from "./SettingsGroup";
 import { SettingsPrefRow } from "./SettingsPrefRow";
 
-type Props = {
-  settings: ShellSettings;
-  patchRuntime: (
-    patch: Partial<ShellSettings>,
-    opts?: { debounceMs?: number; softHint?: string },
-  ) => void;
-  patchAppearance: (
-    patch: Partial<
-      Pick<
-        ShellSettings,
-        | "shellTheme"
-        | "titlebarCompact"
-        | "selectionHygiene"
-        | "sessionLogInTitlebar"
-      >
-    >,
-  ) => void;
-};
-
-export function SettingsSectionAppearance({
-  settings,
-  patchRuntime,
-  patchAppearance,
-}: Props) {
+export function SettingsSectionAppearance() {
+  const { settings, patchRuntime, patchAppearance } = useSettingsPanelContext();
   const { locale, setLocale, t } = useLocale();
   const { showToast } = useAppToast();
   const { chrome } = useChrome();

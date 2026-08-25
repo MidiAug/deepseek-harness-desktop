@@ -1,0 +1,297 @@
+.settings-control {
+  appearance: none;
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  height: 36px;
+  min-width: 180px;
+  max-width: 100%;
+  padding: 0 12px;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 12px;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  box-sizing: border-box;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.settings-cell.stack .settings-control {
+  width: 100%;
+  min-width: 0;
+}
+
+.settings-control:focus,
+.settings-control:focus-visible {
+  outline: none;
+  border-color: color-mix(
+    in srgb,
+    var(--color-accent, #3b82f6) 45%,
+    var(--color-line-strong)
+  );
+  box-shadow: none;
+}
+
+/* DSH_HOME 路径行：对齐首跑 onboarding 输入 + 右侧浏览钮 */
+.settings-path-input-wrap {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 36px;
+  padding: 0 4px 0 12px;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 12px;
+  background: var(--color-canvas);
+  box-sizing: border-box;
+}
+
+.settings-path-input-wrap:focus-within {
+  border-color: color-mix(
+    in srgb,
+    var(--color-accent, #3b82f6) 45%,
+    var(--color-line-strong)
+  );
+}
+
+.settings-path-input {
+  flex: 1;
+  min-width: 0;
+  appearance: none;
+  margin: 0;
+  padding: 6px 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--color-ink);
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.settings-path-input::placeholder {
+  color: var(--color-muted);
+}
+
+.settings-path-input:focus,
+.settings-path-input:focus-visible {
+  outline: none;
+}
+
+.settings-path-input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.settings-path-input-actions {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  margin: 0 -2px 0 2px;
+}
+
+.settings-path-icon-btn {
+  appearance: none;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  font: inherit;
+}
+
+.settings-path-icon-btn:hover:not(:disabled) {
+  background: var(--color-nav-hover);
+  color: var(--color-ink);
+}
+
+.settings-path-icon-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* 自绘下拉：对齐 DSH PermissionRow 胶囊 + ModelSelect 菜单 */
+.shell-select {
+  position: relative;
+  min-width: 180px;
+  max-width: 100%;
+}
+
+.shell-select-trigger {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 180px;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 18px;
+  background: var(--color-btn-fill);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  cursor: pointer;
+  box-sizing: border-box;
+  text-align: left;
+}
+
+.shell-select-trigger:hover:not(:disabled) {
+  background: var(--color-btn-fill-hover);
+  border-color: var(--color-line-strong);
+}
+
+.shell-select-trigger:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.shell-select-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shell-select-chevron {
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: var(--color-muted);
+  transition: transform 0.12s ease;
+}
+
+.shell-select.open .shell-select-chevron {
+  transform: rotate(180deg);
+}
+
+.shell-select-menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  border: 1px solid var(--color-line-strong);
+  /* 与分组卡区分：浅色白面；深色更高抬升 */
+  background: var(--color-panel);
+  box-shadow: var(--shadow-lv3);
+  max-height: min(360px, calc(100vh - 96px));
+  overflow: auto;
+  --dsh-scrollbar-thumb: var(--color-line-strong);
+  --dsh-scrollbar-thumb-hover: var(--color-muted);
+}
+
+:root[data-shell-theme="dark"] .shell-select-menu {
+  background: var(--color-tooltip-bg);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.shell-select-menu li {
+  margin: 0;
+  padding: 0;
+}
+
+.shell-select-option {
+  appearance: none;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 38px;
+  margin: 0;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+}
+
+.shell-select-option:hover,
+.shell-select-option:focus-visible {
+  background: var(--color-panel-hover);
+}
+
+.shell-select-option.on {
+  background: transparent;
+}
+
+.shell-select-option-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shell-select-check {
+  flex: 0 0 18px;
+  display: grid;
+  place-items: center;
+  color: var(--color-ink);
+}
+
+.shell-select-check.spacer {
+  visibility: hidden;
+}
+
+/* 对齐 DSH AppearanceRow themeCube（figma 501:30015–30017） */
+.settings-theme-cubes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+}
+
+.settings-theme-cube {
+  appearance: none;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 20px 16px;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 16px;
+  background: transparent;
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  cursor: pointer;
+}
+
+.settings-theme-cube:hover:not(.on) {
+  background: var(--color-panel-hover);
+}
+
+.settings-theme-cube.on {
+  background: var(--color-btn-fill);
+  border-color: var(--color-muted);
+}

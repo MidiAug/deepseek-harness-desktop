@@ -17,7 +17,9 @@ import {
   useAppToast,
   useChrome,
   useHarnessSettingsOps,
+  useHarnessRecoveryActions,
   useHostLifecycle,
+  SettingsPanelProvider,
   type ReadyPayload,
   type RuntimeStatus,
 } from "../../shell";
@@ -32,7 +34,7 @@ import { SettingsSectionData } from "./SettingsSectionData";
 import { SettingsSectionAbout } from "./SettingsSectionAbout";
 import { settingsNavIcon } from "./settingsNavIcon";
 import { FaultRecoveryBlock } from "../chrome/FaultRecoveryBlock";
-import { ShellConfirmDialog } from "../chrome/ShellConfirmDialog";
+import { HarnessRecoveryDialogs } from "../chrome/HarnessRecoveryDialogs";
 import { ShellDialogFrame } from "../chrome/ShellDialogFrame";
 import type { FaultCta } from "../../shell/errors/recoveryMatrix";
 import { resolveInstallMode } from "../../shell/runtime/installMode";
@@ -106,8 +108,6 @@ function SettingsModalPanel({
     normalizeSettingsSection(initialSection),
   );
   const [portDraft, setPortDraft] = useState("");
-  const [cleanProfileConfirmOpen, setCleanProfileConfirmOpen] = useState(false);
-  const [cleanProfileBusy, setCleanProfileBusy] = useState(false);
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -163,6 +163,26 @@ function SettingsModalPanel({
     };
   }, []);
 
+  const locked = life.locked;
+
+  const installMode = resolveInstallMode({
+    runtimeSource: settings.runtimeSource,
+    activeRuntime: runtime?.activeRuntime,
+  });
+
+  const recovery = useHarnessRecoveryActions(
+    "settings",
+    {
+      refreshRuntime,
+      onHarnessReady,
+      reportFault,
+    },
+    {
+      installMode,
+      dshHomePath: runtime?.dshHome ?? runtime?.effectiveDshHome ?? "",
+    },
+  );
+
   const handleFaultCta = useCallback(
     (cta: FaultCta) => {
       switch (cta) {
@@ -193,30 +213,13 @@ function SettingsModalPanel({
           break;
         case "cleanProfile": {
           reportFault(null);
-          setCleanProfileConfirmOpen(true);
+          recovery.request("cleanProfile");
           break;
         }
       }
     },
-    [refreshRuntime, reportFault],
+    [refreshRuntime, reportFault, recovery],
   );
-
-  const runCleanProfileFromFault = useCallback(() => {
-    setCleanProfileBusy(true);
-    void shellApi
-      .startCleanProfile()
-      .then((ready) => {
-        setCleanProfileConfirmOpen(false);
-        showToast(t("settings.data.cleanProfile.done"));
-        onHarnessReady?.(ready);
-        refreshRuntime();
-      })
-      .catch((e) => {
-        const msg = typeof e === "string" ? e : String(e);
-        reportFault(msg);
-      })
-      .finally(() => setCleanProfileBusy(false));
-  }, [onHarnessReady, refreshRuntime, reportFault, showToast, t]);
 
   function persistRuntime(next: ShellSettings, softHint?: string) {
     reportFault(null);
@@ -269,12 +272,29 @@ function SettingsModalPanel({
     patchChrome(patch);
   }
 
-  const locked = life.locked;
-
-  const installMode = resolveInstallMode({
-    runtimeSource: settings.runtimeSource,
-    activeRuntime: runtime?.activeRuntime,
-  });
+  const panelContext = {
+    settings,
+    setSettings,
+    runtime,
+    refreshRuntime,
+    locked,
+    patchRuntime,
+    patchAppearance,
+    reportFault,
+    portDraft,
+    setPortDraft,
+    onHarnessReady,
+    onCloseSettings: onClose,
+    onBeginHarnessOp,
+    onHarnessOpFailed,
+    onStopHarness,
+    onDiagnosticsExported: (path: string) => {
+      showToast(t("settings.about.exportDiagnosticsDone", { path }));
+    },
+    onDiagnosticsError: reportFault,
+    fault,
+    onFaultCta: handleFaultCta,
+  };
 
   return (
     <>
@@ -325,82 +345,26 @@ function SettingsModalPanel({
             </ShellTooltip>
           </div>
 
-          <div className="settings-scroll">
-            {section === "appearance" && (
-              <SettingsSectionAppearance
-                settings={settings}
-                patchRuntime={patchRuntime}
-                patchAppearance={patchAppearance}
-              />
-            )}
-            {section === "network" && (
-              <SettingsSectionNetwork
-                settings={settings}
-                patchRuntime={patchRuntime}
-              />
-            )}
-            {section === "runtime" && (
-              <SettingsSectionRuntime
-                settings={settings}
-                runtime={runtime}
-                portDraft={portDraft}
-                setPortDraft={setPortDraft}
-                locked={locked}
-                patchRuntime={patchRuntime}
-                setError={reportFault}
-                setSettings={setSettings}
-                refreshRuntime={refreshRuntime}
-                onStopHarness={onStopHarness}
-              />
-            )}
-            {section === "data" && (
-              <SettingsSectionData
-                settings={settings}
-                runtime={runtime}
-                locked={locked}
-                patchRuntime={patchRuntime}
-                setError={reportFault}
-                refreshRuntime={refreshRuntime}
-                onHarnessReady={onHarnessReady}
-                onCloseSettings={onClose}
-                onBeginHarnessOp={onBeginHarnessOp}
-                onHarnessOpFailed={onHarnessOpFailed}
-                onDiagnosticsExported={(path) => {
-                  showToast(
-                    t("settings.about.exportDiagnosticsDone", { path }),
-                  );
-                }}
-                onDiagnosticsError={reportFault}
-              />
-            )}
-            {section === "about" && (
-              <SettingsSectionAbout
-                runtime={runtime}
-                fault={fault}
-                onFaultCta={handleFaultCta}
-              />
-            )}
+          <SettingsPanelProvider value={panelContext}>
+            <div className="settings-scroll">
+              {section === "appearance" && <SettingsSectionAppearance />}
+              {section === "network" && <SettingsSectionNetwork />}
+              {section === "runtime" && <SettingsSectionRuntime />}
+              {section === "data" && <SettingsSectionData />}
+              {section === "about" && <SettingsSectionAbout />}
 
-            {fault && section !== "about" && (
-              <FaultRecoveryBlock
-                error={fault.message}
-                installMode={installMode}
-                onCta={handleFaultCta}
-              />
-            )}
-          </div>
+              {fault && section !== "about" && (
+                <FaultRecoveryBlock
+                  error={fault.message}
+                  installMode={installMode}
+                  onCta={handleFaultCta}
+                />
+              )}
+            </div>
+          </SettingsPanelProvider>
         </div>
       </ShellDialogFrame>
-      <ShellConfirmDialog
-        open={cleanProfileConfirmOpen}
-        titleKey="boot.cleanProfile.confirmTitle"
-        bodyKey="boot.cleanProfile.confirm"
-        busy={cleanProfileBusy}
-        onCancel={() => {
-          if (!cleanProfileBusy) setCleanProfileConfirmOpen(false);
-        }}
-        onConfirm={runCleanProfileFromFault}
-      />
+      <HarnessRecoveryDialogs dialogs={recovery.dialogs} />
     </>
   );
 }

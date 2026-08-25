@@ -10,7 +10,7 @@ import {
 import { listen } from "@tauri-apps/api/event";
 import * as shellApi from "../api/shellApi";
 import { shellLog } from "../logger";
-import { dicts, type LocaleKey } from "./dict";
+import { dicts, type LocaleKey } from "./dict/index";
 import { detectBrowserLocale, prefToLocale } from "./detect";
 import { DOCUMENT_LANG, type ShellLocale } from "./types";
 

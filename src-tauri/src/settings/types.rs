@@ -1,12 +1,13 @@
 //! 壳设置类型与 IPC 聚合视图。
 
 use serde::{Deserialize, Serialize};
+use specta::Type;
 
 use crate::paths;
 use crate::system_runtime::RuntimeSource;
 use super::proxy::read_windows_system_proxy;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, Type)]
 #[serde(rename_all = "camelCase")]
 pub enum MirrorKind {
     /// npmmirror（Node + npm），国内默认
@@ -16,7 +17,7 @@ pub enum MirrorKind {
     Official,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, Type)]
 #[serde(rename_all = "camelCase")]
 pub enum ProxyMode {
     #[default]

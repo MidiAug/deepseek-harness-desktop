@@ -4,6 +4,6 @@
 @import "./styles/titlebar.css";
 @import "./styles/boot.css";
 @import "./styles/fault.css";
-@import "./styles/settings.css";
+@import "./styles/settings/index.css";
 @import "./styles/context-menu.css";
 @import "./styles/shell-dialog.css";

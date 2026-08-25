@@ -7,7 +7,7 @@ use crate::error::HostError;
 use crate::install;
 use crate::net::http::http_client;
 use crate::paths::DSH_PACKAGE;
-use crate::progress::{self, ReadyPayload};
+use crate::progress::{self, InstallStage, ReadyPayload};
 use crate::runtime::package::resolve_effective_harness_meta;
 use crate::runtime::{upgrade_system_harness, uses_system_harness};
 use crate::runtime_lock::{self, LockPurpose};
@@ -88,7 +88,7 @@ pub async fn apply_harness_update<R: Runtime>(
 ) -> Result<ReadyPayload, String> {
     progress::emit_progress(
         app,
-        "update-dsh",
+        InstallStage::UpdateDsh,
         "准备更新：等待获取更新锁…",
         Some(5),
     );
@@ -98,13 +98,13 @@ pub async fn apply_harness_update<R: Runtime>(
     }
     let _rt_lock = runtime_lock::acquire(app, LockPurpose::HarnessUpdate)?;
 
-    progress::emit_progress(app, "update-dsh", "正在停止 harness…", Some(10));
+    progress::emit_progress(app, InstallStage::UpdateDsh, "正在停止 harness…", Some(10));
     supervise::stop_and_clear_pid(app, state);
 
     // Windows 上刚杀进程时 DLL/文件句柄可能尚未释放，稍等再装。
     progress::emit_progress(
         app,
-        "update-dsh",
+        InstallStage::UpdateDsh,
         "等待进程释放文件锁…",
         Some(20),
     );
@@ -112,13 +112,13 @@ pub async fn apply_harness_update<R: Runtime>(
 
     install::force_install_dsh(app).await?;
 
-    progress::emit_progress(app, "update-dsh", "正在重新启动 harness…", Some(92));
+    progress::emit_progress(app, InstallStage::UpdateDsh, "正在重新启动 harness…", Some(92));
     let plan = crate::supervise::LaunchPlan::hosted(app)?;
     supervise::set_pending_launch(state, plan)?;
     let (port, url) = supervise::spawn_and_wait_healthy(app, state).await?;
     progress::emit_progress(
         app,
-        "update-dsh",
+        InstallStage::UpdateDsh,
         &format!("更新完成 · 端口 {port}"),
         Some(100),
     );

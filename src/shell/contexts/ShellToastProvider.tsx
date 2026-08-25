@@ -3,7 +3,7 @@ import {
   useContext,
   type ReactNode,
 } from "react";
-import { ShellProgressBubble } from "../../components/chrome/ShellProgressBubble";
+import { ShellProgressBubble } from "../ui/ShellProgressBubble";
 import {
   useShellToast,
   type ShellToastAction,

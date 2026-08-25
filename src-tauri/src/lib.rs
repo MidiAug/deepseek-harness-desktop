@@ -1,6 +1,7 @@
 //! Tauri 入口：注册状态、命令，启动清扫与退出回收。
 
 mod logging;
+mod contracts;
 mod diagnostics;
 mod error;
 mod inject;
@@ -29,7 +30,7 @@ mod cli_link;
 mod shell_download;
 
 use error::HostError;
-use progress::ReadyPayload;
+use progress::{InstallStage, ReadyPayload};
 use settings::{RuntimeSettings, ShellSettings, UiSettings};
 use supervise::HarnessState;
 use update::HarnessUpdateCheck;
@@ -183,13 +184,13 @@ fn resolve_dsh_home_path(
 fn get_runtime_status(
     app: tauri::AppHandle,
     state: tauri::State<'_, HarnessState>,
-) -> Result<serde_json::Value, String> {
+) -> Result<runtime::RuntimeStatus, String> {
     let port = state
         .port
         .lock()
         .map(|g| *g)
         .unwrap_or_else(|_| paths::default_port());
-    runtime::build_runtime_status_json(&app, &state, port)
+    runtime::build_runtime_status(&app, &state, port)
 }
 
 #[tauri::command]
@@ -298,7 +299,7 @@ async fn prepare_shell_update(
     let _guard = state.boot_lock.lock().await;
     let _rt_lock = runtime_lock::acquire(&app, runtime_lock::LockPurpose::ShellUpdate)?;
     progress::append_shell_log(&app, "[ops] prepare_shell_update");
-    progress::emit_progress(&app, "shell-update", "正在停止托管进程以便安装壳更新…", Some(10));
+    progress::emit_progress(&app, InstallStage::ShellUpdate, "正在停止托管进程以便安装壳更新…", Some(10));
     supervise::stop_and_clear_pid(&app, &state);
     tokio::time::sleep(std::time::Duration::from_millis(1200)).await;
     progress::append_shell_log(&app, "[ops] prepare_shell_update done");

@@ -1,5 +1,4 @@
-﻿import type { Dispatch, SetStateAction } from "react";
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import type { ShellSettings } from "../../shell/settings";
 import {
   runtimeFromSettings,
@@ -9,7 +8,7 @@ import {
   shellApi,
   useAppToast,
   useHarnessSettingsOps,
-  type RuntimeStatus,
+  useSettingsPanelContext,
 } from "../../shell";
 import { useLocale } from "../../shell/locale";
 import type { CliLinkStatus } from "../../shell/api/shellApi";
@@ -36,37 +35,23 @@ function installModeLabel(mode: InstallMode, t: (key: "settings.harnessInstall.s
     : t("settings.harnessInstall.hosted");
 }
 
-type Props = {
-  settings: ShellSettings;
-  runtime: RuntimeStatus | null;
-  portDraft: string;
-  setPortDraft: Dispatch<SetStateAction<string>>;
-  locked: boolean;
-  patchRuntime: (
-    patch: Partial<ShellSettings>,
-    opts?: { debounceMs?: number; softHint?: string },
-  ) => void;
-  setError: (error: string | null, retry?: () => void | Promise<void>) => void;
-  setSettings: Dispatch<SetStateAction<ShellSettings>>;
-  refreshRuntime: () => void;
-  onStopHarness?: () => void;
-};
-
-export function SettingsSectionRuntime({
-  settings,
-  runtime,
-  portDraft,
-  setPortDraft,
-  locked,
-  patchRuntime,
-  setError,
-  setSettings,
-  refreshRuntime,
-  onStopHarness,
-}: Props) {
+export function SettingsSectionRuntime() {
+  const {
+    settings,
+    runtime,
+    portDraft,
+    setPortDraft,
+    locked,
+    patchRuntime,
+    reportFault,
+    setSettings,
+    refreshRuntime,
+    onStopHarness,
+  } = useSettingsPanelContext();
   const { t } = useLocale();
   const { showToast } = useAppToast();
   const { onApplyNetworkRestart } = useHarnessSettingsOps();
+  const setError = reportFault;
   const [cliStatus, setCliStatus] = useState<CliLinkStatus | null>(null);
   const [pendingSource, setPendingSource] = useState<RuntimeSource | null>(null);
   const [restartConfirmOpen, setRestartConfirmOpen] = useState(false);

@@ -5,8 +5,9 @@ use std::process::Command;
 use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
+use specta::Type;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, Type)]
 #[serde(rename_all = "camelCase")]
 pub enum RuntimeSource {
     /// auto：legacy；加载 settings 时迁移为 system 或 hosted
@@ -18,7 +19,7 @@ pub enum RuntimeSource {
     Hosted,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub enum ActiveRuntimeKind {
     System,

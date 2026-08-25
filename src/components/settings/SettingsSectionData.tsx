@@ -1,42 +1,19 @@
 ﻿import { useCallback, useState } from "react";
-import type { ShellSettings } from "../../shell/settings";
 import {
   shellApi,
   shellLog,
-  type ReadyPayload,
-  type RuntimeStatus,
   useAppToast,
-  useHostLifecycle,
+  useHarnessRecoveryActions,
+  useSettingsPanelContext,
 } from "../../shell";
 import { shortenPathForDisplay } from "../../shell/formatPathShort";
 import { useLocale } from "../../shell/locale";
 import { resolveInstallMode } from "../../shell/runtime/installMode";
+import { HarnessRecoveryDialogs } from "../chrome/HarnessRecoveryDialogs";
 import { IconFolderOpenOutline16 } from "../chrome/DshIcons";
-import { ShellConfirmDialog } from "../chrome/ShellConfirmDialog";
 import { ShellTooltip } from "../chrome/ShellTooltip";
 import { SettingsGroup } from "./SettingsGroup";
 import { SettingsPrefRow } from "./SettingsPrefRow";
-
-type Props = {
-  settings: ShellSettings;
-  runtime: RuntimeStatus | null;
-  locked: boolean;
-  patchRuntime: (
-    patch: Partial<ShellSettings>,
-    opts?: { debounceMs?: number; softHint?: string },
-  ) => void;
-  setError: (error: string | null, retry?: () => void | Promise<void>) => void;
-  refreshRuntime: () => void;
-  onHarnessReady?: (payload: ReadyPayload) => void;
-  onCloseSettings?: () => void;
-  onBeginHarnessOp?: () => void;
-  onHarnessOpFailed?: (message: string) => void;
-  onDiagnosticsExported?: (path: string) => void;
-  onDiagnosticsError?: (
-    message: string,
-    retry?: () => void | Promise<void>,
-  ) => void;
-};
 
 function PathOpenRow({
   which,
@@ -62,33 +39,27 @@ function PathOpenRow({
   );
 }
 
-export function SettingsSectionData({
-  settings,
-  runtime,
-  locked,
-  patchRuntime,
-  setError,
-  refreshRuntime,
-  onHarnessReady,
-  onCloseSettings,
-  onBeginHarnessOp,
-  onHarnessOpFailed,
-  onDiagnosticsExported,
-  onDiagnosticsError,
-}: Props) {
+export function SettingsSectionData() {
+  const {
+    settings,
+    runtime,
+    locked,
+    patchRuntime,
+    reportFault,
+    refreshRuntime,
+    onHarnessReady,
+    onCloseSettings,
+    onBeginHarnessOp,
+    onHarnessOpFailed,
+    onDiagnosticsExported,
+    onDiagnosticsError,
+  } = useSettingsPanelContext();
   const { t } = useLocale();
   const { showToast } = useAppToast();
-  const life = useHostLifecycle();
   const installMode = resolveInstallMode({
     runtimeSource: settings.runtimeSource,
     activeRuntime: runtime?.activeRuntime,
   });
-  const [cleanProfileConfirmOpen, setCleanProfileConfirmOpen] = useState(false);
-  const [cleanProfileBusy, setCleanProfileBusy] = useState(false);
-  const [resetConfigConfirmOpen, setResetConfigConfirmOpen] = useState(false);
-  const [resetConfigBusy, setResetConfigBusy] = useState(false);
-  const [reinstallConfirmOpen, setReinstallConfirmOpen] = useState(false);
-  const [reinstallBusy, setReinstallBusy] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [dshHomeFocused, setDshHomeFocused] = useState(false);
   const dshHomePath = runtime?.dshHome ?? runtime?.effectiveDshHome ?? "";
@@ -100,6 +71,19 @@ export function SettingsSectionData({
     dshHomeFocused || !settings.dshHomeOverride.trim()
       ? settings.dshHomeOverride
       : shortenPathForDisplay(settings.dshHomeOverride);
+
+  const recovery = useHarnessRecoveryActions(
+    "settings",
+    {
+      refreshRuntime,
+      onHarnessReady,
+      onCloseSettings,
+      onBeginHarnessOp,
+      onHarnessOpFailed,
+      reportFault,
+    },
+    { installMode, dshHomePath },
+  );
 
   const onBrowseDshHome = useCallback(async () => {
     if (locked) return;
@@ -114,85 +98,6 @@ export function SettingsSectionData({
       shellLog.error("settings", "pickDirectory", e);
     }
   }, [dshHomeDefault, locked, patchRuntime, t]);
-
-  const runResetConfig = useCallback(async () => {
-    setError(null);
-    setResetConfigBusy(true);
-    setResetConfigConfirmOpen(false);
-    onCloseSettings?.();
-    onBeginHarnessOp?.();
-    life.beginOps(t("boot.msg.resettingConfig"));
-    try {
-      const ready = await shellApi.resetDshHome();
-      refreshRuntime();
-      onHarnessReady?.(ready);
-      showToast(t("settings.data.resetConfig.done"));
-    } catch (e) {
-      const msg = typeof e === "string" ? e : String(e);
-      onHarnessOpFailed?.(msg);
-    } finally {
-      life.endOps({ clearProgress: true });
-      setResetConfigBusy(false);
-    }
-  }, [
-    life,
-    onBeginHarnessOp,
-    onCloseSettings,
-    onHarnessOpFailed,
-    onHarnessReady,
-    refreshRuntime,
-    setError,
-    showToast,
-    t,
-  ]);
-
-  const runReinstallDsh = useCallback(async () => {
-    setError(null);
-    setReinstallBusy(true);
-    setReinstallConfirmOpen(false);
-    onCloseSettings?.();
-    onBeginHarnessOp?.();
-    life.beginOps(t("boot.msg.reinstalling"));
-    try {
-      const ready = await shellApi.reinstallDsh();
-      refreshRuntime();
-      onHarnessReady?.(ready);
-      showToast(t("settings.data.reinstallDsh.done"));
-    } catch (e) {
-      const msg = typeof e === "string" ? e : String(e);
-      onHarnessOpFailed?.(msg);
-    } finally {
-      life.endOps({ clearProgress: true });
-      setReinstallBusy(false);
-    }
-  }, [
-    life,
-    onBeginHarnessOp,
-    onCloseSettings,
-    onHarnessOpFailed,
-    onHarnessReady,
-    refreshRuntime,
-    setError,
-    showToast,
-    t,
-  ]);
-
-  const runStartCleanProfile = useCallback(async () => {
-    setError(null);
-    setCleanProfileBusy(true);
-    try {
-      const ready = await shellApi.startCleanProfile();
-      setCleanProfileConfirmOpen(false);
-      showToast(t("settings.data.cleanProfile.done"));
-      refreshRuntime();
-      onHarnessReady?.(ready);
-    } catch (e) {
-      const msg = typeof e === "string" ? e : String(e);
-      setError(msg, runStartCleanProfile);
-    } finally {
-      setCleanProfileBusy(false);
-    }
-  }, [onHarnessReady, refreshRuntime, setError, showToast, t]);
 
   async function onExportDiagnostics() {
     if (exporting || locked) return;
@@ -213,41 +118,7 @@ export function SettingsSectionData({
 
   return (
     <div className="settings-section">
-      <ShellConfirmDialog
-        open={cleanProfileConfirmOpen}
-        titleKey="settings.data.cleanProfile.confirmTitle"
-        bodyKey="settings.data.cleanProfile.confirm"
-        busy={cleanProfileBusy}
-        onCancel={() => {
-          if (!cleanProfileBusy) setCleanProfileConfirmOpen(false);
-        }}
-        onConfirm={() => void runStartCleanProfile()}
-      />
-      <ShellConfirmDialog
-        open={resetConfigConfirmOpen}
-        titleKey="boot.resetConfig.confirmTitle"
-        bodyKey="boot.resetConfig.confirm"
-        bodyParams={{ path: dshHomePath || "—" }}
-        busy={resetConfigBusy}
-        onCancel={() => {
-          if (!resetConfigBusy) setResetConfigConfirmOpen(false);
-        }}
-        onConfirm={() => void runResetConfig()}
-      />
-      <ShellConfirmDialog
-        open={reinstallConfirmOpen}
-        titleKey="boot.reinstallDsh.confirmTitle"
-        bodyKey={
-          installMode === "system"
-            ? "boot.reinstallDsh.confirmSystem"
-            : "boot.reinstallDsh.confirmHosted"
-        }
-        busy={reinstallBusy}
-        onCancel={() => {
-          if (!reinstallBusy) setReinstallConfirmOpen(false);
-        }}
-        onConfirm={() => void runReinstallDsh()}
-      />
+      <HarnessRecoveryDialogs dialogs={recovery.dialogs} />
 
       <SettingsGroup title={t("settings.group.paths")}>
         <SettingsPrefRow
@@ -345,7 +216,7 @@ export function SettingsSectionData({
               disabled={locked}
               onClick={() => {
                 const runExit = async () => {
-                  setError(null);
+                  reportFault(null);
                   try {
                     const ready = await shellApi.exitCleanProfile();
                     showToast(t("settings.data.cleanProfile.exitDone"));
@@ -353,7 +224,7 @@ export function SettingsSectionData({
                     onHarnessReady?.(ready);
                   } catch (e) {
                     const msg = typeof e === "string" ? e : String(e);
-                    setError(msg, runExit);
+                    reportFault(msg, runExit);
                   }
                 };
                 void runExit();
@@ -366,7 +237,7 @@ export function SettingsSectionData({
               type="button"
               className="btn ghost"
               disabled={locked}
-              onClick={() => setCleanProfileConfirmOpen(true)}
+              onClick={() => recovery.request("cleanProfile")}
             >
               {t("settings.data.cleanProfile.start")}
             </button>
@@ -383,7 +254,7 @@ export function SettingsSectionData({
             type="button"
             className="btn ghost"
             disabled={locked}
-            onClick={() => setResetConfigConfirmOpen(true)}
+            onClick={() => recovery.request("resetConfig")}
           >
             {t("settings.data.resetConfig.button")}
           </button>
@@ -396,7 +267,7 @@ export function SettingsSectionData({
             type="button"
             className="btn ghost"
             disabled={locked}
-            onClick={() => setReinstallConfirmOpen(true)}
+            onClick={() => recovery.request("reinstallDsh")}
           >
             {t("settings.data.reinstallDsh.button")}
           </button>
