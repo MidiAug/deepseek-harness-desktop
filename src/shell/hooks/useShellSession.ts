@@ -105,10 +105,11 @@ export function useShellSession() {
     setBootKey((k) => k + 1);
   }, []);
 
+  // stopped 非错误：内容区状态面接管；顶栏不标红
   const titleConn: TitleConn =
     phase === "ready"
       ? "connected"
-      : phase === "failed" || phase === "stopped"
+      : phase === "failed"
         ? "error"
         : "preparing";
 
@@ -122,15 +123,8 @@ export function useShellSession() {
 
   const showIframe = phase === "ready" && serviceUrl != null;
 
-  const titleActivity =
-    showBootPanel &&
-    phase !== "failed" &&
-    phase !== "stopped" &&
-    phase !== "embedding"
-      ? bootMsg
-      : phase === "stopped"
-        ? bootMsg
-        : null;
+  /** B47：进度只进内容区，不再替换顶栏产品名 */
+  const titleActivity: string | null = null;
 
   /** stopped：禁止 BootPanel 自动 ensure；其余冷启路径仍自动 */
   const bootAutoStart = phase !== "stopped";

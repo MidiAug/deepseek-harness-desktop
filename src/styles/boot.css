@@ -104,6 +104,52 @@
 }
 
 /*
+ * B47：Capability OK / 停止 / 失败 — 内容区极简状态面（非安装向导）
+ * fixed 相对视口居中：简洁模式首屏 classic→overlay 切换时文案不跟着上跳
+ */
+.session-status-surface {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 32px 24px;
+  box-sizing: border-box;
+  background: var(--color-canvas);
+  pointer-events: auto;
+}
+
+.session-status-icon {
+  width: 96px;
+  height: 96px;
+  border-radius: 0;
+  object-fit: contain;
+  flex: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.session-status-msg {
+  margin: 0;
+  max-width: 28rem;
+  text-align: center;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--color-muted);
+}
+
+.session-status-body {
+  width: min(480px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
+/*
  * 首跑 / 修复页：对齐 DSH Settings 字阶
  * 主信息 14/22 ink · 次信息 12/18 muted · 分区标题 16/24 medium
  * 不用氛围光晕；一张卡片收住纵向节奏

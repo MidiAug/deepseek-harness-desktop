@@ -40,6 +40,8 @@ export type SettingsPanelContextValue = {
   onBeginHarnessOp?: () => void;
   onHarnessOpFailed?: (message: string) => void;
   onStopHarness?: () => void | Promise<void>;
+  /** 关设置后按会话 restart（内容区状态面）；与 stop 不同 */
+  onRestartHarness?: () => void;
   onDiagnosticsExported?: (path: string) => void;
   onDiagnosticsError?: (
     message: string,

@@ -14,6 +14,8 @@ import {
   type InstallMode,
 } from "../runtime/installMode";
 
+export type BootSurfaceMode = "install" | "status";
+
 export type UseBootPanelOpts = {
   startCommand: StartCommand;
   /** false：用户主动停止后挂载，禁止自动 ensure */
@@ -51,7 +53,6 @@ export function useBootPanel({
   const [repairing, setRepairing] = useState(false);
   const [logOpen, setLogOpen] = useState(true);
   const [dshHomePath, setDshHomePath] = useState("");
-  const [slowBoot, setSlowBoot] = useState(false);
   const [installMode, setInstallMode] = useState<InstallMode>("hosted");
   const [awaitingManualStart, setAwaitingManualStart] = useState(false);
   const logBodyRef = useRef<HTMLDivElement>(null);
@@ -233,15 +234,15 @@ export function useBootPanel({
   }, [sessionError]);
 
   const showFault = failed && !!error;
-  const stealth =
-    forceStealth ||
-    !runtimeKnown ||
-    (fastPath &&
-      !showFault &&
-      !awaitingManualStart &&
-      !slowBoot &&
-      !embedding);
+  // 仅运维 stealth / 探测前空白；Capability OK 不再用 slowBoot 翻出安装卡
+  const stealth = forceStealth || !runtimeKnown;
   const working = !showFault && !awaitingManualStart && !embedding;
+
+  /** 安装大卡：真缺包/修复且非停止/失败；其余极简状态面 */
+  const surfaceMode: BootSurfaceMode =
+    showFault || awaitingManualStart || embedding || fastPath || !runtimeKnown
+      ? "status"
+      : "install";
 
   const startManual = useCallback(() => {
     if (startedRef.current) return;
@@ -250,15 +251,6 @@ export function useBootPanel({
     onBootWorkingRef.current?.(true);
     void start(startCommand);
   }, [start, startCommand]);
-
-  useEffect(() => {
-    if (forceStealth || !working || showFault || awaitingManualStart) {
-      setSlowBoot(false);
-      return;
-    }
-    const id = window.setTimeout(() => setSlowBoot(true), 1800);
-    return () => window.clearTimeout(id);
-  }, [working, showFault, forceStealth, awaitingManualStart]);
 
   useEffect(() => {
     onStealthChangeRef.current?.(stealth);
@@ -292,5 +284,6 @@ export function useBootPanel({
     stageId,
     logLines,
     barIndeterminate,
+    surfaceMode,
   };
 }

@@ -54,6 +54,7 @@ type Props = {
   onBeginHarnessOp?: () => void;
   onHarnessOpFailed?: (message: string) => void;
   onStopHarness?: () => void | Promise<void>;
+  onRestartHarness?: () => void;
 };
 
 type PanelProps = {
@@ -63,6 +64,7 @@ type PanelProps = {
   onBeginHarnessOp?: () => void;
   onHarnessOpFailed?: (message: string) => void;
   onStopHarness?: () => void | Promise<void>;
+  onRestartHarness?: () => void;
   runtime: RuntimeStatus | null;
   refreshRuntime: () => void | Promise<void>;
   fault: FaultState | null;
@@ -90,6 +92,7 @@ function SettingsModalPanel({
   onBeginHarnessOp,
   onHarnessOpFailed,
   onStopHarness,
+  onRestartHarness,
   runtime,
   refreshRuntime,
   fault,
@@ -288,6 +291,7 @@ function SettingsModalPanel({
     onBeginHarnessOp,
     onHarnessOpFailed,
     onStopHarness,
+    onRestartHarness,
     onDiagnosticsExported: (path: string) => {
       showToast(t("settings.about.exportDiagnosticsDone", { path }));
     },
@@ -376,6 +380,7 @@ function SettingsModalOpen({
   onBeginHarnessOp,
   onHarnessOpFailed,
   onStopHarness,
+  onRestartHarness,
 }: Omit<Props, "open">) {
   const [runtime, setRuntime] = useState<RuntimeStatus | null>(null);
   const [fault, setFault] = useState<FaultState | null>(null);
@@ -427,6 +432,7 @@ function SettingsModalOpen({
         onBeginHarnessOp={onBeginHarnessOp}
         onHarnessOpFailed={onHarnessOpFailed}
         onStopHarness={onStopHarness}
+        onRestartHarness={onRestartHarness}
         runtime={runtime}
         refreshRuntime={refreshRuntime}
         fault={fault}
@@ -445,6 +451,7 @@ export function SettingsModal({
   onBeginHarnessOp,
   onHarnessOpFailed,
   onStopHarness,
+  onRestartHarness,
 }: Props) {
   if (!open) return null;
   return (
@@ -455,6 +462,7 @@ export function SettingsModal({
       onBeginHarnessOp={onBeginHarnessOp}
       onHarnessOpFailed={onHarnessOpFailed}
       onStopHarness={onStopHarness}
+      onRestartHarness={onRestartHarness}
     />
   );
 }

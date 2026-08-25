@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { BootPanel } from "./components/boot/BootPanel";
 import { OnboardingWizard } from "./components/boot/OnboardingWizard";
+import { SessionStatusSurface } from "./components/boot/SessionStatusSurface";
 import { CloseAskDialog } from "./components/chrome/CloseAskDialog";
 import {
   SettingsModal,
@@ -176,22 +177,17 @@ export default function App() {
     return () => document.body.classList.remove("shell-modal-open");
   }, [shellBackdropOpen]);
 
-  const showBootChrome = onboardingGate === "ready";
   const onboardingActive = onboardingGate !== "ready";
   const opsActive = life.busyReason === "ops";
-  const titleFailed =
-    session.phase === "failed" || session.phase === "stopped";
-  const titleActivity = titleFailed
-    ? t("chrome.conn.failed")
-    : opsActive && life.message
-      ? life.message
-      : onboardingGate === "loading"
-        ? t("onboarding.loading")
-        : session.titleActivity;
-  const titleActivityTone = titleFailed ? "error" : "busy";
+  // B47：顶栏零状态文案；探测/启停进度只在内容区 SessionStatusSurface
   const showHarness =
     session.showIframe && !!session.serviceUrl;
   const harnessVisible = bodyView === "harness";
+
+  const restartAndCloseSettings = useCallback(() => {
+    closeSettings();
+    session.restart();
+  }, [closeSettings, session.restart]);
 
   // 弹窗开/关：通知 iframe；关闭时焦点回 harness，避免 Ctrl+A 选中壳层
   useEffect(() => {
@@ -254,10 +250,9 @@ export default function App() {
     >
       <ShellTitleBar
         conn={session.titleConn}
-        hideConnStatus={!showBootChrome}
-        titleActivity={titleActivity}
-        titleActivityTone={titleActivity ? titleActivityTone : undefined}
-        minimal={onboardingActive}
+        hideConnStatus
+        titleActivity={null}
+        minimal={onboardingActive && !chrome.titlebarCompact}
         chrome={chrome}
         sidebarWidthPx={sidebarWidthPx}
         bodyView={bodyView}
@@ -265,7 +260,7 @@ export default function App() {
         onOpenSettings={() => openSettings()}
         onSessionLog={onSessionLog}
         sessionLogAvailable={sessionLogAvailable}
-        onRestart={session.restart}
+        onRestart={restartAndCloseSettings}
         onStop={() => void session.stop()}
         onOpenDshHome={() => {
           void shellApi.openKnownPath("dshHome").catch((e) => shellLog.error("app", "open dshHome", e));
@@ -298,6 +293,9 @@ export default function App() {
       {!onboardingActive && <ShellUpdateBanner />}
 
       <div className="shell-body" ref={shellBodyRef}>
+        {onboardingGate === "loading" && (
+          <SessionStatusSurface message={t("onboarding.loading")} working />
+        )}
         {onboardingGate === "wizard" && (
           <OnboardingWizard onComplete={() => setOnboardingGate("ready")} />
         )}
@@ -308,7 +306,7 @@ export default function App() {
             key={session.bootKey}
             startCommand={session.startCommand}
             autoStart={session.bootAutoStart}
-            forceStealth={opsActive}
+            forceStealth={opsActive && settingsOpen}
             sessionError={session.bootError}
             onReady={session.markReady}
             onError={session.markFailed}
@@ -352,6 +350,7 @@ export default function App() {
         onBeginHarnessOp={session.beginHarnessOp}
         onHarnessOpFailed={session.markFailed}
         onStopHarness={() => session.stop()}
+        onRestartHarness={restartAndCloseSettings}
       />
       <CloseAskDialog open={closeAskOpen} onClose={() => setCloseAskOpen(false)} />
       <ShellContextMenu

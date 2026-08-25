@@ -46,6 +46,25 @@ type ChromeContextValue = {
 
 const ChromeContext = createContext<ChromeContextValue | null>(null);
 
+/** 首屏同步读，避免默认 classic → 异步加载 compact 造成顶栏占位跳动 */
+const TITLEBAR_COMPACT_CACHE_KEY = "dsh.shell.titlebarCompact";
+
+function readCachedTitlebarCompact(): boolean {
+  try {
+    return localStorage.getItem(TITLEBAR_COMPACT_CACHE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeCachedTitlebarCompact(compact: boolean) {
+  try {
+    localStorage.setItem(TITLEBAR_COMPACT_CACHE_KEY, compact ? "1" : "0");
+  } catch {
+    /* private mode 等忽略 */
+  }
+}
+
 function osPrefersDark(): boolean {
   return window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ?? true;
 }
@@ -67,13 +86,18 @@ function prefToTheme(p: string): ShellTheme {
 }
 
 export function ChromeProvider({ children }: { children: ReactNode }) {
-  const [chrome, setChrome] = useState<ChromePrefs>({
+  const [chrome, setChromeState] = useState<ChromePrefs>({
     shellTheme: "system",
-    titlebarCompact: false,
+    titlebarCompact: readCachedTitlebarCompact(),
     selectionHygiene: false,
     sessionLogInTitlebar: true,
   });
   const [osDark, setOsDark] = useState(() => osPrefersDark());
+
+  const setChrome = useCallback((next: ChromePrefs) => {
+    writeCachedTitlebarCompact(next.titlebarCompact);
+    setChromeState(next);
+  }, []);
 
   const resolvedTheme = useMemo(
     () => resolveTheme(chrome.shellTheme, osDark),
@@ -143,7 +167,7 @@ export function ChromeProvider({ children }: { children: ReactNode }) {
         });
       })
       .catch(() => undefined);
-  }, []);
+  }, [setChrome]);
 
   useEffect(() => {
     refreshFromDisk();
@@ -154,7 +178,7 @@ export function ChromeProvider({ children }: { children: ReactNode }) {
     let un: (() => void) | undefined;
     void listen<string>("dsh-theme-changed", (ev) => {
       const next = prefToTheme(ev.payload);
-      setChrome((prev) =>
+      setChromeState((prev) =>
         prev.shellTheme === next ? prev : { ...prev, shellTheme: next },
       );
     }).then((fn) => {
@@ -163,12 +187,15 @@ export function ChromeProvider({ children }: { children: ReactNode }) {
     return () => un?.();
   }, []);
 
-  const applyFromSettings = useCallback((s: ShellSettings) => {
-    setChrome(chromeFromSettings(s));
-  }, []);
+  const applyFromSettings = useCallback(
+    (s: ShellSettings) => {
+      setChrome(chromeFromSettings(s));
+    },
+    [setChrome],
+  );
 
   const patchChrome = useCallback((patch: ChromePatch) => {
-    setChrome((prev) => {
+    setChromeState((prev) => {
       const next: ChromePrefs = {
         shellTheme: patch.shellTheme ?? prev.shellTheme,
         titlebarCompact: patch.titlebarCompact ?? prev.titlebarCompact,
@@ -176,6 +203,7 @@ export function ChromeProvider({ children }: { children: ReactNode }) {
         sessionLogInTitlebar:
           patch.sessionLogInTitlebar ?? prev.sessionLogInTitlebar,
       };
+      writeCachedTitlebarCompact(next.titlebarCompact);
       if (patch.shellTheme != null) {
         void shellApi
           .setDshThemePreference(patch.shellTheme)
@@ -191,7 +219,9 @@ export function ChromeProvider({ children }: { children: ReactNode }) {
         patch.selectionHygiene != null ||
         patch.sessionLogInTitlebar != null
       ) {
-        void shellApi.saveUiSettings(uiOnly).catch((e) => shellLog.error("chrome", "save ui", e));
+        void shellApi
+          .saveUiSettings(uiOnly)
+          .catch((e) => shellLog.error("chrome", "save ui", e));
       }
       return next;
     });
@@ -206,7 +236,7 @@ export function ChromeProvider({ children }: { children: ReactNode }) {
       applyFromSettings,
       refreshFromDisk,
     }),
-    [chrome, resolvedTheme, patchChrome, applyFromSettings, refreshFromDisk],
+    [chrome, resolvedTheme, setChrome, patchChrome, applyFromSettings, refreshFromDisk],
   );
 
   return (

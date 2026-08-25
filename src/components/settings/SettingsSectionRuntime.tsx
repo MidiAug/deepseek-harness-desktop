@@ -51,10 +51,11 @@ export function SettingsSectionRuntime() {
     setSettings,
     refreshRuntime,
     onStopHarness,
+    onRestartHarness,
   } = useSettingsPanelContext();
   const { t } = useLocale();
   const { showToast } = useAppToast();
-  const { onApplyNetworkRestart, onEnsureStart } = useHarnessSettingsOps();
+  const { onEnsureStart } = useHarnessSettingsOps();
   const setError = reportFault;
   const [cliStatus, setCliStatus] = useState<CliLinkStatus | null>(null);
   const [pendingSource, setPendingSource] = useState<RuntimeSource | null>(null);
@@ -112,7 +113,7 @@ export function SettingsSectionRuntime() {
       await shellApi.saveRuntimeSettings(runtimeFromSettings(next));
       setPendingSource(null);
       setRestartConfirmOpen(false);
-      await onApplyNetworkRestart();
+      onRestartHarness?.();
     } catch (e) {
       setError(String(e));
     } finally {
@@ -161,7 +162,7 @@ export function SettingsSectionRuntime() {
                           className="btn ghost settings-status-actions__btn"
                           aria-label={t("settings.port.restartTip")}
                           disabled={locked}
-                          onClick={() => void onApplyNetworkRestart()}
+                          onClick={() => onRestartHarness?.()}
                         >
                           {t("settings.port.restart")}
                         </button>

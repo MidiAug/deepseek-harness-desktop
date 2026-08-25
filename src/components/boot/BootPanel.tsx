@@ -1,3 +1,7 @@
+/**
+ * 冷启动 UI：Capability 不足 → 安装大卡；否则极简状态面（icon + 文案）。
+ * 进度订阅 HostLifecycle；本地只保留错误与表面分流。
+ */
 import {
   BOOT_STAGES,
   stageIndex,
@@ -9,6 +13,7 @@ import { FaultRecoveryBlock } from "../chrome/FaultRecoveryBlock";
 import { HarnessRecoveryDialogs } from "../chrome/HarnessRecoveryDialogs";
 import { BootPanelLog } from "./BootPanelLog";
 import { BootPanelSteps } from "./BootPanelSteps";
+import { SessionStatusSurface } from "./SessionStatusSurface";
 
 type Props = {
   startCommand: StartCommand;
@@ -25,7 +30,6 @@ type Props = {
   onStatusMessage?: (message: string) => void;
 };
 
-/** 冷启动 UI：进度/日志订阅 HostLifecycle；本地只保留错误与 stealth。 */
 export function BootPanel(props: Props) {
   const panel = useBootPanel(props);
   const {
@@ -49,6 +53,7 @@ export function BootPanel(props: Props) {
     stageId,
     logLines,
     barIndeterminate,
+    surfaceMode,
   } = panel;
 
   const activeIdx = stageIndex(stageId);
@@ -59,6 +64,34 @@ export function BootPanel(props: Props) {
 
   if (stealth) {
     return confirmDialogs;
+  }
+
+  if (surfaceMode === "status") {
+    return (
+      <>
+        {confirmDialogs}
+        <SessionStatusSurface
+          message={
+            embedding
+              ? t("boot.msg.embedding")
+              : awaitingManualStart
+                ? t("boot.msg.stopped")
+                : message
+          }
+          awaitingManualStart={awaitingManualStart}
+          startLabel={t("boot.cta.startManual")}
+          onStartManual={startManual}
+        >
+          {showFault && error ? (
+            <FaultRecoveryBlock
+              error={error}
+              installMode={installMode}
+              onCta={runCta}
+            />
+          ) : null}
+        </SessionStatusSurface>
+      </>
+    );
   }
 
   return (
