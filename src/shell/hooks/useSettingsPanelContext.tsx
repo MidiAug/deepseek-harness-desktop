@@ -39,7 +39,7 @@ export type SettingsPanelContextValue = {
   onCloseSettings?: () => void;
   onBeginHarnessOp?: () => void;
   onHarnessOpFailed?: (message: string) => void;
-  onStopHarness?: () => void;
+  onStopHarness?: () => void | Promise<void>;
   onDiagnosticsExported?: (path: string) => void;
   onDiagnosticsError?: (
     message: string,

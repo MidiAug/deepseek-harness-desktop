@@ -53,7 +53,23 @@ type Props = {
   onHarnessReady?: (payload: ReadyPayload) => void;
   onBeginHarnessOp?: () => void;
   onHarnessOpFailed?: (message: string) => void;
-  onStopHarness?: () => void;
+  onStopHarness?: () => void | Promise<void>;
+};
+
+type PanelProps = {
+  onClose: () => void;
+  initialSection?: SettingsSection;
+  onHarnessReady?: (payload: ReadyPayload) => void;
+  onBeginHarnessOp?: () => void;
+  onHarnessOpFailed?: (message: string) => void;
+  onStopHarness?: () => void | Promise<void>;
+  runtime: RuntimeStatus | null;
+  refreshRuntime: () => void | Promise<void>;
+  fault: FaultState | null;
+  reportFault: (
+    message: string | null,
+    retry?: () => void | Promise<void>,
+  ) => void;
 };
 
 async function loadShellSettingsWithTheme(): Promise<ShellSettings> {
@@ -66,22 +82,6 @@ async function loadShellSettingsWithTheme(): Promise<ShellSettings> {
     shellTheme: normalizeShellTheme(themePref || s.shellTheme),
   });
 }
-
-type PanelProps = {
-  onClose: () => void;
-  initialSection?: SettingsSection;
-  onHarnessReady?: (payload: ReadyPayload) => void;
-  onBeginHarnessOp?: () => void;
-  onHarnessOpFailed?: (message: string) => void;
-  onStopHarness?: () => void;
-  runtime: RuntimeStatus | null;
-  refreshRuntime: () => void;
-  fault: FaultState | null;
-  reportFault: (
-    message: string | null,
-    retry?: () => void | Promise<void>,
-  ) => void;
-};
 
 function SettingsModalPanel({
   onClose,
@@ -381,15 +381,26 @@ function SettingsModalOpen({
   const [fault, setFault] = useState<FaultState | null>(null);
   const runtimeGenRef = useRef(0);
 
-  const refreshRuntime = useCallback(() => {
+  const refreshRuntime = useCallback((): Promise<void> => {
     const gen = ++runtimeGenRef.current;
-    void shellApi
+    return shellApi
       .getRuntimeStatus()
       .then((st) => {
         if (runtimeGenRef.current === gen) setRuntime(st);
       })
       .catch(() => undefined);
   }, []);
+
+  const life = useHostLifecycle();
+  const wasLockedRef = useRef(life.locked);
+  useEffect(() => {
+    const was = wasLockedRef.current;
+    wasLockedRef.current = life.locked;
+    // ops / boot 结束：强制刷新进程态，避免设置窗仍显示「处理中」
+    if (was && !life.locked) {
+      void refreshRuntime();
+    }
+  }, [life.locked, refreshRuntime]);
 
   const reportFault = useCallback(
     (message: string | null, retry?: () => void | Promise<void>) => {

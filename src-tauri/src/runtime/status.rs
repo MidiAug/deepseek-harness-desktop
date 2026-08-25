@@ -19,6 +19,8 @@ pub struct RuntimeStatus {
     pub harness_ready: bool,
     /// 入口缺失但已有依赖痕迹（中断更新等）
     pub harness_partial: bool,
+    /// 壳监督的进程是否仍在跑（启停按钮真源；与 harness_ready 能力探测分离）
+    pub process_running: bool,
     pub port: u16,
     pub dsh_home: String,
     pub effective_dsh_home: String,
@@ -57,6 +59,7 @@ pub fn build_runtime_status<R: Runtime>(
         harness_ready: harness_ready
             || system.as_ref().map(|s| s.entry.is_file()).unwrap_or(false),
         harness_partial: !harness_ready && is_harness_partial(app),
+        process_running: supervise::process_is_running(state),
         port,
         dsh_home: paths::dsh_home(app, Some(cfg.dsh_home_override.as_str()))
             .to_string_lossy()

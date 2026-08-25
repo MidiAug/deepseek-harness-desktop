@@ -1,6 +1,9 @@
 //! Runtime：ensure / restart 编排；包入口解析。
+//!
+//! 启程语义：settings = Desired；`reconcile_to_settings` 是让 Actual 对齐 Desired 的唯一路径。
 
 pub mod package;
+mod policy;
 mod probe;
 mod status;
 #[cfg(test)]
@@ -76,27 +79,59 @@ pub async fn upgrade_system_harness<R: Runtime>(
     Ok(ReadyPayload { url, port })
 }
 
-/// 冷启动：清扫 →（系统或托管）→ spawn → 健康。
+/// 冷启动：仅当已健康且 Actual 种类 = Desired 时复用；否则 reconcile。
 pub async fn ensure_and_start<R: Runtime>(
     app: &AppHandle<R>,
     state: &HarnessState,
 ) -> Result<ReadyPayload, String> {
     log::info!(target: "shell::runtime", "ensure_and_start begin");
     let _guard = state.boot_lock.lock().await;
-    if let Some(ready) = supervise::try_reuse_healthy(app, state).await {
+    if let Some(ready) = try_reuse_if_matches_desired(app, state).await {
         log::info!(target: "shell::runtime", "reuse healthy port={}", ready.port);
         return Ok(ready);
     }
-    let _rt_lock = runtime_lock::acquire(app, LockPurpose::Ensure)?;
     progress::emit_progress(app, InstallStage::Detect, "清扫残留进程…", Some(2));
     supervise::sweep_orphans(app);
-    progress::emit_progress(app, InstallStage::Detect, "检查运行时…", Some(5));
+    reconcile_to_settings(app, state).await
+}
+
+/// 已健康且种类对齐 Desired 才复用；偏好已改则强制走 reconcile。
+async fn try_reuse_if_matches_desired<R: Runtime>(
+    app: &AppHandle<R>,
+    state: &HarnessState,
+) -> Option<ReadyPayload> {
+    let cfg = settings::load(app);
+    let system_ok = system_runtime::resolve_system_runtime().is_some();
+    let desired = policy::desired_active_kind(cfg.runtime_source, system_ok)?;
+    let active = state.active_runtime.lock().ok().and_then(|g| *g)?;
+    if !policy::active_matches_desired(active, desired) {
+        log::info!(
+            target: "shell::runtime",
+            "skip reuse: active={active:?} desired={desired:?} source={:?}",
+            cfg.runtime_source
+        );
+        return None;
+    }
+    supervise::try_reuse_healthy(app, state).await
+}
+
+/// 按当前 settings 停旧进程并重生（hosted 缺入口时会 ensure / npm install）。
+/// 调用方须已持有 `boot_lock`。
+async fn reconcile_to_settings<R: Runtime>(
+    app: &AppHandle<R>,
+    state: &HarnessState,
+) -> Result<ReadyPayload, String> {
+    progress::emit_progress(app, InstallStage::Start, "正在停止旧进程…", Some(5));
+    supervise::stop_and_clear_pid(app, state);
+
+    let _rt_lock = runtime_lock::acquire(app, LockPurpose::Ensure)?;
+    progress::emit_progress(app, InstallStage::Detect, "按当前设置解析运行时…", Some(10));
 
     let cfg = settings::load(app);
     let plan = resolve_launch_plan(app, &cfg).await?;
     log::info!(
         target: "shell::runtime",
-        "launch plan kind={:?} node={} entry={}",
+        "reconcile plan kind={:?} node={} entry={}",
         plan.kind,
         plan.node.display(),
         plan.entry.display()
@@ -104,7 +139,7 @@ pub async fn ensure_and_start<R: Runtime>(
     progress::append_shell_log(
         app,
         &format!(
-            "runtimeSource={:?} → {:?} {}",
+            "reconcile runtimeSource={:?} → {:?} {}",
             cfg.runtime_source,
             plan.kind,
             plan.entry.display()
@@ -113,7 +148,7 @@ pub async fn ensure_and_start<R: Runtime>(
     supervise::set_pending_launch(state, plan)?;
 
     let (port, url) = supervise::spawn_and_wait_healthy(app, state).await?;
-    log::info!(target: "shell::runtime", "ensure_and_start ok port={port}");
+    log::info!(target: "shell::runtime", "reconcile ok port={port}");
     Ok(ReadyPayload { url, port })
 }
 
@@ -389,18 +424,14 @@ async fn fs_remove_dir_all_retry_for(
     Ok(())
 }
 
-/// 重启：停旧进程 → 再 spawn（不重装）。
+/// 重启 = reconcile：按当前 settings 重生（来源已改时会 ensure，不再沿用旧 Active）。
 pub async fn restart_harness<R: Runtime>(
     app: &AppHandle<R>,
     state: &HarnessState,
 ) -> Result<ReadyPayload, String> {
-    log::info!(target: "shell::runtime", "restart_harness begin");
+    log::info!(target: "shell::runtime", "restart_harness begin (reconcile)");
     let _guard = state.boot_lock.lock().await;
-    progress::emit_progress(app, InstallStage::Start, "正在停止旧进程…", Some(80));
-    supervise::stop_and_clear_pid(app, state);
-    let (port, url) = supervise::spawn_and_wait_healthy(app, state).await?;
-    log::info!(target: "shell::runtime", "restart_harness ok port={port}");
-    Ok(ReadyPayload { url, port })
+    reconcile_to_settings(app, state).await
 }
 
 #[cfg(test)]

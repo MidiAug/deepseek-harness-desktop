@@ -16,6 +16,87 @@
   -webkit-user-select: text;
 }
 
+/* 首选端口：host:port 内嵌井（非下拉仿品） */
+.settings-port-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  height: 32px;
+  max-width: 100%;
+  padding: 0 10px 0 11px;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  background: var(--color-canvas);
+  box-sizing: border-box;
+  transition:
+    border-color 0.12s ease,
+    background-color 0.12s ease;
+}
+
+.settings-port-field:hover {
+  border-color: var(--color-line-strong);
+}
+
+.settings-port-field:focus-within {
+  border-color: color-mix(
+    in srgb,
+    var(--color-accent, #3b82f6) 50%,
+    var(--color-line-strong)
+  );
+  background: color-mix(in srgb, var(--color-canvas) 88%, var(--color-panel));
+}
+
+.settings-port-field-host {
+  flex: none;
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0.01em;
+  color: var(--color-muted);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.settings-port-field-sep {
+  flex: none;
+  margin: 0 3px 0 2px;
+  font-size: 12px;
+  line-height: 16px;
+  color: color-mix(in srgb, var(--color-muted) 72%, transparent);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.settings-port-field-input {
+  appearance: none;
+  flex: none;
+  width: 5.2ch;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  line-height: 20px;
+  letter-spacing: 0.02em;
+  color: var(--color-ink);
+  text-align: left;
+  box-sizing: content-box;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.settings-port-field-input::placeholder {
+  color: var(--color-muted);
+  letter-spacing: 0;
+}
+
+.settings-port-field-input:focus,
+.settings-port-field-input:focus-visible {
+  outline: none;
+}
+
 .settings-cell.stack .settings-control {
   width: 100%;
   min-width: 0;

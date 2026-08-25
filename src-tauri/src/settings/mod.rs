@@ -47,6 +47,7 @@ mod tests {
         let s: ShellSettings = serde_json::from_str(json).unwrap();
         assert!(s.close_to_tray);
         assert!(!s.close_pref_set);
+        assert!(!s.close_pref_touched);
         assert!(s.dsh_home_override.is_empty());
     }
 
@@ -67,6 +68,7 @@ mod tests {
             dsh_home_override: String::new(),
             close_to_tray: true,
             close_pref_set: false,
+            close_pref_touched: false,
             preferred_port: 0,
             cli_link_enabled: false,
             runtime_source: crate::system_runtime::RuntimeSource::Hosted,

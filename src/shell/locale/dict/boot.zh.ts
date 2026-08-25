@@ -55,6 +55,8 @@ export const boot = {
   "boot.msg.ready": "服务已就绪",
   "boot.msg.embedding": "正在打开官方界面…",
   "boot.msg.failed": "启动失败",
+  "boot.msg.stopped": "harness 已停止",
+  "boot.cta.startManual": "启动 harness",
   "boot.msg.resetting": "正在重置托管运行时…",
   "boot.msg.resetFailed": "重置失败",
   "boot.fault.install.title": "安装失败",

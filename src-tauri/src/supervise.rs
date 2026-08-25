@@ -100,16 +100,20 @@ fn take_launch_plan<R: Runtime>(
     {
         return Ok(plan);
     }
-    // restart 等未重跑 ensure：沿用上次来源，默认回落托管
-    let kind = state
-        .active_runtime
-        .lock()
-        .ok()
-        .and_then(|g| *g)
-        .unwrap_or(ActiveRuntimeKind::Hosted);
-    match kind {
-        ActiveRuntimeKind::Hosted => LaunchPlan::hosted(app),
-        ActiveRuntimeKind::System => {
+    // 无 pending：按 settings 同步拼计划（不 ensure；缺入口则失败）
+    let cfg = settings::load(app);
+    match cfg.runtime_source {
+        crate::system_runtime::RuntimeSource::Hosted => LaunchPlan::hosted(app),
+        crate::system_runtime::RuntimeSource::System => {
+            crate::system_runtime::resolve_system_runtime()
+                .map(LaunchPlan::system)
+                .ok_or_else(|| {
+                    String::from(HostError::install(
+                        "未检测到本机可用的 Node / @deepseek-ai/dsh。可在设置将「Harness 安装」改为应用内安装，或先安装官方 CLI。",
+                    ))
+                })
+        }
+        crate::system_runtime::RuntimeSource::Auto => {
             if let Some(rt) = crate::system_runtime::resolve_system_runtime() {
                 Ok(LaunchPlan::system(rt))
             } else {
@@ -648,8 +652,31 @@ pub fn stop_owned(state: &HarnessState) {
 
 pub fn stop_and_clear_pid<R: Runtime>(app: &AppHandle<R>, state: &HarnessState) {
     stop_owned(state);
+    if let Ok(mut active) = state.active_runtime.lock() {
+        *active = None;
+    }
+    if let Ok(mut pending) = state.pending_launch.lock() {
+        *pending = None;
+    }
     if let Ok(path) = paths::pid_file(app) {
         let _ = fs::remove_file(path);
+    }
+}
+
+/// 壳拥有的 harness 进程是否仍在跑（设置启停真源；≠ 入口文件是否存在）。
+pub fn process_is_running(state: &HarnessState) -> bool {
+    #[cfg(windows)]
+    {
+        if let Ok(guard) = state.owned.lock() {
+            if let Some(h) = guard.as_ref() {
+                return h.is_running();
+            }
+        }
+        false
+    }
+    #[cfg(not(windows))]
+    {
+        state.pid.lock().ok().and_then(|g| *g).is_some()
     }
 }
 

@@ -12,6 +12,8 @@ import { BootPanelSteps } from "./BootPanelSteps";
 
 type Props = {
   startCommand: StartCommand;
+  /** false：用户主动停止后挂载，禁止自动 ensure */
+  autoStart?: boolean;
   forceStealth?: boolean;
   embedding?: boolean;
   sessionError?: string | null;
@@ -40,6 +42,8 @@ export function BootPanel(props: Props) {
     stealth,
     working,
     embedding,
+    awaitingManualStart,
+    startManual,
     message,
     percent,
     stageId,
@@ -61,8 +65,10 @@ export function BootPanel(props: Props) {
     <main className="boot-panel">
       {confirmDialogs}
       <div className="boot-shell">
-        <div className={`boot-card${showFault ? " boot-card--failed" : ""}`}>
-          {!showFault && !embedding && (
+        <div
+          className={`boot-card${showFault || awaitingManualStart ? " boot-card--failed" : ""}`}
+        >
+          {!showFault && !awaitingManualStart && !embedding && (
             <header className="boot-hero">
               <div className="boot-hero-row">
                 <h1 className="boot-title">
@@ -84,7 +90,7 @@ export function BootPanel(props: Props) {
             </header>
           )}
 
-          {!showFault && !embedding && (
+          {!showFault && !awaitingManualStart && !embedding && (
             <BootPanelSteps stageId={stageId} t={t} />
           )}
 
@@ -94,6 +100,17 @@ export function BootPanel(props: Props) {
               installMode={installMode}
               onCta={runCta}
             />
+          ) : awaitingManualStart ? (
+            <section className="boot-status" aria-live="polite">
+              <p className="boot-status-line">{t("boot.msg.stopped")}</p>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => startManual()}
+              >
+                {t("boot.cta.startManual")}
+              </button>
+            </section>
           ) : (
             <section className="boot-status" aria-live="polite">
               <div className="boot-status-head">

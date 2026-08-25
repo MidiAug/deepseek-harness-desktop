@@ -149,27 +149,51 @@ export function SettingsSectionAppearance() {
           title={t("settings.window.title")}
           description={t("settings.window.description")}
         >
-          <button
-            type="button"
-            className={`settings-switch${settings.closeToTray ? " on" : ""}`}
-            role="switch"
-            aria-checked={settings.closeToTray}
+          <ShellSelect
             aria-label={t("settings.window.aria")}
-            onClick={() => {
-              const next = !settings.closeToTray;
+            value={
+              !settings.closePrefSet
+                ? "ask"
+                : settings.closeToTray
+                  ? "tray"
+                  : "quit"
+            }
+            options={[
+              {
+                value: "tray",
+                label: t("settings.window.option.tray"),
+              },
+              {
+                value: "quit",
+                label: t("settings.window.option.quit"),
+              },
+              {
+                value: "ask",
+                label: t("settings.window.option.ask"),
+              },
+            ]}
+            onChange={(v) => {
+              if (v === "ask") {
+                patchRuntime({
+                  closePrefSet: false,
+                  closePrefTouched: true,
+                });
+                showToast(t("settings.window.toastAsk"));
+                return;
+              }
+              const toTray = v === "tray";
               patchRuntime({
-                closeToTray: next,
+                closeToTray: toTray,
                 closePrefSet: true,
+                closePrefTouched: true,
               });
               showToast(
-                next
+                toTray
                   ? t("settings.window.toastTray")
                   : t("settings.window.toastQuit"),
               );
             }}
-          >
-            <span className="settings-switch-knob" />
-          </button>
+          />
         </SettingsPrefRow>
         <SettingsPrefRow
           title={t("settings.autostart.title")}
@@ -203,18 +227,6 @@ export function SettingsSectionAppearance() {
             <span className="settings-switch-knob" />
           </button>
         </SettingsPrefRow>
-        <div className="settings-cell-actions">
-          <button
-            type="button"
-            className="btn ghost"
-            onClick={() => {
-              patchRuntime({ closePrefSet: false });
-              showToast(t("settings.window.reaskDone"));
-            }}
-          >
-            {t("settings.window.reask")}
-          </button>
-        </div>
       </SettingsGroup>
 
       <SettingsGroup title={t("settings.group.editing")}>

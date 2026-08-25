@@ -55,6 +55,8 @@ export const boot = {
   "boot.msg.ready": "Service ready",
   "boot.msg.embedding": "Opening official UI…",
   "boot.msg.failed": "Start failed",
+  "boot.msg.stopped": "Harness stopped",
+  "boot.cta.startManual": "Start harness",
   "boot.msg.resetting": "Resetting hosted runtime…",
   "boot.msg.resetFailed": "Reset failed",
   "boot.fault.install.title": "Install failed",

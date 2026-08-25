@@ -19,6 +19,8 @@ export type ShellSettings = {
   dshHomeOverride: string;
   closeToTray: boolean;
   closePrefSet: boolean;
+  /** 是否已操作过关闭偏好；关窗「记住选择」仅首次默认勾选 */
+  closePrefTouched: boolean;
   preferredPort: number;
   cliLinkEnabled: boolean;
   /** system：本机 npm 全局包；hosted：AppData 托管（legacy auto 由 Rust 迁移） */
@@ -49,6 +51,7 @@ export type RuntimeSettings = Pick<
   | "dshHomeOverride"
   | "closeToTray"
   | "closePrefSet"
+  | "closePrefTouched"
   | "preferredPort"
   | "cliLinkEnabled"
   | "runtimeSource"
@@ -69,6 +72,7 @@ export function runtimeFromSettings(s: ShellSettings): RuntimeSettings {
     dshHomeOverride: s.dshHomeOverride,
     closeToTray: s.closeToTray,
     closePrefSet: s.closePrefSet,
+    closePrefTouched: s.closePrefTouched,
     preferredPort: s.preferredPort,
     cliLinkEnabled: s.cliLinkEnabled,
     runtimeSource: s.runtimeSource,
@@ -91,6 +95,7 @@ export const defaultShellSettings: ShellSettings = {
   dshHomeOverride: "",
   closeToTray: true,
   closePrefSet: false,
+  closePrefTouched: false,
   preferredPort: 0,
   cliLinkEnabled: false,
   runtimeSource: "hosted",
@@ -134,6 +139,8 @@ export function normalizeShellSettings(
     ...s,
     closeToTray: s?.closeToTray ?? true,
     closePrefSet: s?.closePrefSet ?? false,
+    // 旧配置无此字段：已锁定关闭偏好则视为操作过
+    closePrefTouched: s?.closePrefTouched ?? s?.closePrefSet ?? false,
     preferredPort: Number.isFinite(port) && port >= 0 ? Math.floor(port) : 0,
     cliLinkEnabled: s?.cliLinkEnabled ?? false,
     runtimeSource: normalizeRuntimeSource(s?.runtimeSource),

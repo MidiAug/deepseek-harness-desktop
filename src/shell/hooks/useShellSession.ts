@@ -1,5 +1,5 @@
 /**
- * 壳会话单一 FSM：连接 / 嵌入 / 失败 / 重启。
+ * 壳会话单一 FSM：连接 / 嵌入 / 失败 / 停止 / 重启。
  * BootPanel 只负责冷启动安装 UI；不再向上维护第二套 conn。
  */
 
@@ -88,35 +88,52 @@ export function useShellSession() {
     setBootKey((k) => k + 1);
   }, []);
 
-  /** 停止托管进程，回到失败/可重试态 */
+  /** 停止托管进程；进入 stopped（Boot 可手动启，禁止自动 ensure） */
   const stop = useCallback(async () => {
     try {
       await stopHarness();
     } catch (e) {
       shellLog.error("session", "stop harness", e);
     }
-    setPhase("failed");
+    setPhase("stopped");
     setServiceUrl(null);
+    setPort(null);
     setBootStealth(false);
+    setBootError(null);
     setBootMsg("已停止 harness");
+    setStartCommand("ensure_and_start");
+    setBootKey((k) => k + 1);
   }, []);
 
   const titleConn: TitleConn =
-    phase === "ready" ? "connected" : phase === "failed" ? "error" : "preparing";
+    phase === "ready"
+      ? "connected"
+      : phase === "failed" || phase === "stopped"
+        ? "error"
+        : "preparing";
 
   const showBootPanel =
     phase === "idle" ||
     phase === "installing" ||
     phase === "spawning" ||
     phase === "embedding" ||
-    phase === "failed";
+    phase === "failed" ||
+    phase === "stopped";
 
   const showIframe = phase === "ready" && serviceUrl != null;
 
   const titleActivity =
-    showBootPanel && phase !== "failed" && phase !== "embedding"
+    showBootPanel &&
+    phase !== "failed" &&
+    phase !== "stopped" &&
+    phase !== "embedding"
       ? bootMsg
-      : null;
+      : phase === "stopped"
+        ? bootMsg
+        : null;
+
+  /** stopped：禁止 BootPanel 自动 ensure；其余冷启路径仍自动 */
+  const bootAutoStart = phase !== "stopped";
 
   return {
     phase,
@@ -128,6 +145,7 @@ export function useShellSession() {
     bootStealth,
     bootMsg,
     bootError,
+    bootAutoStart,
     setBootStealth,
     setBootMsg,
     markReady,

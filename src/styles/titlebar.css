@@ -70,7 +70,7 @@
   pointer-events: none;
   align-self: stretch;
   display: flex;
-  align-items: center;
+  align-items: stretch;
 }
 
 .titlebar-compact .titlebar-left-reveal {
@@ -86,6 +86,15 @@
 .titlebar-compact .win-btn,
 .titlebar-compact .menu-trigger {
   color: var(--color-muted);
+  height: 100%;
+  min-height: 100%;
+  align-self: stretch;
+}
+
+.titlebar-compact .icon-btn {
+  margin: 0 0.15rem 0 0;
+  min-height: 100%;
+  border-radius: 0;
 }
 
 .titlebar-compact .icon-btn:hover,
@@ -94,6 +103,11 @@
 .titlebar-compact .menu-trigger.open {
   background: var(--color-nav-hover);
   color: var(--color-ink);
+}
+
+.titlebar-compact .win-btn.win-close:hover {
+  background: #e81123;
+  color: #fff;
 }
 
 /* 左右条悬停显控件；菜单打开时保持左侧可见 */
@@ -155,6 +169,19 @@ body.suppress-hover .titlebar-compact-left:hover .titlebar-left-reveal {
 }
 
 body.suppress-hover .titlebar-compact.is-menu-open .titlebar-left-reveal {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* 壳弹层打开：简洁顶栏强制显现（避免失悬停 + suppress-hover 双杀） */
+body.shell-modal-open .titlebar-compact .titlebar-right-reveal,
+body.shell-modal-open .titlebar-compact .titlebar-left-reveal {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+body.shell-modal-open.suppress-hover .titlebar-compact .titlebar-right-reveal,
+body.shell-modal-open.suppress-hover .titlebar-compact .titlebar-left-reveal {
   opacity: 1;
   pointer-events: auto;
 }

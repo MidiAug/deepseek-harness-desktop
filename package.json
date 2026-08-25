@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "check:release": "node scripts/check-release.mjs",
-    "test:unit": "node --test --experimental-strip-types src/shell/errors/recoveryMatrix.test.ts src/shell/errors/parseFaultDisplay.test.ts src/shell/hostProgressMap.test.ts src/shell/settings.test.ts src/shell/formatPathShort.test.ts src/shell/hooks/useHarnessRecoveryActions.test.ts",
+    "test:unit": "node --test --experimental-strip-types src/shell/errors/recoveryMatrix.test.ts src/shell/errors/parseFaultDisplay.test.ts src/shell/hostProgressMap.test.ts src/shell/settings.test.ts src/shell/formatPathShort.test.ts src/shell/hooks/useHarnessRecoveryActions.test.ts src/shell/runtime/statusProcess.test.ts src/components/chrome/shellDialogDismiss.test.ts",
     "audit:snapshot": "node scripts/audit-system-snapshot.mjs",
     "audit:runtime": "node scripts/audit-runtime-probe.mjs",
     "audit:cdp": "node scripts/audit-cdp-capture.mjs",

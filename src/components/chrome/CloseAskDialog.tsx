@@ -14,14 +14,29 @@ type Props = {
 
 export function CloseAskDialog({ open, onClose }: Props) {
   const { t } = useLocale();
+  /** 仅全生命周期首次关窗默认勾选；已操作过关闭偏好则默认不勾 */
   const [remember, setRemember] = useState(true);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!open) {
       setBusy(false);
-      setRemember(true);
+      return;
     }
+    let cancelled = false;
+    void shellApi
+      .getShellSettings()
+      .then((cur) => {
+        if (cancelled) return;
+        const s = normalizeShellSettings(cur);
+        setRemember(!s.closePrefTouched);
+      })
+      .catch(() => {
+        if (!cancelled) setRemember(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [open]);
 
   async function apply(toTray: boolean) {
@@ -32,6 +47,7 @@ export function CloseAskDialog({ open, onClose }: Props) {
         ...normalizeShellSettings(cur),
         closeToTray: toTray,
         closePrefSet: remember,
+        closePrefTouched: true,
       };
       await shellApi.saveShellSettings(next);
       onClose();

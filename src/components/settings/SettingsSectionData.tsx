@@ -20,21 +20,26 @@ function PathOpenRow({
   title,
   description,
   openLabel,
+  openTip,
 }: {
   which: "dshHome" | "appData" | "logs";
   title: string;
   description: string;
   openLabel: string;
+  openTip: string;
 }) {
   return (
     <SettingsPrefRow title={title} description={description}>
-      <button
-        type="button"
-        className="btn ghost"
-        onClick={() => void shellApi.openKnownPath(which)}
-      >
-        {openLabel}
-      </button>
+      <ShellTooltip label={openTip} side="top" delayMs={300}>
+        <button
+          type="button"
+          className="btn ghost"
+          aria-label={openTip}
+          onClick={() => void shellApi.openKnownPath(which)}
+        >
+          {openLabel}
+        </button>
+      </ShellTooltip>
     </SettingsPrefRow>
   );
 }
@@ -169,18 +174,21 @@ export function SettingsSectionData() {
           title={t("settings.data.path.logsTitle")}
           description={t("settings.data.path.logsDesc")}
           openLabel={t("settings.data.path.open")}
+          openTip={t("settings.data.path.openTip")}
         />
         <PathOpenRow
           which="appData"
           title={t("settings.data.path.appDataTitle")}
           description={t("settings.data.path.appDataDesc")}
           openLabel={t("settings.data.path.open")}
+          openTip={t("settings.data.path.openTip")}
         />
         <PathOpenRow
           which="dshHome"
           title={t("settings.data.path.dshHomeTitle")}
           description={t("settings.data.path.dshHomeDesc")}
           openLabel={t("settings.data.path.open")}
+          openTip={t("settings.data.path.openTip")}
         />
       </SettingsGroup>
 
@@ -189,14 +197,21 @@ export function SettingsSectionData() {
           title={t("settings.about.exportDiagnostics")}
           description={t("settings.data.diagnostics.hint")}
         >
-          <button
-            type="button"
-            className="btn ghost"
-            disabled={locked || exporting}
-            onClick={() => void onExportDiagnostics()}
+          <ShellTooltip
+            label={t("settings.about.exportDiagnosticsTip")}
+            side="top"
+            delayMs={300}
           >
-            {t("settings.about.exportDiagnostics")}
-          </button>
+            <button
+              type="button"
+              className="btn ghost"
+              aria-label={t("settings.about.exportDiagnosticsTip")}
+              disabled={locked || exporting}
+              onClick={() => void onExportDiagnostics()}
+            >
+              {t("settings.about.exportDiagnosticsAction")}
+            </button>
+          </ShellTooltip>
         </SettingsPrefRow>
       </SettingsGroup>
 
@@ -210,37 +225,51 @@ export function SettingsSectionData() {
           }
         >
           {runtime?.cleanProfileActive ? (
-            <button
-              type="button"
-              className="btn ghost"
-              disabled={locked}
-              onClick={() => {
-                const runExit = async () => {
-                  reportFault(null);
-                  try {
-                    const ready = await shellApi.exitCleanProfile();
-                    showToast(t("settings.data.cleanProfile.exitDone"));
-                    refreshRuntime();
-                    onHarnessReady?.(ready);
-                  } catch (e) {
-                    const msg = typeof e === "string" ? e : String(e);
-                    reportFault(msg, runExit);
-                  }
-                };
-                void runExit();
-              }}
+            <ShellTooltip
+              label={t("settings.data.cleanProfile.exitTip")}
+              side="top"
+              delayMs={300}
             >
-              {t("settings.data.cleanProfile.exit")}
-            </button>
+              <button
+                type="button"
+                className="btn ghost"
+                aria-label={t("settings.data.cleanProfile.exitTip")}
+                disabled={locked}
+                onClick={() => {
+                  const runExit = async () => {
+                    reportFault(null);
+                    try {
+                      const ready = await shellApi.exitCleanProfile();
+                      showToast(t("settings.data.cleanProfile.exitDone"));
+                      refreshRuntime();
+                      onHarnessReady?.(ready);
+                    } catch (e) {
+                      const msg = typeof e === "string" ? e : String(e);
+                      reportFault(msg, runExit);
+                    }
+                  };
+                  void runExit();
+                }}
+              >
+                {t("settings.data.cleanProfile.exit")}
+              </button>
+            </ShellTooltip>
           ) : (
-            <button
-              type="button"
-              className="btn ghost"
-              disabled={locked}
-              onClick={() => recovery.request("cleanProfile")}
+            <ShellTooltip
+              label={t("settings.data.cleanProfile.startTip")}
+              side="top"
+              delayMs={300}
             >
-              {t("settings.data.cleanProfile.start")}
-            </button>
+              <button
+                type="button"
+                className="btn ghost"
+                aria-label={t("settings.data.cleanProfile.startTip")}
+                disabled={locked}
+                onClick={() => recovery.request("cleanProfile")}
+              >
+                {t("settings.data.cleanProfile.start")}
+              </button>
+            </ShellTooltip>
           )}
         </SettingsPrefRow>
       </SettingsGroup>
@@ -250,27 +279,41 @@ export function SettingsSectionData() {
           title={t("settings.data.resetConfig.title")}
           description={t("settings.data.resetConfig.description")}
         >
-          <button
-            type="button"
-            className="btn ghost"
-            disabled={locked}
-            onClick={() => recovery.request("resetConfig")}
+          <ShellTooltip
+            label={t("settings.data.resetConfig.buttonTip")}
+            side="top"
+            delayMs={300}
           >
-            {t("settings.data.resetConfig.button")}
-          </button>
+            <button
+              type="button"
+              className="btn ghost"
+              aria-label={t("settings.data.resetConfig.buttonTip")}
+              disabled={locked}
+              onClick={() => recovery.request("resetConfig")}
+            >
+              {t("settings.data.resetConfig.button")}
+            </button>
+          </ShellTooltip>
         </SettingsPrefRow>
         <SettingsPrefRow
           title={t("settings.data.reinstallDsh.title")}
           description={t("settings.data.reinstallDsh.description")}
         >
-          <button
-            type="button"
-            className="btn ghost"
-            disabled={locked}
-            onClick={() => recovery.request("reinstallDsh")}
+          <ShellTooltip
+            label={t("settings.data.reinstallDsh.buttonTip")}
+            side="top"
+            delayMs={300}
           >
-            {t("settings.data.reinstallDsh.button")}
-          </button>
+            <button
+              type="button"
+              className="btn ghost"
+              aria-label={t("settings.data.reinstallDsh.buttonTip")}
+              disabled={locked}
+              onClick={() => recovery.request("reinstallDsh")}
+            >
+              {t("settings.data.reinstallDsh.button")}
+            </button>
+          </ShellTooltip>
         </SettingsPrefRow>
       </SettingsGroup>
     </div>

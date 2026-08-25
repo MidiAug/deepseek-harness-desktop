@@ -35,7 +35,10 @@ export function WindowControls({
             type="button"
             className="icon-btn"
             aria-label={t("settings.title")}
-            onClick={onOpenSettings}
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenSettings();
+            }}
           >
             <IconSettingsOutline14 size={14} />
           </button>

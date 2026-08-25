@@ -51,5 +51,9 @@ export type RuntimeStatus = { nodeReady: boolean; harnessReady: boolean;
 /**
  * 入口缺失但已有依赖痕迹（中断更新等）
  */
-harnessPartial: boolean; port: number; dshHome: string; effectiveDshHome: string; cleanProfileActive: boolean; appData: string; mirror: MirrorKind; proxyMode: ProxyMode; dshHomeOverride: string; closeToTray: boolean; runtimeSource: RuntimeSource; activeRuntime: ActiveRuntimeKind | null; systemRuntimeDetected: boolean; systemEntry: string | null; harnessVersion: string | null; harnessDigest: string | null; shellVersion: string }
+harnessPartial: boolean; 
+/**
+ * 壳监督的进程是否仍在跑（启停按钮真源；与 harness_ready 能力探测分离）
+ */
+processRunning: boolean; port: number; dshHome: string; effectiveDshHome: string; cleanProfileActive: boolean; appData: string; mirror: MirrorKind; proxyMode: ProxyMode; dshHomeOverride: string; closeToTray: boolean; runtimeSource: RuntimeSource; activeRuntime: ActiveRuntimeKind | null; systemRuntimeDetected: boolean; systemEntry: string | null; harnessVersion: string | null; harnessDigest: string | null; shellVersion: string }
 

@@ -59,6 +59,9 @@ pub struct RuntimeSettings {
     pub close_to_tray: bool,
     #[serde(default)]
     pub close_pref_set: bool,
+    /// 用户是否已操作过关闭偏好（关窗询问或设置里改过）；用于「记住选择」仅首次默认勾选
+    #[serde(default)]
+    pub close_pref_touched: bool,
     /// 0 = 使用壳默认（debug 3081 / release 3080）；占用则顺延
     #[serde(default)]
     pub preferred_port: u16,
@@ -100,6 +103,8 @@ pub struct ShellSettings {
     #[serde(default)]
     pub close_pref_set: bool,
     #[serde(default)]
+    pub close_pref_touched: bool,
+    #[serde(default)]
     pub preferred_port: u16,
     #[serde(default)]
     pub cli_link_enabled: bool,
@@ -134,6 +139,7 @@ impl Default for RuntimeSettings {
             dsh_home_override: String::new(),
             close_to_tray: true,
             close_pref_set: false,
+            close_pref_touched: false,
             preferred_port: 0,
             cli_link_enabled: false,
             runtime_source: RuntimeSource::Hosted,
@@ -167,6 +173,7 @@ impl ShellSettings {
             dsh_home_override: runtime.dsh_home_override,
             close_to_tray: runtime.close_to_tray,
             close_pref_set: runtime.close_pref_set,
+            close_pref_touched: runtime.close_pref_touched,
             preferred_port: runtime.preferred_port,
             cli_link_enabled: runtime.cli_link_enabled,
             runtime_source: runtime.runtime_source,
@@ -187,6 +194,7 @@ impl ShellSettings {
             dsh_home_override: self.dsh_home_override.clone(),
             close_to_tray: self.close_to_tray,
             close_pref_set: self.close_pref_set,
+            close_pref_touched: self.close_pref_touched,
             preferred_port: self.preferred_port,
             cli_link_enabled: self.cli_link_enabled,
             runtime_source: self.runtime_source,

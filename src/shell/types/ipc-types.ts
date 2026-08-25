@@ -22,7 +22,9 @@ export type SessionPhase =
   | "spawning"
   | "embedding"
   | "ready"
-  | "failed";
+  | "failed"
+  /** 用户主动停止：展示 Boot 可手动启动，禁止自动 ensure */
+  | "stopped";
 
 export type EnvironmentProbe = {
   systemRuntimeDetected: boolean;

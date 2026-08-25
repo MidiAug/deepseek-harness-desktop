@@ -17,7 +17,7 @@ type FaultReporter = (
 ) => void;
 
 export type HarnessSettingsOpsOptions = {
-  refreshRuntime: () => void;
+  refreshRuntime: () => void | Promise<void>;
   onHarnessReady?: (payload: ReadyPayload) => void;
   reportFault: FaultReporter;
 };
@@ -30,6 +30,7 @@ export type HarnessSettingsOps = {
   onCheckUpdate: () => Promise<void>;
   onApplyUpdate: () => Promise<void>;
   onApplyNetworkRestart: () => Promise<void>;
+  onEnsureStart: () => Promise<void>;
 };
 
 const HarnessSettingsOpsContext = createContext<HarnessSettingsOps | null>(null);
@@ -75,7 +76,7 @@ function useHarnessSettingsOpsImpl({
     try {
       const payload = await shellApi.applyHarnessUpdate();
       setUpdateCheck(null);
-      refreshRuntime();
+      await Promise.resolve(refreshRuntime());
       onHarnessReady?.(payload);
       showToast(t("settings.about.updated"));
       life.seedBoot({
@@ -97,12 +98,28 @@ function useHarnessSettingsOpsImpl({
     life.beginOps(t("settings.hint.networkRestart"));
     try {
       const payload = await shellApi.restartHarness();
-      refreshRuntime();
+      await Promise.resolve(refreshRuntime());
       onHarnessReady?.(payload);
       showToast(t("settings.about.networkRestarted"));
     } catch (e) {
       const msg = typeof e === "string" ? e : String(e);
       reportFault(msg, onApplyNetworkRestart);
+    } finally {
+      life.endOps({ clearProgress: true });
+    }
+  }, [life, onHarnessReady, refreshRuntime, reportFault, showToast, t]);
+
+  const onEnsureStart = useCallback(async () => {
+    reportFault(null);
+    life.beginOps(t("settings.hint.starting"));
+    try {
+      const payload = await shellApi.ensureAndStart();
+      await Promise.resolve(refreshRuntime());
+      onHarnessReady?.(payload);
+      showToast(t("settings.port.started"));
+    } catch (e) {
+      const msg = typeof e === "string" ? e : String(e);
+      reportFault(msg, onEnsureStart);
     } finally {
       life.endOps({ clearProgress: true });
     }
@@ -115,6 +132,7 @@ function useHarnessSettingsOpsImpl({
     onCheckUpdate,
     onApplyUpdate,
     onApplyNetworkRestart,
+    onEnsureStart,
   };
 }
 

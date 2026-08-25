@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 type Props = {
   open: boolean;
@@ -16,6 +16,9 @@ type Props = {
 /**
  * 壳对话框行为壳：遮罩、ESC、点遮罩关闭、聚焦、清选区。
  * 不含 Ctrl+A（嵌入 DSH 仍走 App.tsx / harnessFramePost）。
+ *
+ * 遮罩关闭须「武装」后再响应：打开设置的同一次 click 若落到刚挂载的
+ * backdrop，会立刻 onDismiss → 设置闪关，简洁顶栏又因失悬停/suppress-hover 消失。
  */
 export function ShellDialogFrame({
   open,
@@ -29,17 +32,29 @@ export function ShellDialogFrame({
   children,
 }: Props) {
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const [dismissArmed, setDismissArmed] = useState(false);
+
+  useEffect(() => {
+    if (!open) {
+      setDismissArmed(false);
+      return;
+    }
+    setDismissArmed(false);
+    // 等开启该次指针事件结束后再允许点遮罩关闭
+    const id = window.setTimeout(() => setDismissArmed(true), 0);
+    return () => window.clearTimeout(id);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape" && !busy) onDismiss();
+      if (e.key === "Escape" && !busy && dismissArmed) onDismiss();
     }
     document.addEventListener("keydown", onKey, true);
     window.getSelection()?.removeAllRanges();
     panelRef.current?.focus({ preventScroll: true });
     return () => document.removeEventListener("keydown", onKey, true);
-  }, [open, busy, onDismiss]);
+  }, [open, busy, dismissArmed, onDismiss]);
 
   if (!open) return null;
 
@@ -52,8 +67,10 @@ export function ShellDialogFrame({
     <div
       className={backdropCls}
       role="presentation"
-      onClick={() => {
-        if (!busy) onDismiss();
+      onPointerDown={(e) => {
+        // 只认直接点在遮罩上（不认从触发钮冒泡/穿透的残余）
+        if (e.target !== e.currentTarget) return;
+        if (!busy && dismissArmed) onDismiss();
       }}
     >
       <div
@@ -64,7 +81,7 @@ export function ShellDialogFrame({
         aria-modal="true"
         aria-labelledby={ariaLabelledBy}
         aria-describedby={ariaDescribedBy}
-        onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
       >
         {children}
       </div>

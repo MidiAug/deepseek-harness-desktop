@@ -288,6 +288,39 @@ export function IconFolderOpenOutline16({ size = 16, className }: IconProps) {
   );
 }
 
+/** ic_ds_copy_outline_14 — 双层方框（行内复制） */
+
+export function IconCopyOutline14({ size = 14, className }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      className={className}
+      viewBox="0 0 14 14"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden
+    >
+      <path
+        d="M4.5 4.5V2.75C4.5 2.33579 4.83579 2 5.25 2H11.25C11.6642 2 12 2.33579 12 2.75V8.75C12 9.16421 11.6642 9.5 11.25 9.5H9.5"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <rect
+        x="2"
+        y="4.5"
+        width="7.5"
+        height="7.5"
+        rx="1.25"
+        stroke="currentColor"
+        strokeWidth="1.2"
+      />
+    </svg>
+  );
+}
+
 /** ic_ds_warning_circle_outline_16 — 圆框感叹号（状态提示） */
 
 export function IconWarningCircleOutline16({ size = 16, className }: IconProps) {

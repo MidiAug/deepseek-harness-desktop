@@ -178,9 +178,9 @@ async fn npm_install_dsh<R: Runtime>(app: &AppHandle<R>, force: bool) -> Result<
     }
 
     let msg = if force {
-        "正在 npm install @deepseek-ai/dsh@latest（可能需数分钟，请稍候）…"
+        "正在 npm install @deepseek-ai/dsh@latest（首次常需十余分钟）…"
     } else {
-        "正在 npm install @deepseek-ai/dsh（可能较久）…"
+        "正在 npm install @deepseek-ai/dsh（首次常需十余分钟）…"
     };
     emit_progress(app, InstallStage::InstallDsh, msg, Some(75));
 
@@ -225,10 +225,11 @@ async fn npm_install_dsh<R: Runtime>(app: &AppHandle<R>, force: bool) -> Result<
         platform::spawn_and_wait_streaming(&node, &args, Some(&harness_for_cmd), &envs, |line| {
             if line.starts_with('…') || line.starts_with("...") {
                 let secs = started.elapsed().as_secs();
+                let hint = npm_elapsed_hint(secs);
                 progress::emit_progress(
                     &app_log,
                     InstallStage::InstallDsh,
-                    &format!("npm install 进行中（已 {secs}s，可能需数分钟）…"),
+                    &format!("npm install 进行中（已 {secs}s，{hint}）…"),
                     Some(75),
                 );
             } else {
@@ -339,10 +340,11 @@ pub async fn npm_install_dsh_global<R: Runtime>(app: &AppHandle<R>) -> Result<()
         platform::spawn_and_wait_streaming(&node, &args, None, &envs, |line| {
             if line.starts_with('…') || line.starts_with("...") {
                 let secs = started.elapsed().as_secs();
+                let hint = npm_elapsed_hint(secs);
                 progress::emit_progress(
                     &app_log,
                     InstallStage::InstallDsh,
-                    &format!("npm 全局安装进行中（已 {secs}s）…"),
+                    &format!("npm 全局安装进行中（已 {secs}s，{hint}）…"),
                     Some(75),
                 );
             } else {
@@ -375,6 +377,20 @@ pub async fn npm_install_dsh_global<R: Runtime>(app: &AppHandle<R>) -> Result<()
     }
     emit_progress(app, InstallStage::InstallDsh, "本机 dsh 重装完成", Some(90));
     Ok(())
+}
+
+/// 心跳文案：避免永远「数分钟」造成假死感。
+#[cfg(windows)]
+fn npm_elapsed_hint(secs: u64) -> &'static str {
+    if secs < 180 {
+        "通常需数分钟"
+    } else if secs < 600 {
+        "依赖较多，常需十余分钟"
+    } else if secs < 1200 {
+        "仍在拉取/解压，请继续等待"
+    } else {
+        "已超过 20 分钟：可展开日志确认是否仍有 http fetch"
+    }
 }
 
 #[cfg(windows)]

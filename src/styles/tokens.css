@@ -91,12 +91,15 @@ body {
   color: var(--color-muted);
   width: 2.65rem;
   min-width: 2.65rem;
+  height: 100%;
+  align-self: stretch;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   font: inherit;
   border-radius: 0;
+  box-sizing: border-box;
 }
 
 .icon-btn {
@@ -104,8 +107,9 @@ body {
   min-width: 2.2rem;
   border-radius: 4px;
   margin: 0.2rem 0.15rem 0.2rem 0;
-  align-self: center;
-  height: 1.7rem;
+  align-self: stretch;
+  height: auto;
+  min-height: calc(var(--titlebar-h) - 0.4rem);
 }
 
 .icon-btn:hover,
@@ -114,7 +118,8 @@ body {
   color: var(--color-ink);
 }
 
-.win-close:hover {
+/* 须压过 .win-btn:hover；Windows 关闭钮惯例 */
+.win-btn.win-close:hover {
   background: #e81123;
   color: #fff;
 }

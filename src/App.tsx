@@ -65,8 +65,11 @@ export default function App() {
   );
 
   const openSettings = useCallback((section?: SettingsSection) => {
-    setSettingsSection(section);
-    setSettingsOpen(true);
+    // 延后到当前 click 冒泡结束后再挂遮罩，避免同次点击打到 backdrop 立刻关闭
+    window.setTimeout(() => {
+      setSettingsSection(section);
+      setSettingsOpen(true);
+    }, 0);
   }, []);
   const closeSettings = useCallback(() => {
     setSettingsOpen(false);
@@ -167,10 +170,17 @@ export default function App() {
 
   const shellOverlay = chrome.titlebarCompact && bodyView === "harness";
   const shellBackdropOpen = settingsOpen || closeAskOpen;
+
+  useEffect(() => {
+    document.body.classList.toggle("shell-modal-open", shellBackdropOpen);
+    return () => document.body.classList.remove("shell-modal-open");
+  }, [shellBackdropOpen]);
+
   const showBootChrome = onboardingGate === "ready";
   const onboardingActive = onboardingGate !== "ready";
   const opsActive = life.busyReason === "ops";
-  const titleFailed = session.phase === "failed";
+  const titleFailed =
+    session.phase === "failed" || session.phase === "stopped";
   const titleActivity = titleFailed
     ? t("chrome.conn.failed")
     : opsActive && life.message
@@ -297,6 +307,7 @@ export default function App() {
           <BootPanel
             key={session.bootKey}
             startCommand={session.startCommand}
+            autoStart={session.bootAutoStart}
             forceStealth={opsActive}
             sessionError={session.bootError}
             onReady={session.markReady}
@@ -340,7 +351,7 @@ export default function App() {
         onHarnessReady={session.markReady}
         onBeginHarnessOp={session.beginHarnessOp}
         onHarnessOpFailed={session.markFailed}
-        onStopHarness={() => void session.stop()}
+        onStopHarness={() => session.stop()}
       />
       <CloseAskDialog open={closeAskOpen} onClose={() => setCloseAskOpen(false)} />
       <ShellContextMenu

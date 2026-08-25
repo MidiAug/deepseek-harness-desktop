@@ -16,6 +16,8 @@ import {
 
 export type UseBootPanelOpts = {
   startCommand: StartCommand;
+  /** false：用户主动停止后挂载，禁止自动 ensure */
+  autoStart?: boolean;
   forceStealth?: boolean;
   embedding?: boolean;
   sessionError?: string | null;
@@ -29,6 +31,7 @@ export type UseBootPanelOpts = {
 
 export function useBootPanel({
   startCommand,
+  autoStart = true,
   forceStealth = false,
   embedding = false,
   sessionError = null,
@@ -50,6 +53,7 @@ export function useBootPanel({
   const [dshHomePath, setDshHomePath] = useState("");
   const [slowBoot, setSlowBoot] = useState(false);
   const [installMode, setInstallMode] = useState<InstallMode>("hosted");
+  const [awaitingManualStart, setAwaitingManualStart] = useState(false);
   const logBodyRef = useRef<HTMLDivElement>(null);
   const startedRef = useRef(false);
   const onStealthChangeRef = useRef(onStealthChange);
@@ -193,17 +197,24 @@ export function useBootPanel({
       } finally {
         setRuntimeKnown(true);
       }
-      onBootWorkingRef.current?.(coldInstall);
-      if (startCommand === "external_op") {
-        setRuntimeKnown(true);
+
+      // 主动停止 / 外部运维：禁止自动 ensure，也勿把 session 打成 spawning
+      if (startCommand === "external_op" || !autoStart) {
+        if (!autoStart && startCommand !== "external_op") {
+          setAwaitingManualStart(true);
+          setStatus(t("boot.msg.stopped"), "start", null);
+          onStatusMessageRef.current?.(t("boot.msg.stopped"));
+        }
         return;
       }
+
+      onBootWorkingRef.current?.(coldInstall);
       if (!startedRef.current) {
         startedRef.current = true;
         void start(startCommand);
       }
     })();
-  }, [start, startCommand, setStatus, t]);
+  }, [start, startCommand, autoStart, setStatus, t]);
 
   useEffect(() => {
     if (!logOpen) return;
@@ -225,17 +236,29 @@ export function useBootPanel({
   const stealth =
     forceStealth ||
     !runtimeKnown ||
-    (fastPath && !showFault && !slowBoot && !embedding);
-  const working = !showFault && !embedding;
+    (fastPath &&
+      !showFault &&
+      !awaitingManualStart &&
+      !slowBoot &&
+      !embedding);
+  const working = !showFault && !awaitingManualStart && !embedding;
+
+  const startManual = useCallback(() => {
+    if (startedRef.current) return;
+    setAwaitingManualStart(false);
+    startedRef.current = true;
+    onBootWorkingRef.current?.(true);
+    void start(startCommand);
+  }, [start, startCommand]);
 
   useEffect(() => {
-    if (forceStealth || !working || showFault) {
+    if (forceStealth || !working || showFault || awaitingManualStart) {
       setSlowBoot(false);
       return;
     }
     const id = window.setTimeout(() => setSlowBoot(true), 1800);
     return () => window.clearTimeout(id);
-  }, [working, showFault, forceStealth]);
+  }, [working, showFault, forceStealth, awaitingManualStart]);
 
   useEffect(() => {
     onStealthChangeRef.current?.(stealth);
@@ -262,6 +285,8 @@ export function useBootPanel({
     stealth,
     working,
     embedding,
+    awaitingManualStart,
+    startManual,
     message,
     percent,
     stageId,

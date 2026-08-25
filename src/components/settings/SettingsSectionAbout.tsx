@@ -17,6 +17,7 @@ import { SettingsPrefRow } from "./SettingsPrefRow";
 import { SettingsUpdateRow } from "./SettingsUpdateRow";
 import { SettingsUpdateNotice } from "./SettingsUpdateNotice";
 import { SettingsUpdateProgress } from "./SettingsUpdateProgress";
+import { ShellTooltip } from "../chrome/ShellTooltip";
 import { parseFaultDisplay, CTA_LABEL_KEYS } from "../../shell/errors";
 import type { RuntimeStatus } from "../../shell";
 
@@ -26,7 +27,7 @@ function harnessVersionLabel(
   t: (key: import("../../shell/locale").LocaleKey) => string,
 ): string {
   if (runtime?.harnessVersion) return runtime.harnessVersion;
-  if (runtime?.harnessReady) return t("settings.about.harnessRunning");
+  if (runtime?.processRunning) return t("settings.about.harnessRunning");
   if (locked) return t("settings.about.installing");
   return t("settings.about.notInstalled");
 }
@@ -168,11 +169,7 @@ export function SettingsSectionAbout() {
                 <span className="settings-about-ver shell-copyable">
                   {harnessLabel}
                 </span>
-                {runtime?.harnessReady ? (
-                  <span className="settings-pill ok">
-                    {t("settings.about.ready")}
-                  </span>
-                ) : locked ? (
+                {locked ? (
                   <span className="settings-pill warn">
                     {t("settings.about.installing")}
                   </span>
@@ -209,15 +206,11 @@ export function SettingsSectionAbout() {
                 <div>
                   <dt>{t("settings.about.node")}</dt>
                   <dd>
-                    {runtime?.nodeReady ? (
-                      <span className="settings-pill ok">
-                        {t("settings.about.ready")}
-                      </span>
-                    ) : (
-                      <span className="settings-pill warn">
-                        {t("settings.about.nodeMissing")}
-                      </span>
-                    )}
+                    <span>
+                      {runtime?.nodeReady
+                        ? t("settings.about.ready")
+                        : t("settings.about.nodeMissing")}
+                    </span>
                   </dd>
                 </div>
               </dl>
@@ -226,28 +219,35 @@ export function SettingsSectionAbout() {
                   title={t("settings.about.resetOnboarding")}
                   description={t("settings.about.resetOnboardingDesc")}
                 >
-                  <button
-                    type="button"
-                    className="btn ghost"
-                    onClick={() => {
-                      void (async () => {
-                        try {
-                          const s = normalizeShellSettings(
-                            await shellApi.getShellSettings(),
-                          );
-                          await shellApi.saveRuntimeSettings({
-                            ...runtimeFromSettings(s),
-                            onboardingDone: false,
-                          });
-                          showToast(t("settings.about.resetOnboardingDone"));
-                        } catch (e) {
-                          shellLog.error("settings", "reset onboarding", e);
-                        }
-                      })();
-                    }}
+                  <ShellTooltip
+                    label={t("settings.about.resetOnboardingActionTip")}
+                    side="top"
+                    delayMs={300}
                   >
-                    {t("settings.about.resetOnboardingAction")}
-                  </button>
+                    <button
+                      type="button"
+                      className="btn ghost"
+                      aria-label={t("settings.about.resetOnboardingActionTip")}
+                      onClick={() => {
+                        void (async () => {
+                          try {
+                            const s = normalizeShellSettings(
+                              await shellApi.getShellSettings(),
+                            );
+                            await shellApi.saveRuntimeSettings({
+                              ...runtimeFromSettings(s),
+                              onboardingDone: false,
+                            });
+                            showToast(t("settings.about.resetOnboardingDone"));
+                          } catch (e) {
+                            shellLog.error("settings", "reset onboarding", e);
+                          }
+                        })();
+                      }}
+                    >
+                      {t("settings.about.resetOnboardingAction")}
+                    </button>
+                  </ShellTooltip>
                 </SettingsPrefRow>
               </div>
             </>
@@ -263,23 +263,37 @@ export function SettingsSectionAbout() {
           actions={
             <>
               {showShellCheck ? (
-                <button
-                  type="button"
-                  className="btn ghost"
-                  disabled={shellChecking}
-                  onClick={() => void shellUpd.checkNow(true)}
+                <ShellTooltip
+                  label={t("settings.about.shellUpdate.checkTip")}
+                  side="top"
+                  delayMs={300}
                 >
-                  {t("settings.about.shellUpdate.check")}
-                </button>
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    aria-label={t("settings.about.shellUpdate.checkTip")}
+                    disabled={shellChecking}
+                    onClick={() => void shellUpd.checkNow(true)}
+                  >
+                    {t("settings.about.shellUpdate.check")}
+                  </button>
+                </ShellTooltip>
               ) : null}
               {showShellInstall ? (
-                <button
-                  type="button"
-                  className="btn primary"
-                  onClick={() => void shellUpd.installAndRelaunch()}
+                <ShellTooltip
+                  label={t("settings.about.shellUpdate.installTip")}
+                  side="top"
+                  delayMs={300}
                 >
-                  {t("settings.about.shellUpdate.install")}
-                </button>
+                  <button
+                    type="button"
+                    className="btn primary"
+                    aria-label={t("settings.about.shellUpdate.installTip")}
+                    onClick={() => void shellUpd.installAndRelaunch()}
+                  >
+                    {t("settings.about.shellUpdate.install")}
+                  </button>
+                </ShellTooltip>
               ) : null}
             </>
           }
@@ -291,24 +305,38 @@ export function SettingsSectionAbout() {
           actions={
             <>
               {showHarnessCheck ? (
-                <button
-                  type="button"
-                  className="btn ghost"
-                  disabled={locked || checkingUpdate}
-                  onClick={() => void onCheckUpdate()}
+                <ShellTooltip
+                  label={t("settings.about.checkUpdateTip")}
+                  side="top"
+                  delayMs={300}
                 >
-                  {t("settings.about.checkUpdate")}
-                </button>
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    aria-label={t("settings.about.checkUpdateTip")}
+                    disabled={locked || checkingUpdate}
+                    onClick={() => void onCheckUpdate()}
+                  >
+                    {t("settings.about.checkUpdate")}
+                  </button>
+                </ShellTooltip>
               ) : null}
               {showHarnessInstall ? (
-                <button
-                  type="button"
-                  className="btn primary"
-                  disabled={locked}
-                  onClick={() => void onApplyUpdate()}
+                <ShellTooltip
+                  label={t("settings.about.applyUpdateTip")}
+                  side="top"
+                  delayMs={300}
                 >
-                  {t("settings.about.applyUpdate")}
-                </button>
+                  <button
+                    type="button"
+                    className="btn primary"
+                    aria-label={t("settings.about.applyUpdateTip")}
+                    disabled={locked}
+                    onClick={() => void onApplyUpdate()}
+                  >
+                    {t("settings.about.applyUpdate")}
+                  </button>
+                </ShellTooltip>
               ) : null}
               {showHarnessRetry && primaryFaultCta ? (
                 <button
@@ -330,17 +358,24 @@ export function SettingsSectionAbout() {
           title={t("settings.about.openPlatform")}
           description={t("settings.about.platformHint")}
         >
-          <button
-            type="button"
-            className="btn ghost"
-            onClick={() => {
-              void shellApi
-                .openPlatformWindow()
-                .catch((e) => shellLog.error("about", "open platform", e));
-            }}
+          <ShellTooltip
+            label={t("settings.about.openPlatformTip")}
+            side="top"
+            delayMs={300}
           >
-            {t("settings.about.openPlatform")}
-          </button>
+            <button
+              type="button"
+              className="btn ghost"
+              aria-label={t("settings.about.openPlatformTip")}
+              onClick={() => {
+                void shellApi
+                  .openPlatformWindow()
+                  .catch((e) => shellLog.error("about", "open platform", e));
+              }}
+            >
+              {t("settings.about.openPlatformAction")}
+            </button>
+          </ShellTooltip>
         </SettingsPrefRow>
       </SettingsGroup>
 
@@ -348,20 +383,38 @@ export function SettingsSectionAbout() {
         <SettingsGroup title={t("settings.about.viewLogs")}>
           <div className="settings-ops-log-body">
             <div className="settings-cell-actions">
-              <button type="button" className="btn ghost" onClick={copyLog}>
-                {t("settings.about.copyLog")}
-              </button>
-              <button
-                type="button"
-                className="btn ghost"
-                onClick={() => {
-                  void shellApi
-                    .openKnownPath("logs")
-                    .catch((e) => shellLog.error("about", "open logs", e));
-                }}
+              <ShellTooltip
+                label={t("settings.about.copyLogTip")}
+                side="top"
+                delayMs={300}
               >
-                {t("settings.about.openLogsDir")}
-              </button>
+                <button
+                  type="button"
+                  className="btn ghost"
+                  aria-label={t("settings.about.copyLogTip")}
+                  onClick={copyLog}
+                >
+                  {t("settings.about.copyLog")}
+                </button>
+              </ShellTooltip>
+              <ShellTooltip
+                label={t("settings.about.openLogsDirTip")}
+                side="top"
+                delayMs={300}
+              >
+                <button
+                  type="button"
+                  className="btn ghost"
+                  aria-label={t("settings.about.openLogsDirTip")}
+                  onClick={() => {
+                    void shellApi
+                      .openKnownPath("logs")
+                      .catch((e) => shellLog.error("about", "open logs", e));
+                  }}
+                >
+                  {t("settings.about.openLogsDir")}
+                </button>
+              </ShellTooltip>
             </div>
             <div className="settings-log" aria-label="log">
               {life.logLines.map((line, i) => (

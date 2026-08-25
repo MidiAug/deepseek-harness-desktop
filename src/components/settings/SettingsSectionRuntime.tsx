@@ -17,8 +17,12 @@ import { SettingsPrefRow } from "./SettingsPrefRow";
 import { ShellSelect } from "../chrome/ShellSelect";
 import { ShellConfirmDialog } from "../chrome/ShellConfirmDialog";
 import { ShellTooltip } from "../chrome/ShellTooltip";
-import { IconWarningCircleOutline16 } from "../chrome/DshIcons";
+import {
+  IconCopyOutline14,
+  IconWarningCircleOutline16,
+} from "../chrome/DshIcons";
 import type { InstallMode } from "../../shell/runtime/installMode";
+import { statusProcessKind } from "../../shell/runtime/statusProcess";
 
 function preferredInstallMode(
   runtimeSource: ShellSettings["runtimeSource"],
@@ -50,7 +54,7 @@ export function SettingsSectionRuntime() {
   } = useSettingsPanelContext();
   const { t } = useLocale();
   const { showToast } = useAppToast();
-  const { onApplyNetworkRestart } = useHarnessSettingsOps();
+  const { onApplyNetworkRestart, onEnsureStart } = useHarnessSettingsOps();
   const setError = reportFault;
   const [cliStatus, setCliStatus] = useState<CliLinkStatus | null>(null);
   const [pendingSource, setPendingSource] = useState<RuntimeSource | null>(null);
@@ -69,7 +73,11 @@ export function SettingsSectionRuntime() {
       cancelled = true;
     };
   }, []);
-  const ready = !!runtime?.harnessReady && !!runtime?.port;
+  const ready = !!runtime?.processRunning && !!runtime?.port;
+  const processKind = statusProcessKind({
+    processRunning: ready,
+    locked,
+  });
   const preferred = preferredInstallMode(settings.runtimeSource);
   const running = runtime?.activeRuntime ?? null;
   const runningLabel =
@@ -129,42 +137,128 @@ export function SettingsSectionRuntime() {
       />
       <SettingsGroup title={t("settings.group.status")}>
         <div className="settings-status-block">
-          <div className="settings-status-block__row">
-            <span className={`settings-pill${ready ? " ok" : " warn"}`}>
-              {ready
-                ? t("settings.about.ready")
-                : locked
-                  ? t("settings.about.installing")
-                  : t("settings.about.notInstalled")}
-            </span>
-            <span className="mono shell-copyable">
-              {runtime?.port ? `:${runtime.port}` : "—"}
-            </span>
-            <span className="mono shell-copyable" title="digest">
-              {runtime?.harnessDigest
-                ? String(runtime.harnessDigest).slice(0, 12)
-                : "—"}
-            </span>
-          </div>
-          <dl className="settings-status-block__meta">
-            <div>
-              <dt>{t("settings.about.node")}</dt>
-              <dd>
-                {runtime?.nodeReady ? (
-                  <span className="settings-pill ok">
-                    {t("settings.about.ready")}
-                  </span>
-                ) : (
-                  <span className="settings-pill warn">
-                    {t("settings.about.nodeMissing")}
-                  </span>
-                )}
+          <dl className="settings-status-grid">
+            <div className="settings-status-grid__row">
+              <dt>{t("settings.status.state")}</dt>
+              <dd className="settings-status-grid__state">
+                <span className={`settings-pill${ready ? " ok" : " warn"}`}>
+                  {processKind === "ready"
+                    ? t("settings.status.running")
+                    : processKind === "busy"
+                      ? t("settings.status.busy")
+                      : t("settings.status.notRunning")}
+                </span>
+                <div className="settings-status-actions">
+                  {ready ? (
+                    <>
+                      <ShellTooltip
+                        label={t("settings.port.restartTip")}
+                        side="top"
+                        delayMs={300}
+                      >
+                        <button
+                          type="button"
+                          className="btn ghost settings-status-actions__btn"
+                          aria-label={t("settings.port.restartTip")}
+                          disabled={locked}
+                          onClick={() => void onApplyNetworkRestart()}
+                        >
+                          {t("settings.port.restart")}
+                        </button>
+                      </ShellTooltip>
+                      <ShellTooltip
+                        label={t("settings.port.stopTip")}
+                        side="top"
+                        delayMs={300}
+                      >
+                        <button
+                          type="button"
+                          className="btn ghost settings-status-actions__btn"
+                          aria-label={t("settings.port.stopTip")}
+                          disabled={locked}
+                          onClick={() => {
+                            void (async () => {
+                              await onStopHarness?.();
+                              refreshRuntime();
+                              showToast(t("settings.port.stopped"));
+                            })();
+                          }}
+                        >
+                          {t("settings.port.stop")}
+                        </button>
+                      </ShellTooltip>
+                    </>
+                  ) : (
+                    <ShellTooltip
+                      label={t("settings.port.startTip")}
+                      side="top"
+                      delayMs={300}
+                    >
+                      <button
+                        type="button"
+                        className="btn settings-status-actions__btn"
+                        aria-label={t("settings.port.startTip")}
+                        disabled={locked}
+                        onClick={() => void onEnsureStart()}
+                      >
+                        {t("settings.port.start")}
+                      </button>
+                    </ShellTooltip>
+                  )}
+                </div>
               </dd>
             </div>
-            <div>
-              <dt>{t("settings.harnessInstall.source")}</dt>
+            <div className="settings-status-grid__row">
+              <dt>{t("settings.status.port")}</dt>
+              <dd className="settings-status-grid__port">
+                <span className="settings-status-block__port mono">
+                  {runtime?.port ? String(runtime.port) : "—"}
+                </span>
+                <div className="settings-status-actions">
+                  <ShellTooltip
+                    label={t("settings.port.openBrowserTip")}
+                    side="top"
+                    delayMs={300}
+                  >
+                    <button
+                      type="button"
+                      className="btn ghost settings-status-actions__btn"
+                      aria-label={t("settings.port.openBrowserTip")}
+                      disabled={!runtime?.port}
+                      onClick={() => {
+                        const url = `http://127.0.0.1:${runtime?.port}`;
+                        void shellApi
+                          .openLoopbackUrl(url)
+                          .then(() => showToast(t("settings.port.opened")))
+                          .catch((e) => setError(String(e)));
+                      }}
+                    >
+                      {t("settings.port.openBrowser")}
+                    </button>
+                  </ShellTooltip>
+                </div>
+              </dd>
+            </div>
+            <div className="settings-status-grid__row">
+              <dt>{t("settings.status.node")}</dt>
+              <dd>
+                <span>
+                  {runtime?.nodeReady
+                    ? t("settings.about.ready")
+                    : t("settings.about.nodeMissing")}
+                </span>
+              </dd>
+            </div>
+            <div className="settings-status-grid__row">
+              <dt>{t("settings.status.source")}</dt>
               <dd className="settings-status-block__source">
-                <span>{runningLabel ?? preferredLabel}</span>
+                <span>
+                  {runningLabel
+                    ? runtimeMismatch
+                      ? `${runningLabel} → ${preferredLabel}`
+                      : runningLabel
+                    : preferredLabel}
+                </span>
                 {runtimeMismatch ? (
                   <ShellTooltip
                     label={t("settings.harnessInstall.switchedRestart")}
@@ -183,6 +277,43 @@ export function SettingsSectionRuntime() {
                 ) : null}
               </dd>
             </div>
+            {runtime?.harnessDigest ? (
+              <div className="settings-status-grid__row">
+                <dt>{t("settings.status.digest")}</dt>
+                <dd>
+                  <span className="settings-status-value">
+                    <span
+                      className="settings-status-block__digest mono"
+                      title={String(runtime.harnessDigest)}
+                    >
+                      {String(runtime.harnessDigest).slice(0, 12)}
+                    </span>
+                    <ShellTooltip
+                      label={t("settings.status.copyDigest")}
+                      side="top"
+                      delayMs={280}
+                    >
+                      <button
+                        type="button"
+                        className="settings-inline-copy"
+                        aria-label={t("settings.status.copyDigest")}
+                        onClick={() => {
+                          void navigator.clipboard
+                            .writeText(String(runtime.harnessDigest))
+                            .then(
+                              () =>
+                                showToast(t("settings.status.digestCopied")),
+                              () => setError(t("settings.port.copyFail")),
+                            );
+                        }}
+                      >
+                        <IconCopyOutline14 />
+                      </button>
+                    </ShellTooltip>
+                  </span>
+                </dd>
+              </div>
+            ) : null}
           </dl>
         </div>
       </SettingsGroup>
@@ -224,85 +355,43 @@ export function SettingsSectionRuntime() {
         </SettingsPrefRow>
       </SettingsGroup>
 
-      <SettingsGroup title={t("settings.group.controls")}>
-        <div className="settings-cell-actions settings-cell-actions--primary">
-          <button
-            type="button"
-            className="btn"
-            disabled={locked}
-            onClick={() => void onApplyNetworkRestart()}
-          >
-            {t("settings.port.restart")}
-          </button>
-          <button
-            type="button"
-            className="btn ghost"
-            disabled={locked}
-            onClick={() => {
-              onStopHarness?.();
-              showToast(t("settings.port.stopped"));
-              refreshRuntime();
-            }}
-          >
-            {t("settings.port.stop")}
-          </button>
-          <button
-            type="button"
-            className="btn ghost"
-            disabled={!runtime?.port}
-            onClick={() => {
-              const url = `http://127.0.0.1:${runtime?.port}`;
-              void navigator.clipboard.writeText(url).then(
-                () => showToast(t("settings.port.copied")),
-                () => setError(t("settings.port.copyFail")),
-              );
-            }}
-          >
-            {t("settings.port.copy")}
-          </button>
-          <button
-            type="button"
-            className="btn ghost"
-            disabled={!runtime?.port}
-            onClick={() => {
-              const url = `http://127.0.0.1:${runtime?.port}`;
-              void shellApi
-                .openLoopbackUrl(url)
-                .then(() => showToast(t("settings.port.opened")))
-                .catch((e) => setError(String(e)));
-            }}
-          >
-            {t("settings.port.openBrowser")}
-          </button>
-        </div>
-      </SettingsGroup>
-
       <SettingsGroup title={t("settings.group.port")}>
         <SettingsPrefRow
           title={t("settings.port.title")}
           description={t("settings.port.description")}
-          layout="stack"
         >
-          <input
-            className="settings-control"
-            type="number"
-            min={0}
-            max={65535}
-            placeholder={t("settings.port.placeholder")}
-            value={portDraft}
-            onChange={(ev) => {
-              setPortDraft(ev.target.value);
-              const n = Number(ev.target.value);
-              const preferredPort =
-                ev.target.value.trim() === "" || !Number.isFinite(n)
-                  ? 0
-                  : Math.max(0, Math.min(65535, Math.floor(n)));
-              patchRuntime(
-                { preferredPort },
-                { softHint: t("settings.port.saved") },
-              );
-            }}
-          />
+          <div className="settings-port-field">
+            <span className="settings-port-field-host" aria-hidden>
+              127.0.0.1
+            </span>
+            <span className="settings-port-field-sep" aria-hidden>
+              :
+            </span>
+            <input
+              className="settings-port-field-input"
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              spellCheck={false}
+              maxLength={5}
+              aria-label={t("settings.port.title")}
+              placeholder={t("settings.port.placeholder")}
+              value={portDraft}
+              onChange={(ev) => {
+                const raw = ev.target.value.replace(/\D/g, "").slice(0, 5);
+                setPortDraft(raw);
+                const n = Number(raw);
+                const preferredPort =
+                  raw === "" || !Number.isFinite(n)
+                    ? 0
+                    : Math.max(0, Math.min(65535, Math.floor(n)));
+                patchRuntime(
+                  { preferredPort },
+                  { softHint: t("settings.port.saved") },
+                );
+              }}
+            />
+          </div>
         </SettingsPrefRow>
       </SettingsGroup>
 

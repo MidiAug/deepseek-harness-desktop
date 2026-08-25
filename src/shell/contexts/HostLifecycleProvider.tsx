@@ -173,7 +173,7 @@ export function HostLifecycleProvider({ children }: { children: ReactNode }) {
         }
         return prev;
       }
-      // ready / failed / embedding / idle：非 ops 则放行
+      // ready / failed / stopped / embedding / idle：非 ops 则放行
       if (prev.busyReason === "ops") return prev;
       if (prev.busyReason === "idle") return prev;
       return withLocked({
