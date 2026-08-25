@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, type ComponentType } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import type { ShellTheme } from "../../shell/settings";
 import { shellApi, useAppToast, useChrome, useSettingsPanelContext } from "../../shell";
 import { LOCALE_OPTIONS, useLocale } from "../../shell/locale";
@@ -57,10 +57,7 @@ export function SettingsSectionAppearance() {
   return (
     <div className="settings-section appearance-panel">
       <SettingsGroup title={t("settings.group.sync")}>
-        <SettingsPrefRow
-          title={t("settings.language.title")}
-          description={t("settings.language.description")}
-        >
+        <SettingsPrefRow title={t("settings.language.title")}>
           <ShellSelect
             aria-label={t("settings.language.aria")}
             value={locale}
@@ -72,11 +69,7 @@ export function SettingsSectionAppearance() {
           />
         </SettingsPrefRow>
 
-        <SettingsPrefRow
-          title={t("settings.theme.title")}
-          description={t("settings.theme.description")}
-          layout="stack"
-        >
+        <SettingsPrefRow title={t("settings.theme.title")} layout="stack">
           <div
             className="settings-theme-cubes"
             role="radiogroup"

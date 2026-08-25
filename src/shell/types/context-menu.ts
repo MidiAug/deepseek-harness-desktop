@@ -25,6 +25,16 @@ export type HarnessContextMenuCopied = {
   type: "copied";
 };
 
+/** iframe 注入诊断：选区/复制等用户操作（无正文，仅枚举与长度） */
+export type HarnessInjectDiag = {
+  source: "dsh-shell-context-menu" | "dsh-shell-inject";
+  type: "diag";
+  /** 如 copy / select-all / hygiene / menu-action */
+  event: string;
+  /** 扁平字段：zone、selLen、ok、home、via 等 */
+  [key: string]: string | number | boolean | undefined;
+};
+
 export type SidebarContextMenuAction = "rename" | "fork" | "archive" | "delete";
 
 export type HarnessContextMenuAction = SidebarContextMenuAction | TextEditAction;

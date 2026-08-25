@@ -17,14 +17,27 @@ import type {
   HarnessContextMenuClose,
   HarnessContextMenuCopied,
   HarnessContextMenuOpen,
+  HarnessInjectDiag,
   ShellContextMenuState,
 } from "../types/context-menu";
 import { useAppToast } from "../contexts/ShellToastProvider";
+import { shellLog } from "../logger";
 
 const MSG_SOURCE = "dsh-shell-context-menu";
+const INJECT_DIAG_SOURCE = "dsh-shell-inject";
 
 const SETTINGS_INPUT_SELECTOR =
   ".settings-control input, .settings-control textarea, .settings-control [contenteditable='true']";
+
+function formatInjectDiag(data: HarnessInjectDiag): string {
+  const { source: _s, type: _t, event, ...rest } = data;
+  const parts: string[] = [event];
+  for (const [k, v] of Object.entries(rest)) {
+    if (v === undefined) continue;
+    parts.push(`${k}=${String(v)}`);
+  }
+  return parts.join(" ");
+}
 
 export function useHarnessContextMenu(
   iframeRef: RefObject<HTMLIFrameElement | null>,
@@ -52,11 +65,22 @@ export function useHarnessContextMenu(
         | HarnessContextMenuOpen
         | HarnessContextMenuClose
         | HarnessContextMenuCopied
+        | HarnessInjectDiag
         | null;
-      if (!data || data.source !== MSG_SOURCE) return;
+      if (!data) return;
 
       const frame = iframeRef.current;
       if (!frame || ev.source !== frame.contentWindow) return;
+
+      if (
+        data.type === "diag" &&
+        (data.source === MSG_SOURCE || data.source === INJECT_DIAG_SOURCE)
+      ) {
+        shellLog.info("inject", formatInjectDiag(data));
+        return;
+      }
+
+      if (data.source !== MSG_SOURCE) return;
 
       if (data.type === "close") {
         setMenu(null);

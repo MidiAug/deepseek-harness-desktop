@@ -1,5 +1,6 @@
-//! Harness iframe 选择洁净：按 DSH 稳定 `data-slot` / `data-chat-flow-kind` 标 chrome，
-//! 不用文案关键词、不用 CSS-module 哈希类。对话正文与工具行保持可复制。
+//! Harness iframe 选择洁净：按 DSH 稳定 `data-slot` / `data-chat-flow-kind` / `data-phase`，
+//! 不用文案关键词、不用 CSS-module 哈希类。
+//! 首页（hero）：整页禁选，仅可编辑控件解禁；聊天页：chrome 黑名单，正文可复制。
 //! 知识库：`dev/knowledge-base/05-dsh-dom-iframe-chrome.md`
 //! postMessage：
 //!   `{ source: "dsh-shell", type: "selection-hygiene", enabled: bool }`
@@ -17,12 +18,15 @@ pub const INIT_SCRIPT: &str = r#"
   }
 
   var STYLE_ID = "dsh-shell-selection-hygiene";
+  var HOME_STYLE_ID = "dsh-shell-home-select-lock";
   var PIN_STYLE_ID = "dsh-shell-pin-no-select";
+  var HOME_ATTR = "data-dsh-shell-home-select";
   var enabled = false;
   var shellModalOpen = false;
   window.__dshShellModalOpen = false;
   window.__dshSelectionHygiene = false;
 
+  // 聊天/轨迹表面：禁选 chrome（不含整页；首页另走 HOME 锁）
   var CHROME_SELECTORS = [
     '[data-slot="sidebar"], [data-slot="sidebar"] *',
     '[data-slot="conversation.session.header"], [data-slot="conversation.session.header"] *',
@@ -46,6 +50,12 @@ pub const INIT_SCRIPT: &str = r#"
     '[role="tooltip"], [role="tooltip"] *',
     '[data-dsh-shell-no-select], [data-dsh-shell-no-select] *'
   ].join(",\n");
+
+  function isHomeSurface() {
+    if (document.querySelector('[data-phase="hero"]')) return true;
+    if (document.querySelector('[data-slot^="conversation.hero."]')) return true;
+    return false;
+  }
 
   function clearCodeHeaderMarks() {
     var nodes = document.querySelectorAll("[data-dsh-shell-code-header]");
@@ -71,9 +81,56 @@ pub const INIT_SCRIPT: &str = r#"
     (document.head || document.documentElement).appendChild(style);
   }
 
-  function ensureStyle() {
+  function ensureHomeStyle() {
+    if (document.getElementById(HOME_STYLE_ID)) return;
+    var style = document.createElement("style");
+    style.id = HOME_STYLE_ID;
+    // 首页：整文档禁选；仅可编辑控件解禁（避免黑名单漏网碎蓝块）
+    style.textContent = [
+      "html[" + HOME_ATTR + '="1"] , html[' + HOME_ATTR + '="1"] * {',
+      "  -webkit-user-select: none !important;",
+      "  user-select: none !important;",
+      "}",
+      "html[" + HOME_ATTR + '="1"] textarea,',
+      "html[" + HOME_ATTR + '="1"] input:not([type]),',
+      "html[" + HOME_ATTR + '="1"] input[type="text"],',
+      "html[" + HOME_ATTR + '="1"] input[type="search"],',
+      "html[" + HOME_ATTR + '="1"] input[type="url"],',
+      "html[" + HOME_ATTR + '="1"] input[type="email"],',
+      "html[" + HOME_ATTR + '="1"] input[type="password"],',
+      "html[" + HOME_ATTR + '="1"] input[type="number"],',
+      "html[" + HOME_ATTR + '="1"] [contenteditable="true"],',
+      "html[" + HOME_ATTR + '="1"] [contenteditable=""],',
+      "html[" + HOME_ATTR + '="1"] [contenteditable="true"] *,',
+      "html[" + HOME_ATTR + '="1"] [contenteditable=""] * {',
+      "  -webkit-user-select: text !important;",
+      "  user-select: text !important;",
+      "}"
+    ].join("\n");
+    (document.head || document.documentElement).appendChild(style);
+  }
+
+  function clearHomeLock() {
+    var root = document.documentElement;
+    if (root) root.removeAttribute(HOME_ATTR);
+    var style = document.getElementById(HOME_STYLE_ID);
+    if (style) style.remove();
+  }
+
+  function applyHomeLock(on) {
+    if (!on) {
+      clearHomeLock();
+      return;
+    }
+    ensureHomeStyle();
+    if (document.documentElement) {
+      document.documentElement.setAttribute(HOME_ATTR, "1");
+    }
+  }
+
+  function ensureChromeStyle() {
     var style = document.getElementById(STYLE_ID);
-    if (!enabled) {
+    if (!enabled || isHomeSurface()) {
       if (style) style.remove();
       return;
     }
@@ -152,13 +209,22 @@ pub const INIT_SCRIPT: &str = r#"
       if (!enabled) {
         clearHygieneMarks();
         clearCodeHeaderMarks();
-        ensureStyle();
+        clearHomeLock();
+        ensureChromeStyle();
+        return;
+      }
+      var home = isHomeSurface();
+      applyHomeLock(home);
+      if (home) {
+        clearHygieneMarks();
+        clearCodeHeaderMarks();
+        ensureChromeStyle();
         return;
       }
       ensurePinStyle();
       markCodeBlockHeaders();
       clearHygieneMarks();
-      ensureStyle();
+      ensureChromeStyle();
       if (document.body) markUserRowChrome();
     } catch (e) {}
   }

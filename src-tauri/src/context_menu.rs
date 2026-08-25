@@ -14,6 +14,7 @@ pub const INIT_SCRIPT: &str = r#"
 
   var MSG_SOURCE = "dsh-shell-context-menu";
   var lastContext = null;
+  var lastPointerTarget = null;
   var suppressCopyToast = false;
   var selectionHygieneEnabled = false;
   window.__dshSelectionHygiene = false;
@@ -120,6 +121,13 @@ pub const INIT_SCRIPT: &str = r#"
     if (!el || !el.closest) return true;
     if (el.closest('[data-slot="sidebar"]')) return true;
     if (el.closest('[data-slot="conversation.session.header"]')) return true;
+    // hygiene 开：hero 是 chrome（不可复制/全选）
+    if (
+      isSelectionHygieneOn() &&
+      el.closest('[data-slot^="conversation.hero."]')
+    ) {
+      return true;
+    }
     if (el.closest('[data-slot="conversation.composer.bar"]')) return true;
     if (el.closest('[data-slot="conversation.composer.dock"]')) return true;
     if (el.closest('[data-slot^="conversation.input."]')) return true;
@@ -254,7 +262,11 @@ pub const INIT_SCRIPT: &str = r#"
     if (isContentChrome(target)) return null;
 
     var hero = target.closest('[data-slot^="conversation.hero."]');
-    if (hero) return { zone: "content", block: hero };
+    if (hero) {
+      // hygiene 关：允许右键复制 hero；开：不当 content
+      if (isSelectionHygieneOn()) return null;
+      return { zone: "content", block: hero };
+    }
 
     var panel = resolveCopyablePanel(target);
     if (panel) return { zone: "content", block: panel };
@@ -393,12 +405,50 @@ pub const INIT_SCRIPT: &str = r#"
     } catch (e) {}
   }
 
-  function execCopy() {
-    suppressCopyToast = true;
+  /** 诊断：postMessage → 壳 shellLog（无正文，仅长度/布尔） */
+  function emitDiag(event, fields) {
     try {
-      document.execCommand("copy");
+      var payload = { source: MSG_SOURCE, type: "diag", event: event };
+      if (fields) {
+        for (var k in fields) {
+          if (Object.prototype.hasOwnProperty.call(fields, k)) {
+            payload[k] = fields[k];
+          }
+        }
+      }
+      window.parent.postMessage(payload, "*");
+    } catch (e) {}
+  }
+
+  function selectionSnapshot() {
+    var sel = window.getSelection();
+    if (!sel) return { selLen: 0, rangeCount: 0, collapsed: true };
+    var text = sel.toString() || "";
+    return {
+      selLen: text.length,
+      trimLen: text.replace(/\s+/g, " ").trim().length,
+      rangeCount: sel.rangeCount,
+      collapsed: sel.isCollapsed
+    };
+  }
+
+  function execCopy(via) {
+    var snap = selectionSnapshot();
+    suppressCopyToast = true;
+    var ok = false;
+    try {
+      ok = !!document.execCommand("copy");
     } catch (e) {}
     suppressCopyToast = false;
+    emitDiag("copy-exec", {
+      via: via || "unknown",
+      ok: ok,
+      selLen: snap.selLen,
+      trimLen: snap.trimLen,
+      rangeCount: snap.rangeCount,
+      collapsed: snap.collapsed
+    });
+    return ok;
   }
 
   function focusDocument() {
@@ -546,10 +596,16 @@ pub const INIT_SCRIPT: &str = r#"
 
   function selectTextInRoots(roots) {
     var ends = firstLastTextNodes(roots);
-    if (!ends.first || !ends.last) return false;
+    if (!ends.first || !ends.last) {
+      emitDiag("select-roots", { ok: false, roots: roots.length, reason: "no-text" });
+      return false;
+    }
     try {
       var sel = window.getSelection();
-      if (!sel) return false;
+      if (!sel) {
+        emitDiag("select-roots", { ok: false, roots: roots.length, reason: "no-sel" });
+        return false;
+      }
       var first = ends.first;
       var last = ends.last;
       if (
@@ -565,8 +621,16 @@ pub const INIT_SCRIPT: &str = r#"
       range.setEnd(last, last.nodeValue.length);
       sel.removeAllRanges();
       sel.addRange(range);
+      var snap = selectionSnapshot();
+      emitDiag("select-roots", {
+        ok: sel.rangeCount > 0,
+        roots: roots.length,
+        selLen: snap.selLen,
+        trimLen: snap.trimLen
+      });
       return sel.rangeCount > 0;
     } catch (e) {
+      emitDiag("select-roots", { ok: false, roots: roots.length, reason: "exception" });
       return false;
     }
   }
@@ -661,13 +725,93 @@ pub const INIT_SCRIPT: &str = r#"
     return selectTextInRoots([row]);
   }
 
-  // 对话页：仅正文片段（代码块不含 python/复制 顶栏）
+  // 对话页：仅正文片段（代码块不含 python/复制 顶栏）；无消息则失败（不再 fallback hero）
   function selectAllConversationView() {
     var segments = collectConversationSegments();
+    emitDiag("select-all-chat", { segments: segments.length });
     if (segments.length > 0) return selectTextInRoots(segments);
-    var hero = document.querySelector('[data-slot^="conversation.hero."]');
-    if (!hero) return false;
-    return selectTextInRoots([hero]);
+    return false;
+  }
+
+  function isHomeSurface() {
+    if (document.querySelector('[data-phase="hero"]')) return true;
+    if (document.querySelector('[data-slot^="conversation.hero."]')) return true;
+    return false;
+  }
+
+  function hasChatCopyableSurface() {
+    if (document.querySelector("[data-chat-flow]")) return true;
+    return collectMessageRowsInOrder().length > 0;
+  }
+
+  // 激活区：消息多不可 focus → 依赖 lastPointerTarget
+  function resolveSelectAllZone(target) {
+    if (!target || !target.closest) return "none";
+    if (isEditableContext(target)) return "input";
+    if (target.closest('[data-slot="sidebar"]')) return "sidebar";
+    if (target.closest('[data-slot="conversation.session.header"]')) {
+      return "header";
+    }
+    if (target.closest('[data-slot^="conversation.hero."]')) return "hero";
+    // 消息流内的 chrome（turn-tail / 点赞）虽在 data-chat-flow 下，不当 CHAT
+    if (
+      target.closest('[data-chat-flow-kind="turn-tail"]') ||
+      target.closest("[data-turn-tail]") ||
+      target.closest('[data-slot="conversation.chat.turnTail"]') ||
+      target.closest('[data-slot="conversation.chat.assistant-actions"]')
+    ) {
+      return "chrome";
+    }
+    if (isInTrajectoryArea(target)) return "trajectory";
+    if (isTrajectoryViewActive()) {
+      if (
+        target.closest("[data-trajectory-scroll]") ||
+        target.closest("tr[data-trajectory-row-key]") ||
+        target.closest('[data-slot="conversation.view"]') ||
+        target.closest("[data-conversation-scroll]")
+      ) {
+        return "trajectory";
+      }
+    }
+    if (isInChatArea(target) || target.closest("[data-chat-flow]")) {
+      return "chat";
+    }
+    if (
+      hasChatCopyableSurface() &&
+      !isHomeSurface() &&
+      target.closest(
+        '[data-conversation-scroll], [data-slot="conversation.view"], [data-slot="conversation.session"], [data-slot="conversation"]'
+      )
+    ) {
+      if (target.closest('[data-slot="conversation.composer.dock"]')) {
+        return "chrome";
+      }
+      if (
+        target.closest('[data-slot="conversation.composer.bar"]') &&
+        !isEditableContext(target)
+      ) {
+        return "chrome";
+      }
+      return "chat";
+    }
+    return "chrome";
+  }
+
+  function resolveCtrlAAnchor(ev) {
+    var ae = document.activeElement;
+    if (isEditableContext(ae)) return ae;
+    if (ev && isEditableContext(ev.target)) return ev.target;
+    if (lastPointerTarget && document.contains(lastPointerTarget)) {
+      return lastPointerTarget;
+    }
+    return (ev && ev.target) || ae;
+  }
+
+  function selectAllForZone(zone) {
+    if (zone === "input") return false;
+    if (zone === "trajectory") return selectAllTrajectoryView();
+    if (zone === "chat") return selectAllConversationView();
+    return false;
   }
 
   function selectAllPrimaryView() {
@@ -694,7 +838,9 @@ pub const INIT_SCRIPT: &str = r#"
     if (!(ev.ctrlKey || ev.metaKey) || (ev.key !== "a" && ev.key !== "A")) {
       return;
     }
-    if (isEditableContext(ev.target)) return;
+    if (isEditableContext(ev.target) || isEditableContext(document.activeElement)) {
+      return;
+    }
     // 关：不拦截，iframe 内走浏览器原生 Ctrl+A（无壳选区约束）
     if (!isSelectionHygieneOn()) return;
 
@@ -716,22 +862,18 @@ pub const INIT_SCRIPT: &str = r#"
       return;
     }
 
-    if (
-      isInTrajectoryArea(ev.target) ||
-      isTrajectoryViewActive() ||
-      isInChatArea(ev.target) ||
-      collectMessageRowsInOrder().length > 0 ||
-      document.querySelector('[data-slot^="conversation.hero."]')
-    ) {
-      ev.preventDefault();
-      ev.stopImmediatePropagation();
-      if (!selectAllPrimaryView()) clearSelection();
-      return;
-    }
-
+    var anchor = resolveCtrlAAnchor(ev);
+    var zone = resolveSelectAllZone(anchor);
     ev.preventDefault();
     ev.stopImmediatePropagation();
-    clearSelection();
+    var selectOk = false;
+    if (zone === "chat" || zone === "trajectory") {
+      selectOk = !!selectAllForZone(zone);
+      if (!selectOk) clearSelection();
+    } else {
+      clearSelection();
+    }
+    emitDiag("ctrl-a", { zone: zone, selectOk: selectOk });
   }
 
   function runContentAction(ctx, action) {
@@ -741,13 +883,19 @@ pub const INIT_SCRIPT: &str = r#"
           runNativeSelectAll();
           return;
         }
-        if (!selectAllPrimaryView()) clearSelection();
+        var allOk = selectAllPrimaryView();
+        emitDiag("menu-select-all", { ok: allOk });
+        if (!allOk) clearSelection();
         return;
       }
       var block = ctx && ctx.block;
-      if (!block) return;
+      if (!block) {
+        emitDiag("menu-copy", { skip: 1, reason: "no-block" });
+        return;
+      }
       if (action === "copy") {
         var sel = window.getSelection();
+        var selBefore = sel ? (sel.toString() || "").trim().length : 0;
         var copyTarget = ctx.trajectory
           ? block
           : isSelectionHygieneOn()
@@ -758,30 +906,63 @@ pub const INIT_SCRIPT: &str = r#"
           !sel.isCollapsed &&
           (sel.toString() || "").trim().length > 0 &&
           copyTarget.contains(sel.anchorNode);
+        var pickedBlock = false;
         if (!hasSelection) {
           if (ctx.trajectory) selectTrajectoryRow(block);
           else selectBlockText(block);
+          pickedBlock = true;
         }
-        execCopy();
+        var snapMid = selectionSnapshot();
+        var copyOk = execCopy("menu-content");
         clearSelection();
         notifyCopied();
+        emitDiag("menu-copy", {
+          zone: ctx.zone || "content",
+          trajectory: ctx.trajectory ? 1 : 0,
+          hadSelection: hasSelection ? 1 : 0,
+          pickedBlock: pickedBlock ? 1 : 0,
+          selBefore: selBefore,
+          selMid: snapMid.trimLen,
+          copyOk: copyOk ? 1 : 0
+        });
       }
-    } catch (e) {}
+    } catch (e) {
+      emitDiag("menu-action-err", { action: action, err: 1 });
+    }
   }
 
   document.addEventListener(
     "copy",
     function () {
-      if (suppressCopyToast) return;
+      var snap = selectionSnapshot();
+      if (suppressCopyToast) {
+        emitDiag("copy-event", { suppressed: 1, selLen: snap.selLen, trimLen: snap.trimLen });
+        return;
+      }
       try {
         var sel = window.getSelection();
-        if (!sel || sel.isCollapsed) return;
-        if (!(sel.toString() || "").trim()) return;
+        if (!sel || sel.isCollapsed) {
+          emitDiag("copy-event", { skip: 1, reason: "collapsed", selLen: snap.selLen });
+          return;
+        }
+        if (!(sel.toString() || "").trim()) {
+          emitDiag("copy-event", { skip: 1, reason: "empty", selLen: snap.selLen });
+          return;
+        }
+        emitDiag("copy-event", { toast: 1, via: "native", selLen: snap.selLen, trimLen: snap.trimLen });
         notifyCopied();
         if (!isEditableContext(document.activeElement)) {
           clearSelection();
         }
       } catch (e) {}
+    },
+    true
+  );
+
+  document.addEventListener(
+    "pointerdown",
+    function (ev) {
+      if (ev && ev.target) lastPointerTarget = ev.target;
     },
     true
   );
@@ -836,11 +1017,30 @@ pub const INIT_SCRIPT: &str = r#"
     if (d.type === "shell-select-all") {
       try {
         if (!isSelectionHygieneOn()) runNativeSelectAll();
-        else if (!selectAllPrimaryView()) clearSelection();
+        else {
+          var ae = document.activeElement;
+          if (isEditableContext(ae)) {
+            try {
+              ae.select && ae.select();
+            } catch (e2) {}
+            return;
+          }
+          var zone = resolveSelectAllZone(
+            (lastPointerTarget && document.contains(lastPointerTarget)
+              ? lastPointerTarget
+              : ae) || document.body
+          );
+          if (zone === "chat" || zone === "trajectory") {
+            if (!selectAllForZone(zone)) clearSelection();
+          } else {
+            clearSelection();
+          }
+        }
       } catch (e) {}
       return;
     }
     if (d.type !== "context-menu-action") return;
+    emitDiag("menu-action", { action: d.action, hasCtx: lastContext ? 1 : 0 });
     if (!lastContext) return;
     try {
       if (lastContext.zone === "input") {

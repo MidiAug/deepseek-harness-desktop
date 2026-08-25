@@ -350,7 +350,8 @@ function SettingsModalPanel({
           </div>
 
           <SettingsPanelProvider value={panelContext}>
-            <div className="settings-scroll">
+            {/* key=section：换分区重建滚动容器，避免保留 scrollTop */}
+            <div className="settings-scroll" key={section}>
               {section === "appearance" && <SettingsSectionAppearance />}
               {section === "network" && <SettingsSectionNetwork />}
               {section === "runtime" && <SettingsSectionRuntime />}

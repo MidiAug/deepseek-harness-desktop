@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   shellApi,
   shellLog,
@@ -140,7 +140,13 @@ export function SettingsSectionAbout() {
 
   useEffect(() => {
     if (life.logLines.length === 0) return;
-    logEndRef.current?.scrollIntoView({ block: "end" });
+    const end = logEndRef.current;
+    if (!end) return;
+    // 只滚日志盒，禁止 scrollIntoView 把外层 .settings-scroll 拖到底
+    const logBox = end.closest(".settings-log");
+    if (logBox instanceof HTMLElement) {
+      logBox.scrollTop = logBox.scrollHeight;
+    }
   }, [life.logLines]);
 
   function copyLog() {
