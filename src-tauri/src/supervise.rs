@@ -189,14 +189,14 @@ pub fn read_pid_record<R: Runtime>(app: &AppHandle<R>) -> Option<(u32, u16)> {
 }
 
 /// 启动前清扫：仅杀「pid 文件记录且仍占该端口」的孤儿，避免误杀他人 node。
-/// （R1：已移除 wmic 按路径扫杀。）
-pub fn sweep_orphans<R: Runtime>(app: &AppHandle<R>) {
+/// 返回是否执行了 kill（供前端 Toast）。
+pub fn sweep_orphans<R: Runtime>(app: &AppHandle<R>) -> bool {
     log::debug!(target: "shell::supervise", "sweep_orphans");
     let Ok(pid_path) = paths::pid_file(app) else {
-        return;
+        return false;
     };
     let Ok(text) = fs::read_to_string(&pid_path) else {
-        return;
+        return false;
     };
     let mut lines = text.lines();
     let (Some(pid), Some(port)) = (
@@ -204,18 +204,20 @@ pub fn sweep_orphans<R: Runtime>(app: &AppHandle<R>) {
         lines.next().and_then(|l| l.trim().parse::<u16>().ok()),
     ) else {
         let _ = fs::remove_file(&pid_path);
-        return;
+        return false;
     };
     if !is_port_in_use(port) {
         let _ = fs::remove_file(&pid_path);
-        return;
+        return false;
     }
     if port_owner_pid(port) != Some(pid) {
-        return;
+        return false;
     }
     kill_pid_tree(pid);
     log::info!(target: "shell::supervise", "sweep_orphans killed pid={pid} port={port}");
+    progress::append_shell_log(app, &format!("sweep_orphans killed pid={pid} port={port}"));
     let _ = fs::remove_file(&pid_path);
+    true
 }
 
 fn find_available_port(start: u16) -> Result<u16, String> {

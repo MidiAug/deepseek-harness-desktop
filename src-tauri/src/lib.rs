@@ -665,7 +665,10 @@ pub fn run() {
                 let _ = window.restore_state(flags);
             }
 
-            supervise::sweep_orphans(app.handle());
+            let swept = supervise::sweep_orphans(app.handle());
+            if swept {
+                let _ = app.handle().emit("orphan-swept", ());
+            }
             if let Err(e) = tray::setup_tray(app.handle()) {
                 log::warn!(target: "shell::tray", "tray setup: {e}");
             }

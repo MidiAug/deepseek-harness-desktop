@@ -158,6 +158,35 @@ results.scenarios.push({
   version: conf.version,
 });
 
+// --- B60: boot surface + selection static guards ---
+try {
+  execSync(
+    "node --test --experimental-strip-types src/shell/bootSurfaceMode.test.ts src/shell/inject/copyActiveSelection.logic.test.ts",
+    { cwd: root, encoding: "utf8", stdio: "pipe" },
+  );
+  results.scenarios.push({ id: "boot-surface-static", ok: true });
+} catch (e) {
+  results.scenarios.push({
+    id: "boot-surface-static",
+    ok: false,
+    output: String(e.stdout || e.stderr || e.message).slice(-400),
+  });
+}
+try {
+  execSync("node scripts/check-copy-active-selection.mjs", {
+    cwd: root,
+    encoding: "utf8",
+    stdio: "pipe",
+  });
+  results.scenarios.push({ id: "selection-inject-static", ok: true });
+} catch (e) {
+  results.scenarios.push({
+    id: "selection-inject-static",
+    ok: false,
+    output: String(e.stdout || e.stderr || e.message).slice(-400),
+  });
+}
+
 mkdirSync(outDir, { recursive: true });
 const stamp = results.timestamp.replace(/[:.]/g, "-");
 const outPath = join(outDir, `matrix-${stamp}.json`);
