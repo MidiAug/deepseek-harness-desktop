@@ -484,6 +484,16 @@ body.shell-modal-open.suppress-hover .titlebar-compact .titlebar-left-reveal {
   align-self: stretch;
 }
 
+.titlebar-minimal.titlebar-controls-only {
+  justify-content: flex-end;
+  padding: 0;
+}
+
+.titlebar-minimal.titlebar-controls-only .titlebar-minimal-drag {
+  flex: 1;
+  min-height: 100%;
+}
+
 .titlebar-minimal .titlebar-product {
   position: static;
   transform: none;

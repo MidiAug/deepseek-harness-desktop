@@ -6,6 +6,7 @@ import {
   BOOT_STAGES,
   stageIndex,
   useBootPanel,
+  resolveBootProgressDisplay,
   type ReadyPayload,
   type StartCommand,
 } from "../../shell";
@@ -60,6 +61,13 @@ export function BootPanel(props: Props) {
   const activeLabel = t(
     BOOT_STAGES[activeIdx]?.labelKey ?? "boot.stage.prepare",
   );
+  const progressDisplay = resolveBootProgressDisplay({
+    stageId,
+    message,
+    percent,
+    stageLabel: activeLabel,
+    t,
+  });
   const confirmDialogs = <HarnessRecoveryDialogs dialogs={recovery.dialogs} />;
 
   if (stealth) {
@@ -76,8 +84,14 @@ export function BootPanel(props: Props) {
               ? t("boot.msg.embedding")
               : awaitingManualStart
                 ? t("boot.msg.stopped")
-                : message
+                : progressDisplay.headline
           }
+          detail={
+            !embedding && !awaitingManualStart && !showFault
+              ? progressDisplay.detail
+              : null
+          }
+          working={working && !awaitingManualStart && !showFault}
           awaitingManualStart={awaitingManualStart}
           startLabel={t("boot.cta.startManual")}
           onStartManual={startManual}
@@ -148,15 +162,15 @@ export function BootPanel(props: Props) {
             <section className="boot-status" aria-live="polite">
               <div className="boot-status-head">
                 <span className="boot-status-stage">
-                  {embedding ? t("boot.stage.start") : activeLabel}
+                  {embedding ? t("boot.stage.start") : progressDisplay.headline}
                 </span>
-                <span className="boot-status-hint">
-                  {embedding ? t("boot.status.working") : t("boot.status.live")}
-                </span>
+                {!embedding && progressDisplay.elapsed && (
+                  <span className="boot-hero-meta">{progressDisplay.elapsed}</span>
+                )}
               </div>
-              <p className="boot-status-line">
-                {embedding ? t("boot.msg.embedding") : message}
-              </p>
+              {!embedding && progressDisplay.detail && (
+                <p className="boot-status-detail">{progressDisplay.detail}</p>
+              )}
               {(working || embedding) && (
                 <div
                   className={`boot-bar${barIndeterminate || embedding ? " indeterminate" : ""}`}

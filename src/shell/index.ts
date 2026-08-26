@@ -56,6 +56,7 @@ export {
   stageIndex,
   type BootStageId,
 } from "./hostProgressMap";
+export { resolveBootProgressDisplay } from "./bootProgressDisplay";
 export {
   CTA_DESC_KEYS,
   CTA_LABEL_KEYS,

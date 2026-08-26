@@ -132,12 +132,39 @@
   -webkit-user-drag: none;
 }
 
+.session-status-visual {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.session-status-spinner {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: var(--color-accent);
+  animation: shell-bubble-spin 0.9s linear infinite;
+  pointer-events: none;
+}
+
 .session-status-msg {
   margin: 0;
   max-width: 28rem;
   text-align: center;
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 15px;
+  line-height: 24px;
+  font-weight: 500;
+  color: var(--color-ink);
+}
+
+.session-status-detail {
+  margin: -8px 0 0;
+  max-width: 26rem;
+  text-align: center;
+  font-size: 13px;
+  line-height: 20px;
   color: var(--color-muted);
 }
 
@@ -305,6 +332,14 @@
 .boot-status-hint {
   font-size: 12px;
   line-height: 18px;
+  font-weight: 400;
+  color: var(--color-muted);
+}
+
+.boot-status-detail {
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
   font-weight: 400;
   color: var(--color-muted);
 }

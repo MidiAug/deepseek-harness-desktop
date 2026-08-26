@@ -178,6 +178,8 @@ export default function App() {
   }, [shellBackdropOpen]);
 
   const onboardingActive = onboardingGate !== "ready";
+  const bootBusy =
+    session.phase === "installing" || session.phase === "spawning";
   const opsActive = life.busyReason === "ops";
   // B47：顶栏零状态文案；探测/启停进度只在内容区 SessionStatusSurface
   const showHarness =
@@ -252,7 +254,8 @@ export default function App() {
         conn={session.titleConn}
         hideConnStatus
         titleActivity={null}
-        minimal={onboardingActive && !chrome.titlebarCompact}
+        minimal={onboardingActive || bootBusy}
+        controlsOnly={bootBusy}
         chrome={chrome}
         sidebarWidthPx={sidebarWidthPx}
         bodyView={bodyView}

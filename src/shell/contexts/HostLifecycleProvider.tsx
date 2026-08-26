@@ -20,7 +20,6 @@ import {
   isLogOnly,
   mapStage,
   pushLogLine,
-  truncateProgressMessage,
   type BootStageId,
 } from "../hostProgressMap";
 
@@ -87,7 +86,8 @@ export function HostLifecycleProvider({ children }: { children: ReactNode }) {
 
       if (isLogOnly(rawStage)) {
         stageId = "install-dsh";
-        message = truncateProgressMessage(msg);
+        // npm 行只进日志区，不替换主文案（避免顶屏 raw npm info）
+        message = prev.message;
         percent = percent != null && percent >= 75 ? percent : 75;
       } else {
         const mapped = mapStage(rawStage);

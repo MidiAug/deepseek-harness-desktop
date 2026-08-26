@@ -16,6 +16,7 @@ export function ShellTitleBar({
   conn,
   hideConnStatus = false,
   minimal = false,
+  controlsOnly = false,
   titleActivity = null,
   titleActivityTone,
   chrome,
@@ -76,10 +77,11 @@ export function ShellTitleBar({
     } else await w.close();
   }
 
-  if (minimal) {
+  if (minimal || controlsOnly) {
     return (
       <MinimalTitleBar
         maximized={maximized}
+        controlsOnly={controlsOnly}
         titleActivity={titleActivity}
         titleActivityTone={titleActivityTone}
         onWin={onWin}

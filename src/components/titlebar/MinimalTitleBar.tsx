@@ -6,6 +6,7 @@ import type { WinAction } from "./titlebarTypes";
 
 type Props = {
   maximized: boolean;
+  controlsOnly?: boolean;
   titleActivity?: string | null;
   titleActivityTone?: "busy" | "error";
   onWin: (action: WinAction) => void;
@@ -13,6 +14,7 @@ type Props = {
 
 export function MinimalTitleBar({
   maximized,
+  controlsOnly = false,
   titleActivity = null,
   titleActivityTone = "busy",
   onWin,
@@ -24,34 +26,36 @@ export function MinimalTitleBar({
 
   return (
     <header
-      className={`titlebar titlebar-minimal${showActivity ? " is-active" : ""}${isError ? " is-error" : ""}`}
+      className={`titlebar titlebar-minimal${controlsOnly ? " titlebar-controls-only" : ""}${showActivity ? " is-active" : ""}${isError ? " is-error" : ""}`}
     >
       <div
         className="titlebar-minimal-drag"
         data-tauri-drag-region
         onDoubleClick={() => void onWin("maximize")}
       >
-        <span
-          className={`titlebar-product${showActivity ? " is-activity" : ""}`}
-          data-tauri-drag-region
-          title={showActivity ? activity : undefined}
-          aria-live={showActivity ? "polite" : undefined}
-          aria-busy={showActivity && !isError ? true : undefined}
-        >
-          {showActivity ? (
-            <span
-              className={`titlebar-activity-text${isError ? " is-error" : ""}`}
-              data-tauri-drag-region
-            >
-              {isError ? (
-                <span className="titlebar-activity-mark" aria-hidden />
-              ) : null}
-              {activity}
-            </span>
-          ) : (
-            t("chrome.productName")
-          )}
-        </span>
+        {!controlsOnly && (
+          <span
+            className={`titlebar-product${showActivity ? " is-activity" : ""}`}
+            data-tauri-drag-region
+            title={showActivity ? activity : undefined}
+            aria-live={showActivity ? "polite" : undefined}
+            aria-busy={showActivity && !isError ? true : undefined}
+          >
+            {showActivity ? (
+              <span
+                className={`titlebar-activity-text${isError ? " is-error" : ""}`}
+                data-tauri-drag-region
+              >
+                {isError ? (
+                  <span className="titlebar-activity-mark" aria-hidden />
+                ) : null}
+                {activity}
+              </span>
+            ) : (
+              t("chrome.productName")
+            )}
+          </span>
+        )}
       </div>
       <div className="titlebar-right">
         <WindowControls
