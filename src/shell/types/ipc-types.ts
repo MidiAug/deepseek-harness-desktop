@@ -38,8 +38,10 @@ export type EnvironmentProbe = {
   hostedDshHomeConflictPath?: string | null;
   hostedDshHomeReuseAvailable: boolean;
   hostedDshHomeReusePath?: string | null;
-  appDataDir: string;
-  appDataAdjusted: boolean;
+  pub appDataDir: string;
+  pub appDataAdjusted: boolean;
+  /** 固定后缀槽位全满时仍会落到 -emerg-*，此标志为 true */
+  appDataOccupied?: boolean;
   appDataConflictPath?: string | null;
   harnessVersion?: string | null;
   harnessDigest?: string | null;

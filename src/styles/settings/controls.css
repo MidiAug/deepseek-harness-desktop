@@ -198,6 +198,14 @@
   cursor: not-allowed;
 }
 
+.settings-path-hint {
+  margin: 0 0 8px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--color-ink-secondary);
+  word-break: break-all;
+}
+
 /* 自绘下拉：对齐 DSH PermissionRow 胶囊 + ModelSelect 菜单 */
 .shell-select {
   position: relative;

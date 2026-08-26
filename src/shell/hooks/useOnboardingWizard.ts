@@ -74,10 +74,6 @@ function activeDshHomeWarningForPath(
   return null;
 }
 
-function atHostedNewDefaultPath(probe: EnvironmentProbe, dshHome: string): boolean {
-  return pathsEqual(dshHome, probe.hostedDshHomeDefault);
-}
-
 export function useOnboardingWizard(onComplete: () => void) {
   const { t } = useLocale();
   const [probe, setProbe] = useState<EnvironmentProbe | null>(null);
@@ -309,14 +305,11 @@ export function useOnboardingWizard(onComplete: () => void) {
       ? activeDshHomeWarningForPath(probe, dshHome, dshHomeWarning)
       : null;
 
-  const showHostedAppDataWarn =
-    choice === "hosted" &&
-    dataMode === "new" &&
-    !pathOccupied &&
-    !!probe?.appDataAdjusted &&
+  const showAppDataWarn =
+    (!!probe?.appDataAdjusted || !!probe?.appDataOccupied) &&
     !!probe.appDataConflictPath &&
-    !!probe &&
-    atHostedNewDefaultPath(probe, dshHome);
+    !pathOccupied;
+
   const showHostedDshWarn =
     choice === "hosted" &&
     dataMode === "new" &&
@@ -326,7 +319,6 @@ export function useOnboardingWizard(onComplete: () => void) {
     pathFocused && !pathLocked ? dshHome : shortenPathForDisplay(dshHome);
   const showPathFeedback =
     pathOccupied ||
-    showHostedAppDataWarn ||
     showHostedDshWarn ||
     !!pathHint;
 
@@ -353,7 +345,7 @@ export function useOnboardingWizard(onComplete: () => void) {
     pathLocked,
     pathHint,
     activeDshHomeWarning,
-    showHostedAppDataWarn,
+    showAppDataWarn,
     showHostedDshWarn,
     dshHomeDisplay,
     showPathFeedback,

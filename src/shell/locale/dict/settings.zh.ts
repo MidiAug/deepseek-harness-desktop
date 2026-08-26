@@ -154,6 +154,8 @@ export const settings = {
   "settings.data.path.logsDesc": "shell.log 与 harness 运行日志",
   "settings.data.path.appDataTitle": "AppData",
   "settings.data.path.appDataDesc": "托管 Node、harness 与应用配置",
+  "settings.data.path.appDataAdjusted": "默认目录已被占用，当前使用备用路径",
+  "settings.data.path.appDataOccupied": "固定备用路径已满，当前为紧急目录",
   "settings.data.path.dshHomeTitle": "DSH_HOME",
   "settings.data.path.dshHomeDesc": "Harness 用户数据与会话",
   "settings.data.resetConfig.title": "重置配置",

@@ -37,8 +37,17 @@ pub fn base_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
         .clone())
 }
 
+/// 审计专用：落盘测试时指向临时 Roaming 根（生产环境不设置）。
+pub const PATH_AUDIT_ROAMING_ENV: &str = "DSH_PATH_AUDIT_ROAMING";
+
 /// Roaming 根（Windows `%APPDATA%`）。
 pub fn roaming_data_root() -> PathBuf {
+    if let Ok(v) = std::env::var(PATH_AUDIT_ROAMING_ENV) {
+        let trimmed = v.trim();
+        if !trimmed.is_empty() {
+            return PathBuf::from(trimmed);
+        }
+    }
     dirs::data_dir().unwrap_or_else(|| PathBuf::from("."))
 }
 
@@ -277,7 +286,7 @@ fn can_use_directory(path: &Path, is_ours: fn(&Path) -> bool) -> bool {
     !is_dir_nonempty(path) || is_ours(path)
 }
 
-fn resolve_directory_slot(
+pub(crate) fn resolve_directory_slot(
     primary: &Path,
     is_ours: fn(&Path) -> bool,
     suffixes: &[&str],
@@ -309,19 +318,24 @@ fn resolve_directory_slot(
         }
     }
 
+    // 全部固定后缀占满：绝不能回写 foreign 主路径；落紧急槽位。
+    let emerg = parent.join(format!(
+        "{stem}-emerg-{}",
+        std::process::id()
+    ));
     DirResolveResult {
-        path: primary.to_string_lossy().into_owned(),
-        adjusted: false,
-        conflict_path: None,
+        path: emerg.to_string_lossy().into_owned(),
+        adjusted: true,
+        conflict_path: Some(primary.to_string_lossy().into_owned()),
         occupied: true,
     }
 }
 
-fn app_data_suffixes() -> &'static [&'static str] {
+pub(crate) fn app_data_suffixes() -> &'static [&'static str] {
     &["-shell", "-desktop", "-2", "-3", "-4", "-5"]
 }
 
-fn dsh_home_suffixes() -> &'static [&'static str] {
+pub(crate) fn dsh_home_suffixes() -> &'static [&'static str] {
     &["-desktop", "-2", "-3", "-4", "-5"]
 }
 

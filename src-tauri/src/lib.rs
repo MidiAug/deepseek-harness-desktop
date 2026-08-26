@@ -8,6 +8,7 @@ mod inject;
 mod install;
 mod net;
 mod paths;
+pub mod path_audit;
 mod platform;
 mod platform_window;
 mod progress;
@@ -506,6 +507,9 @@ pub fn run() {
         ])
         .setup(|app| {
             log::info!(target: "shell::boot", "app setup begin");
+            if let Err(e) = settings::ensure_path_meta(app.handle()) {
+                log::warn!(target: "shell::boot", "ensure_path_meta: {e}");
+            }
             // 窗口改在 Rust 创建，以便挂 all-frames init（Windows 会注入 iframe）
             // windows: [] 时不会从 conf 带图标；须显式 .icon，否则 Win 任务栏为空白占位
             let url = if cfg!(debug_assertions) {
@@ -519,7 +523,7 @@ pub fn run() {
             };
             let frame_init = inject::concat_for_all_frames();
             let mut win = WebviewWindowBuilder::new(app, "main", url)
-                .title("deepseek-harness-desktop")
+                .title("DeepSeek Harness Desktop")
                 .inner_size(1100.0, 720.0)
                 .min_inner_size(800.0, 520.0)
                 .decorations(false)

@@ -10,7 +10,7 @@ use tauri::{AppHandle, Runtime};
 use crate::paths;
 use crate::system_runtime::{self, RuntimeSource};
 
-use super::types::{RuntimeSettings, ShellSettings, UiSettings};
+use super::types::{PathMeta, RuntimeSettings, ShellSettings, UiSettings};
 
 pub(crate) fn settings_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
     Ok(paths::base_dir(app)?.join("settings.json"))
@@ -120,7 +120,9 @@ pub fn load<R: Runtime>(app: &AppHandle<R>) -> ShellSettings {
 pub fn save<R: Runtime>(app: &AppHandle<R>, settings: &ShellSettings) -> Result<(), String> {
     let settings_file = settings_path(app)?;
     let ui_file = ui_path(app)?;
-    write_json(&settings_file, &settings.runtime())?;
+    let mut runtime = settings.runtime();
+    preserve_path_meta(app, &mut runtime);
+    write_json(&settings_file, &runtime)?;
     write_json(&ui_file, &normalize_ui(settings.ui()))?;
     Ok(())
 }
@@ -130,12 +132,64 @@ pub fn save_runtime<R: Runtime>(
     app: &AppHandle<R>,
     runtime: &RuntimeSettings,
 ) -> Result<(), String> {
-    write_json(&settings_path(app)?, runtime)
+    let mut runtime = runtime.clone();
+    preserve_path_meta(app, &mut runtime);
+    write_json(&settings_path(app)?, &runtime)
+}
+
+/// 前端/IPC 常不带 pathMeta；保存时从磁盘合并，避免抹掉。
+fn preserve_path_meta<R: Runtime>(app: &AppHandle<R>, runtime: &mut RuntimeSettings) {
+    if runtime.path_meta.is_some() {
+        return;
+    }
+    if let Some(existing) = load(app).path_meta {
+        runtime.path_meta = Some(existing);
+    }
+}
+
+/// 纯合并（单测 / 无 AppHandle）。
+pub(crate) fn merge_path_meta_keep_existing(
+    incoming: &mut RuntimeSettings,
+    existing: Option<PathMeta>,
+) {
+    if incoming.path_meta.is_none() {
+        incoming.path_meta = existing;
+    }
 }
 
 /// 仅写 UI chrome（ui.json）。
 pub fn save_ui<R: Runtime>(app: &AppHandle<R>, ui: &UiSettings) -> Result<(), String> {
     write_json(&ui_path(app)?, &normalize_ui(ui.clone()))
+}
+
+fn path_meta_now() -> PathMeta {
+    let resolved = paths::resolve_app_data_dir_with_meta();
+    let resolved_at = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs().to_string())
+        .unwrap_or_else(|_| "0".into());
+    PathMeta {
+        app_data_dir: resolved.path,
+        app_data_adjusted: resolved.adjusted,
+        app_data_conflict_path: resolved.conflict_path,
+        resolved_at,
+    }
+}
+
+/// 首启/路径变更时写入 `settings.json` 的 `pathMeta`。
+pub fn ensure_path_meta<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
+    let meta = path_meta_now();
+    let mut runtime = load(app).runtime();
+    let changed = runtime
+        .path_meta
+        .as_ref()
+        .map(|m| m.app_data_dir != meta.app_data_dir)
+        .unwrap_or(true);
+    if changed {
+        runtime.path_meta = Some(meta);
+        save_runtime(app, &runtime)?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -176,5 +230,48 @@ mod tests {
         let off: UiSettings =
             serde_json::from_str(r#"{"sessionLogInTitlebar":false}"#).unwrap();
         assert!(!off.session_log_in_titlebar);
+    }
+
+    #[test]
+    fn runtime_roundtrip_preserves_path_meta() {
+        let meta = PathMeta {
+            app_data_dir: r"C:\AppData\com.deepseek.harness.desktop-shell".into(),
+            app_data_adjusted: true,
+            app_data_conflict_path: Some(r"C:\AppData\com.deepseek.harness.desktop".into()),
+            resolved_at: "1".into(),
+        };
+        let s = ShellSettings {
+            path_meta: Some(meta.clone()),
+            ..Default::default()
+        };
+        let again = ShellSettings::from_parts(s.runtime(), s.ui());
+        assert_eq!(again.path_meta.as_ref().unwrap().app_data_dir, meta.app_data_dir);
+        assert!(again.path_meta.as_ref().unwrap().app_data_adjusted);
+    }
+
+    #[test]
+    fn merge_keeps_existing_when_incoming_omits_path_meta() {
+        let existing = PathMeta {
+            app_data_dir: "/kept".into(),
+            app_data_adjusted: true,
+            app_data_conflict_path: None,
+            resolved_at: "1".into(),
+        };
+        let mut incoming = RuntimeSettings::default();
+        assert!(incoming.path_meta.is_none());
+        merge_path_meta_keep_existing(&mut incoming, Some(existing.clone()));
+        assert_eq!(incoming.path_meta.unwrap().app_data_dir, "/kept");
+
+        let mut with_new = RuntimeSettings {
+            path_meta: Some(PathMeta {
+                app_data_dir: "/new".into(),
+                app_data_adjusted: false,
+                app_data_conflict_path: None,
+                resolved_at: "2".into(),
+            }),
+            ..Default::default()
+        };
+        merge_path_meta_keep_existing(&mut with_new, Some(existing));
+        assert_eq!(with_new.path_meta.unwrap().app_data_dir, "/new");
     }
 }

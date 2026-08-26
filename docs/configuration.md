@@ -11,11 +11,11 @@
 **有镜像 ≠ 已配代理**，二者分开。  
 改动**即时写入**；已在跑的 harness 需到「关于」点「应用网络设置并重启 harness」才立刻生效。
 
-持久化（AppData `com.deepseek.harness.desktop`）：
+持久化（AppData 根目录以 `identifier` 为准；若主槽位被占用会自动加后缀如 `-shell`）：
 
 | 文件 | 内容 |
 |------|------|
-| `settings.json` | 镜像、代理、`DSH_HOME`、关闭行为、首选端口、CLI 开关、运行时来源、首跑完成标记 |
+| `settings.json` | 镜像、代理、`DSH_HOME`、关闭行为、首选端口、CLI 开关、运行时来源、首跑完成标记、`pathMeta`（实际 AppData 路径与冲突记录） |
 | `ui.json` | 简洁模式、Session log 顶栏代理、选择洁净 |
 | `~/.dsh/settings.yaml` | 与 DSH 共用：`locale.preference`（zh/en）、`ui-theme.preference`（light/dark/system） |
 
@@ -80,8 +80,34 @@
 
 ## 数据目录
 
+### 三层路径
+
+| 层 | 默认 | 内容 |
+|----|------|------|
+| **安装** | `%LOCALAPPDATA%\DeepSeek Harness Desktop\` | `deepseek-harness-desktop.exe` 与壳前端资源 |
+| **壳托管（AppData）** | `%APPDATA%\com.deepseek.harness.desktop`（可能被占用后改为 `-shell` 等后缀） | Node、harness npm、`settings.json`、日志 |
+| **用户 DSH 数据** | `~/.dsh` 或 hosted 下 `dsh-home` | 会话、插件、`settings.yaml` |
+
+若 AppData 主路径已被其他程序占用，壳会自动选用备用目录（`-shell` / `-desktop` / `-2`…）并在首跑/设置 → 数据与恢复中提示；**固定备用全满**时落 `-emerg-<pid>` 紧急目录（绝不写入 foreign 主路径）。设置页可打开**实际** AppData 文件夹。
+
+**粘滞说明**：AppData 根目录在进程内首次解析后锁定（`OnceLock`）。若你手动清掉冲突目录，需**重启应用**才会回到主路径。
+
+**安装目录**：NSIS 默认安装到 `%LOCALAPPDATA%\DeepSeek Harness Desktop\`（由 `productName` 决定，可含空格）；可执行文件名为 `deepseek-harness-desktop.exe`（`mainBinaryName`）。MSI/WiX **不含**中文双快捷方式与本仓库 NSIS hooks（完整身份体验以 NSIS setup 为准）。
+
+开始菜单分组 **DeepSeek Harness** 下有两个快捷方式（便于搜索）：**DeepSeek Harness Desktop**（Tauri 默认）与 **DeepSeek Harness 桌面版**（hooks 别名），均指向同一应用并共享 AppUserModelID。
+
 默认与官方一致：`$DSH_HOME` → `~/.dsh`（Windows 上为用户目录下的 `.dsh`）。  
 可在设置中填写 **DSH_HOME 覆盖**（留空则用默认）；下次启动生效。  
 菜单「应用 → 打开 DSH_HOME」可打开当前数据目录。
 
 卸载桌面端时：默认删除壳的程序与壳配置；**默认保留** `~/.dsh`。
+
+### 落盘审计（B50）
+
+```bash
+pnpm audit:path-identity              # 静态 + Rust 真实 temp 目录（默认）
+pnpm audit:path-identity -- --install # 再加 NSIS 静默装/卸 + 双快捷方式验证
+pnpm audit:path-identity -- --build --install  # 先打 NSIS 包再装
+```
+
+Rust 二进制：`cargo run --bin path_audit --manifest-path src-tauri/Cargo.toml`

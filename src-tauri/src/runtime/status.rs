@@ -26,6 +26,9 @@ pub struct RuntimeStatus {
     pub effective_dsh_home: String,
     pub clean_profile_active: bool,
     pub app_data: String,
+    pub app_data_adjusted: bool,
+    pub app_data_conflict_path: Option<String>,
+    pub app_data_occupied: bool,
     pub mirror: MirrorKind,
     pub proxy_mode: ProxyMode,
     pub dsh_home_override: String,
@@ -53,6 +56,7 @@ pub fn build_runtime_status<R: Runtime>(
     let effective_dsh_home = supervise::effective_dsh_home(app, state, &cfg);
     let active_runtime = state.active_runtime.lock().ok().and_then(|g| *g);
     let system = crate::system_runtime::resolve_system_runtime();
+    let app_data_meta = paths::resolve_app_data_dir_with_meta();
     Ok(RuntimeStatus {
         node_ready: paths::is_file(&node)
             || system.as_ref().map(|s| s.node.is_file()).unwrap_or(false),
@@ -67,6 +71,9 @@ pub fn build_runtime_status<R: Runtime>(
         effective_dsh_home: effective_dsh_home.to_string_lossy().into_owned(),
         clean_profile_active,
         app_data: paths::base_dir(app)?.to_string_lossy().into_owned(),
+        app_data_adjusted: app_data_meta.adjusted,
+        app_data_conflict_path: app_data_meta.conflict_path,
+        app_data_occupied: app_data_meta.occupied,
         mirror: cfg.mirror,
         proxy_mode: cfg.proxy_mode,
         dsh_home_override: cfg.dsh_home_override,

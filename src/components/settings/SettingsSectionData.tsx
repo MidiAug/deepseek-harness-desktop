@@ -19,17 +19,22 @@ function PathOpenRow({
   which,
   title,
   description,
+  pathHint,
   openLabel,
   openTip,
 }: {
   which: "dshHome" | "appData" | "logs";
   title: string;
   description: string;
+  pathHint?: string;
   openLabel: string;
   openTip: string;
 }) {
   return (
-    <SettingsPrefRow title={title} description={description}>
+    <SettingsPrefRow title={title} description={description} layout="stack">
+      {pathHint ? (
+        <p className="settings-path-hint mono shell-copyable">{pathHint}</p>
+      ) : null}
       <ShellTooltip label={openTip} side="top" delayMs={300}>
         <button
           type="button"
@@ -179,7 +184,18 @@ export function SettingsSectionData() {
         <PathOpenRow
           which="appData"
           title={t("settings.data.path.appDataTitle")}
-          description={t("settings.data.path.appDataDesc")}
+          description={
+            runtime?.appDataOccupied
+              ? `${t("settings.data.path.appDataDesc")} ${t("settings.data.path.appDataOccupied")}`
+              : runtime?.appDataAdjusted
+                ? `${t("settings.data.path.appDataDesc")} ${t("settings.data.path.appDataAdjusted")}`
+                : t("settings.data.path.appDataDesc")
+          }
+          pathHint={
+            (runtime?.appDataAdjusted || runtime?.appDataOccupied) && runtime.appData
+              ? shortenPathForDisplay(runtime.appData)
+              : undefined
+          }
           openLabel={t("settings.data.path.open")}
           openTip={t("settings.data.path.openTip")}
         />

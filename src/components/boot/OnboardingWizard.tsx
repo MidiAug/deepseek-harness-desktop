@@ -1,4 +1,5 @@
 import { useOnboardingWizard } from "../../shell/hooks/useOnboardingWizard";
+import { OnboardingPathWarn } from "./OnboardingPathWarn";
 import { OnboardingStepMode } from "./onboarding/OnboardingStepMode";
 import { OnboardingStepPaths } from "./onboarding/OnboardingStepPaths";
 
@@ -43,6 +44,17 @@ export function OnboardingWizard({ onComplete }: Props) {
           <header className="onboarding-header">
             <h1 className="boot-title">{w.t("onboarding.title")}</h1>
             <p className="onboarding-lead">{w.lead}</p>
+            {w.showAppDataWarn && w.probe.appDataConflictPath ? (
+              <OnboardingPathWarn
+                conflictPath={w.probe.appDataConflictPath}
+                resolvedPath={w.probe.appDataDir}
+                messageKey={
+                  w.probe.appDataOccupied
+                    ? "onboarding.appData.warnOccupied"
+                    : "onboarding.appData.warnAutoAdjusted"
+                }
+              />
+            ) : null}
           </header>
 
           <OnboardingStepMode
@@ -65,7 +77,6 @@ export function OnboardingWizard({ onComplete }: Props) {
             pathOccupied={w.pathOccupied}
             pathHint={w.pathHint}
             showPathFeedback={w.showPathFeedback}
-            showHostedAppDataWarn={w.showHostedAppDataWarn}
             showHostedDshWarn={w.showHostedDshWarn}
             activeDshHomeWarning={w.activeDshHomeWarning}
             t={w.t}

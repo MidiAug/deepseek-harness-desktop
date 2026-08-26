@@ -27,6 +27,8 @@ pub struct EnvironmentProbe {
     pub app_data_dir: String,
     pub app_data_adjusted: bool,
     pub app_data_conflict_path: Option<String>,
+    /// 固定后缀全满时为 true（仍会落到 -emerg-* 紧急槽，避免写进 foreign）
+    pub app_data_occupied: bool,
     pub harness_version: Option<String>,
     pub harness_digest: Option<String>,
 }
@@ -78,6 +80,7 @@ pub fn probe_environment<R: Runtime>(app: &AppHandle<R>) -> Result<EnvironmentPr
         app_data_dir: app_data.path,
         app_data_adjusted: app_data.adjusted,
         app_data_conflict_path: app_data.conflict_path,
+        app_data_occupied: app_data.occupied,
         harness_version,
         harness_digest,
     })

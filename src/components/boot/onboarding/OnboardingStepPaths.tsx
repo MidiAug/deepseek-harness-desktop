@@ -24,7 +24,6 @@ type Props = {
   pathOccupied: boolean;
   pathHint: string;
   showPathFeedback: boolean;
-  showHostedAppDataWarn: boolean;
   showHostedDshWarn: boolean;
   activeDshHomeWarning: PathWarning | null;
   t: TFn;
@@ -52,7 +51,6 @@ export function OnboardingStepPaths({
   pathOccupied,
   pathHint,
   showPathFeedback,
-  showHostedAppDataWarn,
   showHostedDshWarn,
   activeDshHomeWarning,
   t,
@@ -157,11 +155,6 @@ export function OnboardingStepPaths({
                 tone="error"
                 resolvedPath={dshHome}
                 messageKey="onboarding.dshHome.errorNonempty"
-              />
-            ) : showHostedAppDataWarn && probe.appDataConflictPath ? (
-              <OnboardingPathWarn
-                conflictPath={probe.appDataConflictPath}
-                resolvedPath={probe.appDataDir}
               />
             ) : showHostedDshWarn && activeDshHomeWarning ? (
               <OnboardingPathWarn

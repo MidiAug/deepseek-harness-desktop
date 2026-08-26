@@ -5,9 +5,9 @@ mod persist;
 mod proxy;
 mod types;
 
-pub use persist::{load, save, save_runtime, save_ui};
+pub use persist::{ensure_path_meta, load, save, save_runtime, save_ui};
 pub use proxy::proxy_env_overrides;
-pub use types::{MirrorKind, ProxyMode, RuntimeSettings, ShellLocale, ShellSettings, ShellTheme, UiSettings};
+pub use types::{MirrorKind, PathMeta, ProxyMode, RuntimeSettings, ShellLocale, ShellSettings, ShellTheme, UiSettings};
 pub use crate::system_runtime::RuntimeSource;
 
 #[cfg(test)]
@@ -73,6 +73,7 @@ mod tests {
             cli_link_enabled: false,
             runtime_source: crate::system_runtime::RuntimeSource::Hosted,
             onboarding_done: false,
+            path_meta: None,
         };
         let json = serde_json::to_string(&r).unwrap();
         assert!(!json.contains("titlebar"));

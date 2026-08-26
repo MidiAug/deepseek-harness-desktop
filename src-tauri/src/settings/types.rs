@@ -49,6 +49,17 @@ pub enum ShellLocale {
 /// 运行时必需：镜像 / 代理 / DSH_HOME / 关闭行为 / 端口 / CLI
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct PathMeta {
+    pub app_data_dir: String,
+    pub app_data_adjusted: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub app_data_conflict_path: Option<String>,
+    pub resolved_at: String,
+}
+
+/// 运行时必需：镜像 / 代理 / DSH_HOME / 关闭行为 / 端口 / CLI
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RuntimeSettings {
     pub mirror: MirrorKind,
     pub proxy_mode: ProxyMode,
@@ -73,6 +84,9 @@ pub struct RuntimeSettings {
     /// 首跑向导已完成
     #[serde(default)]
     pub onboarding_done: bool,
+    /// 解析后的 AppData 槽位（含冲突避让）；供排障与设置展示
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub path_meta: Option<PathMeta>,
 }
 
 /// 纯壳 UI chrome（主题不在此：真源 DSH settings.yaml）
@@ -124,6 +138,9 @@ pub struct ShellSettings {
     pub selection_hygiene: bool,
     #[serde(default = "default_true")]
     pub session_log_in_titlebar: bool,
+    /// 解析后的 AppData 槽位；随 runtime 持久化，save 不得抹掉
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub path_meta: Option<PathMeta>,
 }
 
 pub(crate) fn default_true() -> bool {
@@ -144,6 +161,7 @@ impl Default for RuntimeSettings {
             cli_link_enabled: false,
             runtime_source: RuntimeSource::Hosted,
             onboarding_done: false,
+            path_meta: None,
         }
     }
 }
@@ -178,6 +196,7 @@ impl ShellSettings {
             cli_link_enabled: runtime.cli_link_enabled,
             runtime_source: runtime.runtime_source,
             onboarding_done: runtime.onboarding_done,
+            path_meta: runtime.path_meta,
             shell_theme: ShellTheme::System,
             shell_locale: ShellLocale::Zh,
             titlebar_compact: ui.titlebar_compact,
@@ -199,6 +218,7 @@ impl ShellSettings {
             cli_link_enabled: self.cli_link_enabled,
             runtime_source: self.runtime_source,
             onboarding_done: self.onboarding_done,
+            path_meta: self.path_meta.clone(),
         }
     }
 
