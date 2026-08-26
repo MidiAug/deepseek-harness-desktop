@@ -14,7 +14,7 @@ import { useLocale } from "../../shell/locale";
 import type { CliLinkStatus } from "../../shell/api/shellApi";
 import { SettingsGroup } from "./SettingsGroup";
 import { SettingsPrefRow } from "./SettingsPrefRow";
-import { ShellSelect } from "../chrome/ShellSelect";
+import { ShellSelect, type ShellSelectOption } from "../chrome/ShellSelect";
 import { ShellConfirmDialog } from "../chrome/ShellConfirmDialog";
 import { ShellTooltip } from "../chrome/ShellTooltip";
 import {
@@ -88,8 +88,16 @@ export function SettingsSectionRuntime() {
   const preferredLabel = installModeLabel(preferred, t);
   const runtimeMismatch =
     running != null && running !== preferred;
-  const sourceOptions: { value: RuntimeSource; label: string }[] = [
-    { value: "system", label: t("settings.harnessInstall.system") },
+  const systemAvailable = runtime?.systemRuntimeDetected ?? false;
+  const sourceOptions: ShellSelectOption[] = [
+    {
+      value: "system",
+      label: t("settings.harnessInstall.system"),
+      disabled: !systemAvailable,
+      title: systemAvailable
+        ? undefined
+        : t("settings.harnessInstall.systemDisabledTip"),
+    },
     { value: "hosted", label: t("settings.harnessInstall.hosted") },
   ];
   const effectiveSource =
@@ -335,6 +343,7 @@ export function SettingsSectionRuntime() {
             disabled={locked || restartConfirmBusy}
             onChange={(value) => {
               const next = value as RuntimeSource;
+              if (next === "system" && !systemAvailable) return;
               if (next === effectiveSource) {
                 setPendingSource(null);
                 setRestartConfirmOpen(false);
@@ -368,32 +377,42 @@ export function SettingsSectionRuntime() {
             <span className="settings-port-field-sep" aria-hidden>
               :
             </span>
-            <input
-              className="settings-port-field-input"
-              type="text"
-              inputMode="numeric"
-              autoComplete="off"
-              spellCheck={false}
-              maxLength={5}
-              aria-label={t("settings.port.title")}
-              placeholder={t("settings.port.placeholder")}
-              value={portDraft}
-              onChange={(ev) => {
-                const raw = ev.target.value.replace(/\D/g, "").slice(0, 5);
-                setPortDraft(raw);
-                const n = Number(raw);
-                const preferredPort =
-                  raw === "" || !Number.isFinite(n)
-                    ? 0
-                    : Math.max(0, Math.min(65535, Math.floor(n)));
-                patchRuntime(
-                  { preferredPort },
-                  { softHint: t("settings.port.saved") },
-                );
-              }}
-            />
+            <ShellTooltip
+              label={t("settings.port.descriptionTip")}
+              side="top"
+              delayMs={300}
+            >
+              <input
+                className="settings-port-field-input"
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                spellCheck={false}
+                maxLength={5}
+                aria-label={t("settings.port.title")}
+                aria-describedby="settings-port-hint"
+                placeholder={t("settings.port.placeholder")}
+                value={portDraft}
+                onChange={(ev) => {
+                  const raw = ev.target.value.replace(/\D/g, "").slice(0, 5);
+                  setPortDraft(raw);
+                  const n = Number(raw);
+                  const preferredPort =
+                    raw === "" || !Number.isFinite(n)
+                      ? 0
+                      : Math.max(0, Math.min(65535, Math.floor(n)));
+                  patchRuntime(
+                    { preferredPort },
+                    { softHint: t("settings.port.saved") },
+                  );
+                }}
+              />
+            </ShellTooltip>
           </div>
         </SettingsPrefRow>
+        <p id="settings-port-hint" className="settings-live-hint">
+          {t("settings.port.hint")}
+        </p>
       </SettingsGroup>
 
       <SettingsGroup title={t("settings.group.cli")}>

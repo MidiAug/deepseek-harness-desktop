@@ -22,6 +22,8 @@ import type { WinAction } from "./titlebarTypes";
 type Props = {
   sidebarWidthPx: number;
   maximized: boolean;
+  /** 首跑/安装：隐藏菜单与设置，窗控常显 */
+  chromeLocked?: boolean;
   titleActivity?: string | null;
   titleActivityTone?: "busy" | "error";
   showSessionLog: boolean;
@@ -46,6 +48,7 @@ type DragPin = {
 export function CompactTitleBar({
   sidebarWidthPx,
   maximized,
+  chromeLocked = false,
   titleActivity = null,
   titleActivityTone = "busy",
   showSessionLog,
@@ -148,6 +151,7 @@ export function CompactTitleBar({
   const compactClass = [
     "titlebar",
     "titlebar-compact",
+    chromeLocked ? "is-chrome-locked" : "",
     dragPin?.left === "shown" ? "is-drag-pin-left-shown" : "",
     dragPin?.left === "hidden" ? "is-drag-pin-left-hidden" : "",
     dragPin?.right === "shown" ? "is-drag-pin-right-shown" : "",
@@ -169,37 +173,50 @@ export function CompactTitleBar({
         } as CSSProperties
       }
     >
-      <TitleBarHostMenus
-        onRestart={onRestart}
-        onStop={onStop}
-        onOpenDshHome={onOpenDshHome}
-        onOpenLogs={onOpenLogs}
-        onHideToTray={onHideToTray}
-        onAbout={onAbout}
-        onCopyVersion={onCopyVersion}
-        onOpenPlatform={onOpenPlatform}
-        onMenuOpenChange={onMenuOpenChange}
-        wrap={(menus) => (
+      {chromeLocked ? (
+        <div
+          className="titlebar-compact-left"
+          onMouseDownCapture={onCompactDragDown}
+          onDoubleClick={() => void onWin("maximize")}
+        >
           <div
-            className="titlebar-compact-left"
-            onMouseEnter={() => {
-              leftHotRef.current = true;
-            }}
-            onMouseLeave={() => {
-              if (dragPinRef.current != null || menuOpen) return;
-              leftHotRef.current = false;
-            }}
-          >
+            className="titlebar-compact-left-drag"
+            data-tauri-drag-region
+          />
+        </div>
+      ) : (
+        <TitleBarHostMenus
+          onRestart={onRestart}
+          onStop={onStop}
+          onOpenDshHome={onOpenDshHome}
+          onOpenLogs={onOpenLogs}
+          onHideToTray={onHideToTray}
+          onAbout={onAbout}
+          onCopyVersion={onCopyVersion}
+          onOpenPlatform={onOpenPlatform}
+          onMenuOpenChange={onMenuOpenChange}
+          wrap={(menus) => (
             <div
-              className="titlebar-compact-left-drag"
-              data-tauri-drag-region
-              onMouseDownCapture={onCompactDragDown}
-              onDoubleClick={() => void onWin("maximize")}
-            />
-            {wrapMenus(menus)}
-          </div>
-        )}
-      />
+              className="titlebar-compact-left"
+              onMouseEnter={() => {
+                leftHotRef.current = true;
+              }}
+              onMouseLeave={() => {
+                if (dragPinRef.current != null || menuOpen) return;
+                leftHotRef.current = false;
+              }}
+            >
+              <div
+                className="titlebar-compact-left-drag"
+                data-tauri-drag-region
+                onMouseDownCapture={onCompactDragDown}
+                onDoubleClick={() => void onWin("maximize")}
+              />
+              {wrapMenus(menus)}
+            </div>
+          )}
+        />
+      )}
       <div
         className="titlebar-compact-right"
         onMouseEnter={() => {
@@ -235,6 +252,7 @@ export function CompactTitleBar({
           )}
           <WindowControls
             maximized={maximized}
+            hideSettings={chromeLocked}
             onOpenSettings={onOpenSettings}
             onWin={onWin}
           />

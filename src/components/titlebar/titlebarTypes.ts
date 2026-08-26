@@ -9,8 +9,10 @@ export type ShellTitleBarProps = {
   hideConnStatus?: boolean;
   /** 首跑引导：仅标题 + 窗控 */
   minimal?: boolean;
-  /** 安装/启动等待：仅窗控 + 拖拽区，无菜单/设置/标题 */
+  /** 安装/启动等待：仅窗控 + 拖拽区，无菜单/设置/标题（classic 模式） */
   controlsOnly?: boolean;
+  /** 简洁模式：首跑/安装阶段隐藏菜单与设置，仅保留窗控 */
+  compactLocked?: boolean;
   /** 启动/嵌入等进行中：替换居中产品名，并隐藏尾随 conn */
   titleActivity?: string | null;
   /** 顶栏活动文案色调：进行中 / 失败 */

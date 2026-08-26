@@ -31,10 +31,15 @@ function PathOpenRow({
   openTip: string;
 }) {
   return (
-    <SettingsPrefRow title={title} description={description} layout="stack">
-      {pathHint ? (
-        <p className="settings-path-hint mono shell-copyable">{pathHint}</p>
-      ) : null}
+    <SettingsPrefRow
+      title={title}
+      description={description}
+      hint={
+        pathHint ? (
+          <span className="settings-path-hint mono shell-copyable">{pathHint}</span>
+        ) : undefined
+      }
+    >
       <ShellTooltip label={openTip} side="top" delayMs={300}>
         <button
           type="button"

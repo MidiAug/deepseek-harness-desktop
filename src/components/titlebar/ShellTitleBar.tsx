@@ -17,6 +17,7 @@ export function ShellTitleBar({
   hideConnStatus = false,
   minimal = false,
   controlsOnly = false,
+  compactLocked = false,
   titleActivity = null,
   titleActivityTone,
   chrome,
@@ -77,18 +78,6 @@ export function ShellTitleBar({
     } else await w.close();
   }
 
-  if (minimal || controlsOnly) {
-    return (
-      <MinimalTitleBar
-        maximized={maximized}
-        controlsOnly={controlsOnly}
-        titleActivity={titleActivity}
-        titleActivityTone={titleActivityTone}
-        onWin={onWin}
-      />
-    );
-  }
-
   if (bodyView === "platform") {
     return (
       <PlatformTitleBar
@@ -105,10 +94,13 @@ export function ShellTitleBar({
       <CompactTitleBar
         sidebarWidthPx={sidebarWidthPx}
         maximized={maximized}
+        chromeLocked={compactLocked}
         titleActivity={titleActivity}
         titleActivityTone={titleActivityTone}
         showSessionLog={
-          chrome.sessionLogInTitlebar && sessionLogAvailable
+          !compactLocked &&
+          chrome.sessionLogInTitlebar &&
+          sessionLogAvailable
         }
         onSessionLog={onSessionLog}
         onOpenSettings={onOpenSettings}
@@ -120,6 +112,18 @@ export function ShellTitleBar({
         onAbout={onAbout}
         onCopyVersion={onCopyVersion}
         onOpenPlatform={onOpenPlatform}
+        onWin={onWin}
+      />
+    );
+  }
+
+  if (minimal || controlsOnly) {
+    return (
+      <MinimalTitleBar
+        maximized={maximized}
+        controlsOnly={controlsOnly}
+        titleActivity={titleActivity}
+        titleActivityTone={titleActivityTone}
         onWin={onWin}
       />
     );

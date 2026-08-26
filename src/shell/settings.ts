@@ -83,7 +83,7 @@ export function runtimeFromSettings(s: ShellSettings): RuntimeSettings {
 export function uiFromSettings(s: ShellSettings): UiSettings {
   return {
     titlebarCompact: s.titlebarCompact ?? false,
-    selectionHygiene: s.selectionHygiene ?? false,
+    selectionHygiene: s.selectionHygiene ?? true,
     sessionLogInTitlebar: s.sessionLogInTitlebar ?? true,
   };
 }
@@ -103,7 +103,7 @@ export const defaultShellSettings: ShellSettings = {
   shellTheme: "system",
   shellLocale: "zh",
   titlebarCompact: false,
-  selectionHygiene: false,
+  selectionHygiene: true,
   sessionLogInTitlebar: true,
 };
 
@@ -118,7 +118,7 @@ export function chromeFromSettings(s: ShellSettings): ChromePrefs {
   return {
     shellTheme: normalizeShellTheme(s.shellTheme),
     titlebarCompact: s.titlebarCompact ?? false,
-    selectionHygiene: s.selectionHygiene ?? false,
+    selectionHygiene: s.selectionHygiene ?? true,
     sessionLogInTitlebar: s.sessionLogInTitlebar ?? true,
   };
 }
@@ -148,7 +148,7 @@ export function normalizeShellSettings(
     shellTheme: normalizeShellTheme(s?.shellTheme),
     shellLocale: normalizeShellLocale(s?.shellLocale),
     titlebarCompact: s?.titlebarCompact ?? false,
-    selectionHygiene: s?.selectionHygiene ?? false,
+    selectionHygiene: s?.selectionHygiene ?? true,
     sessionLogInTitlebar: s?.sessionLogInTitlebar ?? true,
   };
 }

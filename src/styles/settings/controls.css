@@ -327,6 +327,19 @@
   background: transparent;
 }
 
+.shell-select-option.is-disabled,
+.shell-select-option:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.shell-select-option.is-disabled:hover,
+.shell-select-option.is-disabled:focus-visible,
+.shell-select-option:disabled:hover,
+.shell-select-option:disabled:focus-visible {
+  background: transparent;
+}
+
 .shell-select-option-label {
   flex: 1;
   min-width: 0;

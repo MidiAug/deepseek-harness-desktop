@@ -100,7 +100,7 @@ export const boot = {
   "boot.cta.network.desc": "Check proxy or mirror",
   "boot.cta.logs.desc": "Open the logs folder",
   "boot.cta.cleanProfile.desc": "Temporary blank profile; your DSH_HOME is kept",
-  "boot.cta.resetConfig.desc": "Clear the DSH_HOME directory from first-run setup",
+  "boot.cta.resetConfig.desc": "Clear the currently active DSH_HOME data directory",
   "boot.cta.reinstallDsh.system.desc": "Reinstall global @deepseek-ai/dsh via npm",
   "boot.cta.reinstallDsh.hosted.desc": "Delete and re-download harness in AppData",
   "boot.cleanProfile.confirmTitle": "Skip config",

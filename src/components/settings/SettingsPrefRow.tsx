@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 type Props = {
   title: string;
   description?: string;
+  /** 复制区次要行（如路径 mono 提示） */
+  hint?: ReactNode;
   children: ReactNode;
   /** 控件在右侧（默认）或下方（块级，如色卡） */
   layout?: "row" | "stack";
@@ -13,6 +15,7 @@ type Props = {
 export function SettingsPrefRow({
   title,
   description,
+  hint,
   children,
   layout = "row",
   disabled,
@@ -27,6 +30,7 @@ export function SettingsPrefRow({
         {description ? (
           <span className="settings-cell-desc">{description}</span>
         ) : null}
+        {hint}
       </div>
       <div className="settings-cell-control">{children}</div>
     </div>

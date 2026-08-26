@@ -77,8 +77,11 @@ export async function dispatchDesktopAction(
     return;
   }
 
-  postHarnessFrame(frame, {
-    type: "context-menu-action",
-    action: plan.action,
-  });
+  if (plan.route === "iframe-legacy") {
+    postHarnessFrame(frame, {
+      type: "context-menu-action",
+      action: plan.action,
+    });
+    return;
+  }
 }

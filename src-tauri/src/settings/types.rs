@@ -95,8 +95,8 @@ pub struct RuntimeSettings {
 pub struct UiSettings {
     #[serde(default)]
     pub titlebar_compact: bool,
-    /// 减少误选 chrome 文字（注入；默认关；宁缺毋滥）
-    #[serde(default)]
+    /// 减少误选 chrome 文字（注入；默认开）
+    #[serde(default = "default_true")]
     pub selection_hygiene: bool,
     /// 简洁模式：藏官方 Session log，改由顶栏下载 icon 代理点击
     #[serde(default = "default_true")]
@@ -134,7 +134,7 @@ pub struct ShellSettings {
     pub shell_locale: ShellLocale,
     #[serde(default)]
     pub titlebar_compact: bool,
-    #[serde(default)]
+    #[serde(default = "default_true")]
     pub selection_hygiene: bool,
     #[serde(default = "default_true")]
     pub session_log_in_titlebar: bool,
@@ -170,7 +170,7 @@ impl Default for UiSettings {
     fn default() -> Self {
         Self {
             titlebar_compact: false,
-            selection_hygiene: false,
+            selection_hygiene: true,
             session_log_in_titlebar: true,
         }
     }

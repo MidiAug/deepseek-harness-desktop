@@ -8,6 +8,7 @@ import {
   IconLightOutline16,
 } from "../chrome/DshIcons";
 import { ShellSelect } from "../chrome/ShellSelect";
+import { ShellTooltip } from "../chrome/ShellTooltip";
 import { SettingsGroup } from "./SettingsGroup";
 import { SettingsPrefRow } from "./SettingsPrefRow";
 
@@ -227,18 +228,24 @@ export function SettingsSectionAppearance() {
           title={t("settings.hygiene.title")}
           description={t("settings.hygiene.description")}
         >
-          <button
-            type="button"
-            className={`settings-switch${hygieneOn ? " on" : ""}`}
-            role="switch"
-            aria-checked={hygieneOn}
-            aria-label={t("settings.hygiene.aria")}
-            onClick={() =>
-              patchAppearance({ selectionHygiene: !hygieneOn })
-            }
+          <ShellTooltip
+            label={t("settings.hygiene.descriptionTip")}
+            side="top"
+            delayMs={300}
           >
-            <span className="settings-switch-knob" />
-          </button>
+            <button
+              type="button"
+              className={`settings-switch${hygieneOn ? " on" : ""}`}
+              role="switch"
+              aria-checked={hygieneOn}
+              aria-label={t("settings.hygiene.aria")}
+              onClick={() =>
+                patchAppearance({ selectionHygiene: !hygieneOn })
+              }
+            >
+              <span className="settings-switch-knob" />
+            </button>
+          </ShellTooltip>
         </SettingsPrefRow>
       </SettingsGroup>
     </div>

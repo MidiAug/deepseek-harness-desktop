@@ -11,6 +11,10 @@ import { IconCheckOutline16, IconChevronDownOutline14 } from "./DshIcons";
 export type ShellSelectOption = {
   value: string;
   label: string;
+  /** 不可用（如本机未装 dsh）；仍展示但不可选 */
+  disabled?: boolean;
+  /** disabled 时原生 title 提示 */
+  title?: string;
 };
 
 type Props = {
@@ -97,6 +101,7 @@ export function ShellSelect({
         >
           {options.map((opt) => {
             const isOn = opt.value === value;
+            const optDisabled = Boolean(opt.disabled);
             return (
               <li key={opt.value} role="presentation">
                 <button
@@ -104,8 +109,12 @@ export function ShellSelect({
                   id={`${listId}-${opt.value}`}
                   role="option"
                   aria-selected={isOn}
-                  className={`shell-select-option${isOn ? " on" : ""}`}
+                  aria-disabled={optDisabled || undefined}
+                  disabled={optDisabled}
+                  title={optDisabled ? opt.title : undefined}
+                  className={`shell-select-option${isOn ? " on" : ""}${optDisabled ? " is-disabled" : ""}`}
                   onClick={() => {
+                    if (optDisabled) return;
                     onChange(opt.value);
                     close();
                   }}

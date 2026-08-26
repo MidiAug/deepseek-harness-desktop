@@ -100,7 +100,7 @@ export const boot = {
   "boot.cta.network.desc": "检查代理或镜像",
   "boot.cta.logs.desc": "打开日志文件夹",
   "boot.cta.cleanProfile.desc": "用临时空白配置启动，不删你的 DSH_HOME",
-  "boot.cta.resetConfig.desc": "清空选定的 DSH_HOME 数据目录",
+  "boot.cta.resetConfig.desc": "清空当前运行的 DSH_HOME 数据目录",
   "boot.cta.reinstallDsh.system.desc": "npm 全局重装 @deepseek-ai/dsh",
   "boot.cta.reinstallDsh.hosted.desc": "删除 AppData 内 harness 并重新下载",
   "boot.cleanProfile.confirmTitle": "跳过配置",
