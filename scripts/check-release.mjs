@@ -23,6 +23,29 @@ function read(rel) {
 const confText = read("src-tauri/tauri.conf.json");
 if (confText) {
   const conf = JSON.parse(confText);
+  if (
+    conf.productName !== "DeepSeek Harness Desktop" ||
+    conf.mainBinaryName !== "deepseek-harness-desktop" ||
+    conf.identifier !== "com.deepseek.harness.desktop"
+  ) {
+    errors.push(
+      "tauri.conf.json 路径身份不一致（productName / mainBinaryName / identifier）",
+    );
+  }
+  const nsis = conf?.bundle?.windows?.nsis ?? {};
+  if (nsis.startMenuFolder !== "DeepSeek Harness") {
+    errors.push("NSIS startMenuFolder 应为 DeepSeek Harness");
+  }
+  if (
+    !Array.isArray(nsis.languages) ||
+    !nsis.languages.includes("English") ||
+    !nsis.languages.includes("SimpChinese")
+  ) {
+    errors.push("NSIS languages 须含 English 与 SimpChinese");
+  }
+  if (!String(nsis.installerHooks ?? "").includes("hooks.nsh")) {
+    errors.push("NSIS installerHooks 须指向 hooks.nsh");
+  }
   const updater = conf?.plugins?.updater ?? {};
   const pubkey = String(updater.pubkey ?? "").trim();
   if (!pubkey || pubkey.length < 32) {
@@ -71,6 +94,21 @@ if (libRs) {
   }
   if (!libRs.includes("tauri_plugin_single_instance")) {
     errors.push("lib.rs 未注册 tauri_plugin_single_instance");
+  }
+}
+
+const hooksNsh = read("src-tauri/installer/windows/hooks.nsh");
+if (hooksNsh) {
+  const need = [
+    "DeepSeek Harness 桌面版.lnk",
+    "SetLnkAppUserModelId",
+    "NSIS_HOOK_PREINSTALL",
+    "FindFirst",
+  ];
+  for (const token of need) {
+    if (!hooksNsh.includes(token)) {
+      errors.push(`hooks.nsh 缺少 B50 关键片段: ${token}`);
+    }
   }
 }
 

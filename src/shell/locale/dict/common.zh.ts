@@ -13,7 +13,7 @@ export const common = {
   "chrome.conn.failed": "启动失败",
   "chrome.conn.preparing": "准备中",
   "chrome.activity.embedding": "正在嵌入官方界面…",
-  "chrome.productName": "DeepSeek Harness",
+  "chrome.productName": "DeepSeek Harness 桌面版",
   "chrome.platform.back": "返回",
   "chrome.platform.title": "DeepSeek 开放平台",
   "chrome.updateBanner.downloaded": "应用 {version} 已下载完成，重启后安装",

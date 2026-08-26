@@ -54,6 +54,10 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     applyDocumentLang(locale);
     void shellApi.syncTrayLocale(locale).catch(() => undefined);
+    const title = dicts[locale]["chrome.productName"] ?? dicts.en["chrome.productName"];
+    void import("@tauri-apps/api/window")
+      .then(({ getCurrentWindow }) => getCurrentWindow().setTitle(title))
+      .catch(() => undefined);
   }, [locale]);
 
   const refreshFromDisk = useCallback(() => {

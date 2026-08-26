@@ -13,7 +13,7 @@ export const common = {
   "chrome.conn.failed": "Start failed",
   "chrome.conn.preparing": "Preparing",
   "chrome.activity.embedding": "Embedding official UI…",
-  "chrome.productName": "DeepSeek Harness",
+  "chrome.productName": "DeepSeek Harness Desktop",
   "chrome.platform.back": "Back",
   "chrome.platform.title": "DeepSeek Open Platform",
   "chrome.updateBanner.downloaded": "Shell {version} downloaded. Restart to install.",
