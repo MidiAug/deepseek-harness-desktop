@@ -8,6 +8,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const injectDir = path.join(root, "src-tauri/inject");
 
 const ORDER = [
+  "00-boot-canvas.js",
   "00-guard.js",
   "01-kernel.js",
   "02-selectors.js",

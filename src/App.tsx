@@ -34,6 +34,7 @@ import {
 import {
   postSelectionHygiene,
   postSessionLogProxy,
+  postSelectionTrace,
   suppressHoverResidue,
 } from "./shell/harnessFrameBridge";
 import "./App.css";
@@ -61,6 +62,7 @@ export default function App() {
     "loading" | "wizard" | "ready"
   >("loading");
   const [sessionLogAvailable, setSessionLogAvailable] = useState(false);
+  const [iframeRevealed, setIframeRevealed] = useState(false);
   const { onSessionLog, resetSessionLogPending } = useSessionLogDownload(
     harnessFrameRef,
   );
@@ -151,6 +153,7 @@ export default function App() {
     if (bodyView !== "harness") return;
     const frame = harnessFrameRef.current;
     postSelectionHygiene(frame, chrome.selectionHygiene);
+    postSelectionTrace(frame);
     postSessionLogProxy(
       frame,
       chrome.titlebarCompact && chrome.sessionLogInTitlebar,
@@ -167,6 +170,7 @@ export default function App() {
   useEffect(() => {
     setSessionLogAvailable(false);
     resetSessionLogPending();
+    setIframeRevealed(false);
   }, [session.iframeKey, bodyView, resetSessionLogPending]);
 
   const shellOverlay = chrome.titlebarCompact && bodyView === "harness";
@@ -178,13 +182,28 @@ export default function App() {
   }, [shellBackdropOpen]);
 
   const onboardingActive = onboardingGate !== "ready";
-  const bootBusy =
-    session.phase === "installing" || session.phase === "spawning";
+  const bootPanelActive =
+    onboardingGate === "ready" &&
+    bodyView === "harness" &&
+    (session.phase === "idle" ||
+      session.phase === "installing" ||
+      session.phase === "spawning" ||
+      session.phase === "embedding");
+  const titlebarLocked = onboardingActive || bootPanelActive;
   const opsActive = life.busyReason === "ops";
   // B47：顶栏零状态文案；探测/启停进度只在内容区 SessionStatusSurface
   const showHarness =
     session.showIframe && !!session.serviceUrl;
   const harnessVisible = bodyView === "harness";
+
+  // onLoad 未触发时兜底，避免 iframe 永久 opacity 0
+  useEffect(() => {
+    if (!showHarness || !harnessVisible || iframeRevealed) return;
+    const t = window.setTimeout(() => {
+      setIframeRevealed(true);
+    }, 8000);
+    return () => window.clearTimeout(t);
+  }, [showHarness, harnessVisible, iframeRevealed, session.iframeKey]);
 
   const restartAndCloseSettings = useCallback(() => {
     closeSettings();
@@ -254,8 +273,9 @@ export default function App() {
         conn={session.titleConn}
         hideConnStatus
         titleActivity={null}
-        minimal={onboardingActive || bootBusy}
-        controlsOnly={bootBusy}
+        minimal={titlebarLocked && !chrome.titlebarCompact}
+        controlsOnly={titlebarLocked && !chrome.titlebarCompact}
+        compactLocked={titlebarLocked && chrome.titlebarCompact}
         chrome={chrome}
         sidebarWidthPx={sidebarWidthPx}
         bodyView={bodyView}
@@ -324,7 +344,7 @@ export default function App() {
           <iframe
             key={session.iframeKey}
             ref={harnessFrameRef}
-            className="harness-frame"
+            className={`harness-frame${iframeRevealed ? " is-revealed" : ""}`}
             title="DeepSeek Harness"
             src={session.serviceUrl!}
             hidden={!harnessVisible}
@@ -332,12 +352,18 @@ export default function App() {
             onLoad={() => {
               const frame = harnessFrameRef.current;
               postSelectionHygiene(frame, chrome.selectionHygiene);
+              postSelectionTrace(frame);
               postSessionLogProxy(
                 frame,
                 chrome.titlebarCompact && chrome.sessionLogInTitlebar,
               );
               setHarnessShellModalOpen(frame, shellBackdropOpen);
               if (shellBackdropOpen) clearShellSelections(frame);
+              requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                  setIframeRevealed(true);
+                });
+              });
             }}
             onError={session.markIframeError}
           />

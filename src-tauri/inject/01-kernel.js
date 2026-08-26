@@ -12,6 +12,10 @@
 
   function emitDiag(event, fields) {
     if (!INJECT_DIAG) return;
+    postDiag(event, fields);
+  }
+
+  function postDiag(event, fields) {
     try {
       var payload = { source: MSG_SOURCE, type: "diag", event: event };
       if (fields) {
@@ -23,6 +27,12 @@
       }
       global.parent.postMessage(payload, "*");
     } catch (e) {}
+  }
+
+  /** 全选失败诊断：由壳 postMessage 开启，仅上报 ok=0。 */
+  function emitSelectionTrace(event, fields) {
+    if (global.__dshSelectionTrace !== true) return;
+    postDiag(event, fields);
   }
 
   function postToShell(payload) {
@@ -94,6 +104,7 @@
     MSG_SOURCE: MSG_SOURCE,
     SHELL_SOURCE: SHELL_SOURCE,
     emitDiag: emitDiag,
+    emitSelectionTrace: emitSelectionTrace,
     postToShell: postToShell,
     setMenuContext: setMenuContext,
     getMenuContext: getMenuContext,

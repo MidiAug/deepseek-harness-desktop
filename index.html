@@ -4,7 +4,58 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark light" />
     <title>deepseek-harness-desktop</title>
+    <style id="shell-boot-theme">
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: rgb(21, 21, 23);
+        color: rgb(249, 250, 251);
+      }
+      html[data-shell-theme="light"],
+      html[data-shell-theme="light"] body {
+        background: rgb(245, 245, 247);
+        color: rgb(28, 28, 30);
+      }
+      #root {
+        min-height: 100vh;
+      }
+    </style>
+    <script>
+      (function () {
+        var LIGHT = "light";
+        var DARK = "dark";
+        var resolved = DARK;
+        try {
+          var cached = localStorage.getItem("dsh.shell.resolvedTheme");
+          if (cached === LIGHT || cached === DARK) {
+            resolved = cached;
+          } else {
+            var pref = localStorage.getItem("dsh.shell.shellTheme");
+            if (pref === LIGHT) resolved = LIGHT;
+            else if (pref === DARK) resolved = DARK;
+            else if (
+              window.matchMedia &&
+              window.matchMedia("(prefers-color-scheme: light)").matches
+            ) {
+              resolved = LIGHT;
+            }
+          }
+          if (localStorage.getItem("dsh.shell.titlebarCompact") === "1") {
+            document.documentElement.dataset.shellTitlebar = "compact";
+          }
+        } catch (_e) {
+          /* ignore */
+        }
+        document.documentElement.dataset.shellTheme = resolved;
+        document.documentElement.style.colorScheme = resolved;
+        var canvas =
+          resolved === LIGHT ? "rgb(245, 245, 247)" : "rgb(21, 21, 23)";
+        document.documentElement.style.background = canvas;
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -34,6 +34,7 @@ use update::HarnessUpdateCheck;
 use tauri::{
     Emitter, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder, WindowEvent,
 };
+use tauri::webview::Color;
 #[cfg(desktop)]
 use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
 #[tauri::command]
@@ -532,6 +533,7 @@ pub fn run() {
                 win = win.icon(icon.clone())?;
             }
             let window = win
+                .background_color(Color(21, 21, 23, 255))
                 .on_download(shell_download::handle_download_event)
                 .build()?;
             #[cfg(desktop)]

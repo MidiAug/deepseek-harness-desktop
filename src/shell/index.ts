@@ -58,6 +58,13 @@ export {
 } from "./hostProgressMap";
 export { resolveBootProgressDisplay } from "./bootProgressDisplay";
 export {
+  applyDomTheme,
+  bootstrapShellTheme,
+  readCachedShellTheme,
+  writeCachedThemes,
+} from "./themeBootstrap";
+export { syncWebviewCanvasColor } from "./syncWebviewCanvas";
+export {
   CTA_DESC_KEYS,
   CTA_LABEL_KEYS,
   getRecoveryPlan,

@@ -9,6 +9,9 @@
     kernel.onShellMessageType("selection-hygiene", function (d) {
       hygiene.setEnabled(d.enabled === true);
     });
+    kernel.onShellMessageType("selection-trace", function (d) {
+      global.__dshSelectionTrace = d.enabled === true;
+    });
     kernel.onShellMessageType("shell-modal-open", function (d) {
       hygiene.setShellModalOpen(d.open === true);
     });

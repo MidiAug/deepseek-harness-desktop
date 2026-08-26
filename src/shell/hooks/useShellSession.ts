@@ -12,10 +12,25 @@ import type {
 } from "../types/ipc-types";
 import { stopHarness } from "../api/shellApi";
 import { shellLog } from "../logger";
+import {
+  readCachedResolvedThemeForIframe,
+  RESOLVED_THEME_CACHE_KEY,
+} from "../themeBootstrap";
 
 function withCacheBust(url: string): string {
+  let canvas = "dark";
+  try {
+    const cached = localStorage.getItem(RESOLVED_THEME_CACHE_KEY);
+    if (cached === "light" || cached === "dark") {
+      canvas = cached;
+    } else {
+      canvas = readCachedResolvedThemeForIframe();
+    }
+  } catch {
+    canvas = readCachedResolvedThemeForIframe();
+  }
   const sep = url.includes("?") ? "&" : "?";
-  return `${url}${sep}t=${Date.now()}`;
+  return `${url}${sep}t=${Date.now()}&shellCanvas=${canvas}`;
 }
 
 export function useShellSession() {

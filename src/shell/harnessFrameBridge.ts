@@ -50,6 +50,31 @@ export function postSelectionHygiene(
   }
 }
 
+const SELECTION_TRACE_KEY = "dsh.shell.selectionTrace";
+
+/** 故障排查：localStorage.setItem('dsh.shell.selectionTrace','1') 后刷新 */
+export function isSelectionTraceEnabled(): boolean {
+  try {
+    return localStorage.getItem(SELECTION_TRACE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function postSelectionTrace(
+  frame: HTMLIFrameElement | null,
+  enabled = isSelectionTraceEnabled(),
+) {
+  try {
+    frame?.contentWindow?.postMessage(
+      { source: "dsh-shell", type: "selection-trace", enabled },
+      "*",
+    );
+  } catch {
+    /* cross-origin 或未就绪 */
+  }
+}
+
 export function postSessionLogProxy(
   frame: HTMLIFrameElement | null,
   enabled: boolean,

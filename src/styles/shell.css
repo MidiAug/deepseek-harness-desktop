@@ -71,4 +71,20 @@
   height: 100%;
   border: 0;
   background: var(--color-canvas);
+  color-scheme: dark light;
+  /* 首帧 opacity 0：DSH 文档白底加载完成前露出 shell-body 深色 canvas */
+  opacity: 0;
+  transition: opacity 0.06s ease-out;
+}
+
+.harness-frame.is-revealed {
+  opacity: 1;
+}
+
+:root[data-shell-theme="dark"] .harness-frame {
+  color-scheme: dark;
+}
+
+:root[data-shell-theme="light"] .harness-frame {
+  color-scheme: light;
 }

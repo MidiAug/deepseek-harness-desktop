@@ -7,6 +7,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -24,6 +25,13 @@ import {
 } from "../settings";
 import * as shellApi from "../api/shellApi";
 import { shellLog } from "../logger";
+import {
+  applyDomTheme,
+  readCachedShellTheme,
+  resolveShellTheme,
+  writeCachedThemes,
+} from "../themeBootstrap";
+import { syncWebviewCanvasColor } from "../syncWebviewCanvas";
 
 type ChromePatch = Partial<
   Pick<
@@ -69,16 +77,6 @@ function osPrefersDark(): boolean {
   return window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ?? true;
 }
 
-function resolveTheme(theme: ShellTheme, osDark: boolean): ResolvedTheme {
-  if (theme === "light") return "light";
-  if (theme === "dark") return "dark";
-  return osDark ? "dark" : "light";
-}
-
-function applyDomTheme(theme: ResolvedTheme) {
-  document.documentElement.setAttribute("data-shell-theme", theme);
-}
-
 function prefToTheme(p: string): ShellTheme {
   if (p === "light" || p === "dark" || p === "system") return p;
   if (p === "follow") return "system";
@@ -87,9 +85,9 @@ function prefToTheme(p: string): ShellTheme {
 
 export function ChromeProvider({ children }: { children: ReactNode }) {
   const [chrome, setChromeState] = useState<ChromePrefs>({
-    shellTheme: "system",
+    shellTheme: readCachedShellTheme(),
     titlebarCompact: readCachedTitlebarCompact(),
-    selectionHygiene: false,
+    selectionHygiene: true,
     sessionLogInTitlebar: true,
   });
   const [osDark, setOsDark] = useState(() => osPrefersDark());
@@ -100,7 +98,7 @@ export function ChromeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const resolvedTheme = useMemo(
-    () => resolveTheme(chrome.shellTheme, osDark),
+    () => resolveShellTheme(chrome.shellTheme, osDark),
     [chrome.shellTheme, osDark],
   );
 
@@ -144,15 +142,20 @@ export function ChromeProvider({ children }: { children: ReactNode }) {
     };
   }, [chrome.shellTheme]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     applyDomTheme(resolvedTheme);
+    writeCachedThemes(chrome.shellTheme, resolvedTheme);
+    syncWebviewCanvasColor(resolvedTheme);
+    document.documentElement.dataset.shellTitlebar = chrome.titlebarCompact
+      ? "compact"
+      : "classic";
     const win = getCurrentWindow();
     if (chrome.shellTheme === "system") {
       void win.setTheme(null).catch(() => undefined);
     } else {
       void win.setTheme(resolvedTheme).catch(() => undefined);
     }
-  }, [resolvedTheme, chrome.shellTheme]);
+  }, [resolvedTheme, chrome.shellTheme, chrome.titlebarCompact]);
 
   const refreshFromDisk = useCallback(() => {
     void Promise.all([

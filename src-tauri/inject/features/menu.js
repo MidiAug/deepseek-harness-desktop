@@ -50,6 +50,13 @@
           return;
         }
         var allOk = selection.selectAllPrimaryView();
+        if (!allOk) {
+          kernel.emitSelectionTrace("sel-menu-all", {
+            hygiene: 1,
+            ok: 0,
+            zone: ctx && ctx.zone ? ctx.zone : "?",
+          });
+        }
         kernel.emitDiag("menu-select-all", { ok: allOk });
         if (!allOk) selection.clearSelection();
         return;
@@ -226,10 +233,20 @@
             ? state.lastPointerTarget
             : ae || document.body;
         var z = zone.resolveSelectAllZone(anchor);
+        var ok = false;
         if (z === "chat" || z === "trajectory") {
-          if (!selection.selectAllForZone(z)) selection.clearSelection();
+          ok = !!selection.selectAllForZone(z);
+          if (!ok) selection.clearSelection();
         } else {
           selection.clearSelection();
+        }
+        if (!ok) {
+          kernel.emitSelectionTrace("sel-shell-all", {
+            hygiene: 1,
+            zone: z,
+            ok: 0,
+            anchor: anchor && anchor.tagName ? String(anchor.tagName).toLowerCase() : "?",
+          });
         }
       } catch (e) {}
     });

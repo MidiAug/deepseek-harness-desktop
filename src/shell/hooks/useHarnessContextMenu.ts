@@ -72,7 +72,13 @@ export function useHarnessContextMenu(
         data.type === "diag" &&
         (data.source === MSG_SOURCE || data.source === INJECT_DIAG_SOURCE)
       ) {
-        shellLog.info("inject", formatInjectDiag(data));
+        const ev = String(data.event ?? "");
+        if (ev.startsWith("sel-")) {
+          // inject 仅在全选失败时上报 sel-*
+          shellLog.info("sel", formatInjectDiag(data));
+        } else {
+          shellLog.info("inject", formatInjectDiag(data));
+        }
         return;
       }
 

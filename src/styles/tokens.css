@@ -1,5 +1,6 @@
 :root,
 :root[data-shell-theme="dark"] {
+  color-scheme: dark;
   /* DSH dark 解析值（照搬 design-platform + Menu/Modal/Tooltip primitives） */
   --color-canvas: rgb(21, 21, 23); /* bluish-950 / bg-base */
   /* 非简洁顶栏：深色主题用灰（非纯黑） */
@@ -43,6 +44,7 @@
 }
 
 :root[data-shell-theme="light"] {
+  color-scheme: light;
   --color-canvas: rgb(245, 245, 247);
   --color-titlebar: #ffffff;
   --color-panel: #ffffff;

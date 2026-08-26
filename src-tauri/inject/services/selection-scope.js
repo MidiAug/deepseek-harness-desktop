@@ -10,6 +10,10 @@
     var k = global.__dshShell.kernel;
     if (k && k.emitDiag) k.emitDiag(e, f);
   };
+  var traceSel = function (e, f) {
+    var k = global.__dshShell.kernel;
+    if (k && k.emitSelectionTrace) k.emitSelectionTrace(e, f);
+  };
   function selectionSnapshot() {
     return clip && clip.selectionSnapshot
       ? clip.selectionSnapshot()
@@ -128,6 +132,11 @@
   function selectTextInRoots(roots) {
     var ends = firstLastTextNodes(roots);
     if (!ends.first || !ends.last) {
+      traceSel("sel-roots", {
+        ok: 0,
+        roots: roots.length,
+        reason: "no-text",
+      });
       emitDiag("select-roots", { ok: false, roots: roots.length, reason: "no-text" });
       return false;
     }
@@ -153,13 +162,22 @@
       sel.removeAllRanges();
       sel.addRange(range);
       var snap = selectionSnapshot();
+      var ok = sel.rangeCount > 0;
+      if (!ok) {
+        traceSel("sel-roots", {
+          ok: 0,
+          roots: roots.length,
+          selLen: snap.selLen,
+          trimLen: snap.trimLen,
+        });
+      }
       emitDiag("select-roots", {
-        ok: sel.rangeCount > 0,
+        ok: ok,
         roots: roots.length,
         selLen: snap.selLen,
         trimLen: snap.trimLen
       });
-      return sel.rangeCount > 0;
+      return ok;
     } catch (e) {
       emitDiag("select-roots", { ok: false, roots: roots.length, reason: "exception" });
       return false;
@@ -309,7 +327,9 @@
       return;
     }
     // 关：不拦截，iframe 内走浏览器原生 Ctrl+A（无壳选区约束）
-    if (!dom.isHygieneOn()) return;
+    if (!dom.isHygieneOn()) {
+      return;
+    }
 
     if (window.__dshShellModalOpen === true) {
       ev.preventDefault();
@@ -339,6 +359,14 @@
       if (!selectOk) clearSelection();
     } else {
       clearSelection();
+    }
+    if (!selectOk) {
+      traceSel("sel-ctrl-a", {
+        zone: zone,
+        ok: 0,
+        hygiene: 1,
+        anchor: anchor && anchor.tagName ? String(anchor.tagName).toLowerCase() : "?",
+      });
     }
     emitDiag("ctrl-a", { zone: zone, selectOk: selectOk });
   }

@@ -21,10 +21,7 @@
     trajectoryRow: "tr[data-trajectory-row-key]",
     trajectoryRowCandidates: ["tr[data-trajectory-row-key]"],
     trajectoryScroll: "[data-trajectory-scroll]",
-    trajectoryScrollCandidates: [
-      "[data-trajectory-scroll]",
-      "[data-conversation-scroll]",
-    ],
+    trajectoryScrollCandidates: ["[data-trajectory-scroll]"],
     trajectoryAreaCandidates: [
       "[data-trajectory-scroll]",
       "tr[data-trajectory-row-key]",
