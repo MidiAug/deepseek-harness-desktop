@@ -226,6 +226,7 @@ function SettingsModalPanel({
 
   function persistRuntime(next: ShellSettings, softHint?: string) {
     reportFault(null);
+    shellLog.op("settings.runtime.patch");
     void shellApi
       .saveRuntimeSettings(runtimeFromSettings(next))
       .then(() => {

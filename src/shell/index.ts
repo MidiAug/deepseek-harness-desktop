@@ -81,6 +81,13 @@ export {
 } from "./contexts/ShellToastProvider";
 export type { ShellToastAction, ShowToastOptions } from "./contexts/ShellToastProvider";
 export { shellLog } from "./logger";
+export { getShellSessionId } from "./sessionId";
+export {
+  buildDiagnosticsContextPayload,
+  recordInjectError,
+  setAppStateSnapshot,
+} from "./diagnosticsContext";
+export { withInvokeAudit } from "./invokeAudit";
 export {
   PLATFORM_URL,
   normalizeShellSettings,

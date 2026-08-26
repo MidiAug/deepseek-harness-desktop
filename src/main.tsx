@@ -10,13 +10,14 @@ import {
   ShellToastProvider,
   ShellUpdateProvider,
   shellLog,
+  getShellSessionId,
   syncWebviewCanvasColor,
 } from "./shell";
 
 if (import.meta.env.DEV) {
   void attachConsole();
 }
-void shellLog.info("boot", "webview started");
+void shellLog.info("boot", "webview started", { sessionId: getShellSessionId() });
 
 syncWebviewCanvasColor(bootstrapShellTheme());
 

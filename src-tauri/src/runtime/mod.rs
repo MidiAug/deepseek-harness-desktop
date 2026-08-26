@@ -16,6 +16,7 @@ use tauri::{AppHandle, Runtime};
 
 use crate::error::HostError;
 use crate::install;
+use crate::logging;
 use crate::paths;
 use crate::progress::{self, InstallStage, ReadyPayload};
 use crate::runtime_lock::{self, LockPurpose};
@@ -88,6 +89,10 @@ pub async fn ensure_and_start<R: Runtime>(
     let _guard = state.boot_lock.lock().await;
     if let Some(ready) = try_reuse_if_matches_desired(app, state).await {
         log::info!(target: "shell::runtime", "reuse healthy port={}", ready.port);
+        logging::record_op(&format!(
+            "action=runtime.reuse port={} outcome=ok",
+            ready.port
+        ));
         return Ok(ready);
     }
     progress::emit_progress(app, InstallStage::Detect, "清扫残留进程…", Some(2));
@@ -149,6 +154,7 @@ async fn reconcile_to_settings<R: Runtime>(
 
     let (port, url) = supervise::spawn_and_wait_healthy(app, state).await?;
     log::info!(target: "shell::runtime", "reconcile ok port={port}");
+    logging::record_op(&format!("action=runtime.reconcile port={port} outcome=ok"));
     Ok(ReadyPayload { url, port })
 }
 

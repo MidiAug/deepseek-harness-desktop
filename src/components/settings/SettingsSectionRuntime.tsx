@@ -6,6 +6,7 @@ import {
 } from "../../shell/settings";
 import {
   shellApi,
+  shellLog,
   useAppToast,
   useHarnessSettingsOps,
   useSettingsPanelContext,
@@ -170,7 +171,10 @@ export function SettingsSectionRuntime() {
                           className="btn ghost settings-status-actions__btn"
                           aria-label={t("settings.port.restartTip")}
                           disabled={locked}
-                          onClick={() => onRestartHarness?.()}
+                          onClick={() => {
+                            shellLog.op("settings.runtime.restart");
+                            onRestartHarness?.();
+                          }}
                         >
                           {t("settings.port.restart")}
                         </button>
@@ -187,6 +191,7 @@ export function SettingsSectionRuntime() {
                           disabled={locked}
                           onClick={() => {
                             void (async () => {
+                              shellLog.op("settings.runtime.stop");
                               await onStopHarness?.();
                               refreshRuntime();
                               showToast(t("settings.port.stopped"));

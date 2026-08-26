@@ -62,7 +62,7 @@ export function useSessionLogDownload(
   }, [harnessFrameRef, showToast, t]);
 
   const onSessionLog = useCallback(() => {
-    shellLog.info("download", "session-log click (pending download toast)");
+    shellLog.op("titlebar.sessionLog.download");
     sessionLogDownloadPending.current = true;
     if (sessionLogDownloadTimer.current != null) {
       window.clearTimeout(sessionLogDownloadTimer.current);

@@ -1,11 +1,12 @@
 /** 壳 IPC 薄封装：类型集中，调用点不散落 invoke 字符串。 */
 
-import { invoke } from "@tauri-apps/api/core";
 import {
   disable as disableAutostart,
   enable as enableAutostart,
   isEnabled as isAutostartEnabled,
 } from "@tauri-apps/plugin-autostart";
+import { buildDiagnosticsContextPayload } from "../diagnosticsContext";
+import { withInvokeAudit } from "../invokeAudit";
 import type {
   RuntimeSettings,
   ShellSettings,
@@ -26,15 +27,17 @@ let ensureInflight: Promise<ReadyPayload> | null = null;
 
 export function ensureAndStart(): Promise<ReadyPayload> {
   if (!ensureInflight) {
-    ensureInflight = invoke<ReadyPayload>("ensure_and_start").finally(() => {
-      ensureInflight = null;
-    });
+    ensureInflight = withInvokeAudit<ReadyPayload>("ensure_and_start").finally(
+      () => {
+        ensureInflight = null;
+      },
+    );
   }
   return ensureInflight;
 }
 
 export function restartHarness(): Promise<ReadyPayload> {
-  return invoke<ReadyPayload>("restart_harness");
+  return withInvokeAudit<ReadyPayload>("restart_harness");
 }
 
 export function startHarness(cmd: StartCommand): Promise<ReadyPayload> {
@@ -42,7 +45,7 @@ export function startHarness(cmd: StartCommand): Promise<ReadyPayload> {
 }
 
 export function probeEnvironment(): Promise<EnvironmentProbe> {
-  return invoke<EnvironmentProbe>("probe_environment");
+  return withInvokeAudit<EnvironmentProbe>("probe_environment");
 }
 
 export function resolveDshHomePath(
@@ -50,7 +53,7 @@ export function resolveDshHomePath(
   mode: "local" | "hosted",
   autoAdjust = true,
 ): Promise<DirResolveResult> {
-  return invoke<DirResolveResult>("resolve_dsh_home_path", {
+  return withInvokeAudit<DirResolveResult>("resolve_dsh_home_path", {
     path,
     mode,
     autoAdjust,
@@ -58,78 +61,88 @@ export function resolveDshHomePath(
 }
 
 export function getRuntimeStatus(): Promise<RuntimeStatus> {
-  return invoke<RuntimeStatus>("get_runtime_status");
+  return withInvokeAudit<RuntimeStatus>("get_runtime_status");
 }
 
 export function getShellSettings(): Promise<ShellSettings> {
-  return invoke<ShellSettings>("get_shell_settings");
+  return withInvokeAudit<ShellSettings>("get_shell_settings");
 }
 
 export function saveShellSettings(settings: ShellSettings): Promise<void> {
-  return invoke("save_shell_settings", { settings });
+  return withInvokeAudit("save_shell_settings", { settings });
 }
 
 export function saveRuntimeSettings(settings: RuntimeSettings): Promise<void> {
-  return invoke("save_runtime_settings", { settings });
+  return withInvokeAudit("save_runtime_settings", { settings });
 }
 
 export function saveUiSettings(settings: UiSettings): Promise<void> {
-  return invoke("save_ui_settings", { settings });
+  return withInvokeAudit("save_ui_settings", { settings });
 }
 
 export function checkHarnessUpdate(): Promise<HarnessUpdateCheck> {
-  return invoke<HarnessUpdateCheck>("check_harness_update");
+  return withInvokeAudit<HarnessUpdateCheck>("check_harness_update");
 }
 
 export function applyHarnessUpdate(): Promise<ReadyPayload> {
-  return invoke<ReadyPayload>("apply_harness_update");
+  return withInvokeAudit<ReadyPayload>("apply_harness_update");
 }
 
 /** 壳自更新安装前：停托管进程（须在 update.install 之前调用）。 */
 export function prepareShellUpdate(): Promise<void> {
-  return invoke("prepare_shell_update");
+  return withInvokeAudit("prepare_shell_update");
 }
 
 /** 清除 AppData harness 后重装（保留 Node；不碰 DSH_HOME）。 */
 export function resetHostedRuntime(): Promise<ReadyPayload> {
-  return invoke<ReadyPayload>("reset_hosted_runtime");
+  return withInvokeAudit<ReadyPayload>("reset_hosted_runtime");
 }
 
 /** 清空首跑选定的 DSH_HOME 并重启（删数据目录内容；不删 dsh 包）。 */
 export function resetDshHome(): Promise<ReadyPayload> {
-  return invoke<ReadyPayload>("reset_dsh_home");
+  return withInvokeAudit<ReadyPayload>("reset_dsh_home");
 }
 
 /** 探活官方 UI（Rust reqwest，不受 WebView CSP 限制）。 */
 export function probeHarnessUrl(url: string): Promise<boolean> {
-  return invoke<boolean>("probe_harness_url", { url });
+  return withInvokeAudit<boolean>("probe_harness_url", { url });
 }
 
 /** 按设置记录的 Harness 安装方式重装 dsh 包。 */
 export function reinstallDsh(): Promise<ReadyPayload> {
-  return invoke<ReadyPayload>("reinstall_dsh");
+  return withInvokeAudit<ReadyPayload>("reinstall_dsh");
 }
 
 /** 以 AppData 干净 profile 会话启动（临时 DSH_HOME，不删用户 ~/.dsh）。 */
 export function startCleanProfile(): Promise<ReadyPayload> {
-  return invoke<ReadyPayload>("start_clean_profile");
+  return withInvokeAudit<ReadyPayload>("start_clean_profile");
 }
 
 /** 退出干净 profile 会话并回到正式 DSH_HOME。 */
 export function exitCleanProfile(): Promise<ReadyPayload> {
-  return invoke<ReadyPayload>("exit_clean_profile");
+  return withInvokeAudit<ReadyPayload>("exit_clean_profile");
 }
 
 export function readShellLog(): Promise<string> {
-  return invoke<string>("read_shell_log");
+  return withInvokeAudit<string>("read_shell_log");
 }
 
 export type ExportDiagnosticsResult = {
   path: string;
 };
 
-export function exportDiagnostics(): Promise<ExportDiagnosticsResult> {
-  return invoke<ExportDiagnosticsResult>("export_diagnostics");
+export async function syncDiagnosticsContext(): Promise<void> {
+  const ctx = buildDiagnosticsContextPayload();
+  await withInvokeAudit("set_diagnostics_context", {
+    sessionId: ctx.sessionId,
+    appState: ctx.appState,
+    injectErrors: ctx.injectErrors,
+  });
+}
+
+export async function exportDiagnostics(): Promise<ExportDiagnosticsResult> {
+  await syncDiagnosticsContext();
+  return withInvokeAudit<ExportDiagnosticsResult>("export_diagnostics");
 }
 
 /** 原生目录选择（首跑 DSH_HOME 等）。取消时返回 null。 */
@@ -147,7 +160,7 @@ export async function pickDirectory(
 }
 
 export function openKnownPath(which: KnownPath): Promise<void> {
-  return invoke("open_known_path", { which });
+  return withInvokeAudit("open_known_path", { which });
 }
 
 export type DownloadFinishedPayload = {
@@ -157,27 +170,27 @@ export type DownloadFinishedPayload = {
 };
 
 export function revealDownloadedFile(path: string): Promise<void> {
-  return invoke("reveal_downloaded_file", { path });
+  return withInvokeAudit("reveal_downloaded_file", { path });
 }
 
 export function hideToTray(): Promise<void> {
-  return invoke("hide_to_tray");
+  return withInvokeAudit("hide_to_tray");
 }
 
 export function quitApp(): Promise<void> {
-  return invoke("quit_app");
+  return withInvokeAudit("quit_app");
 }
 
 export function stopHarness(): Promise<void> {
-  return invoke("stop_harness");
+  return withInvokeAudit("stop_harness");
 }
 
 export function openLoopbackUrl(url: string): Promise<void> {
-  return invoke("open_loopback_url", { url });
+  return withInvokeAudit("open_loopback_url", { url });
 }
 
 export function openPlatformWindow(): Promise<void> {
-  return invoke("open_platform_window");
+  return withInvokeAudit("open_platform_window");
 }
 
 export type PlatformWebviewBounds = {
@@ -188,35 +201,35 @@ export type PlatformWebviewBounds = {
 };
 
 export function showPlatformWebview(bounds: PlatformWebviewBounds): Promise<void> {
-  return invoke("show_platform_webview", { bounds });
+  return withInvokeAudit("show_platform_webview", { bounds });
 }
 
 export function hidePlatformWebview(): Promise<void> {
-  return invoke("hide_platform_webview");
+  return withInvokeAudit("hide_platform_webview");
 }
 
 /** DSH `settings.yaml` → ui-theme.preference：light | dark | system */
 export function getDshThemePreference(): Promise<string> {
-  return invoke<string>("get_dsh_theme_preference");
+  return withInvokeAudit<string>("get_dsh_theme_preference");
 }
 
 /** 写入 DSH 主题（与官方外观三项相同），并通知壳换肤 */
 export function setDshThemePreference(preference: string): Promise<void> {
-  return invoke("set_dsh_theme_preference", { preference });
+  return withInvokeAudit("set_dsh_theme_preference", { preference });
 }
 
 /** DSH `settings.yaml` → locale.preference：zh | en */
 export function getDshLocalePreference(): Promise<string> {
-  return invoke<string>("get_dsh_locale_preference");
+  return withInvokeAudit<string>("get_dsh_locale_preference");
 }
 
 export function setDshLocalePreference(preference: string): Promise<void> {
-  return invoke("set_dsh_locale_preference", { preference });
+  return withInvokeAudit("set_dsh_locale_preference", { preference });
 }
 
 /** 同步托盘菜单文案（与 LocaleProvider 当前 locale 对齐）。 */
 export function syncTrayLocale(preference: string): Promise<void> {
-  return invoke("sync_tray_locale", { preference });
+  return withInvokeAudit("sync_tray_locale", { preference });
 }
 
 export { PLATFORM_URL } from "../settings";
@@ -231,11 +244,11 @@ export type CliLinkStatus = {
 };
 
 export function getCliLinkStatus(): Promise<CliLinkStatus> {
-  return invoke<CliLinkStatus>("get_cli_link_status");
+  return withInvokeAudit<CliLinkStatus>("get_cli_link_status");
 }
 
 export function setCliLinkEnabled(enabled: boolean): Promise<CliLinkStatus> {
-  return invoke<CliLinkStatus>("set_cli_link_enabled", { enabled });
+  return withInvokeAudit<CliLinkStatus>("set_cli_link_enabled", { enabled });
 }
 
 /** OS 开机自启（真源为启动项，不落 settings.json）。 */

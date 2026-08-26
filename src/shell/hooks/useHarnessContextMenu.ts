@@ -14,10 +14,12 @@ import type {
   HarnessContextMenuCopied,
   HarnessContextMenuOpen,
   HarnessInjectDiag,
+  HarnessInjectError,
   ShellContextMenuState,
 } from "../types/context-menu";
 import { useAppToast } from "../contexts/ShellToastProvider";
 import { shellLog } from "../logger";
+import { recordInjectError } from "../diagnosticsContext";
 
 const MSG_SOURCE = "dsh-shell-context-menu";
 const INJECT_DIAG_SOURCE = "dsh-shell-inject";
@@ -25,7 +27,9 @@ const INJECT_DIAG_SOURCE = "dsh-shell-inject";
 const SETTINGS_INPUT_SELECTOR =
   ".settings-control input, .settings-control textarea, .settings-control [contenteditable='true']";
 
-function formatInjectDiag(data: HarnessInjectDiag): string {
+function formatInjectDiag(
+  data: HarnessInjectDiag | HarnessInjectError,
+): string {
   const { source: _s, type: _t, event, ...rest } = data;
   const parts: string[] = [event];
   for (const [k, v] of Object.entries(rest)) {
@@ -62,6 +66,7 @@ export function useHarnessContextMenu(
         | HarnessContextMenuClose
         | HarnessContextMenuCopied
         | HarnessInjectDiag
+        | HarnessInjectError
         | null;
       if (!data) return;
 
@@ -79,6 +84,16 @@ export function useHarnessContextMenu(
         } else {
           shellLog.info("inject", formatInjectDiag(data));
         }
+        return;
+      }
+
+      if (
+        data.type === "inject-error" &&
+        data.source === MSG_SOURCE
+      ) {
+        const line = formatInjectDiag(data);
+        recordInjectError(line);
+        shellLog.warn("inject", line);
         return;
       }
 

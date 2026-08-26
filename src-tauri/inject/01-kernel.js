@@ -10,6 +10,20 @@
   var shellMessageHandlers = [];
   var features = {};
 
+  function emitInjectError(event, fields) {
+    try {
+      var payload = { source: MSG_SOURCE, type: "inject-error", event: event };
+      if (fields) {
+        for (var k in fields) {
+          if (Object.prototype.hasOwnProperty.call(fields, k)) {
+            payload[k] = fields[k];
+          }
+        }
+      }
+      global.parent.postMessage(payload, "*");
+    } catch (e) {}
+  }
+
   function emitDiag(event, fields) {
     if (!INJECT_DIAG) return;
     postDiag(event, fields);
@@ -63,6 +77,7 @@
           svc.textEdit.handleDesktopAction(d, lastMenuContext, emitDiag);
         }
       } catch (e) {
+        emitInjectError("desktop-action-err", { err: 1 });
         emitDiag("desktop-action-err", { err: 1 });
       }
       return;
@@ -71,6 +86,7 @@
       try {
         if (shellMessageHandlers[i](d, ev) === true) return;
       } catch (e) {
+        emitInjectError("shell-handler-err", { index: i, type: d.type || "" });
         emitDiag("shell-handler-err", { index: i, type: d.type || "" });
       }
     }
@@ -92,6 +108,7 @@
       features[name] = true;
     } catch (e) {
       features[name] = false;
+      emitInjectError("feature-init-err", { name: name });
       emitDiag("feature-init-err", { name: name });
     }
   }

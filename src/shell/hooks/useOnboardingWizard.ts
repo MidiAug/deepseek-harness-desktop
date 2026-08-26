@@ -279,6 +279,11 @@ export function useOnboardingWizard(onComplete: () => void) {
       const settings = normalizeShellSettings(await shellApi.getShellSettings());
       const runtimeSource: RuntimeSource =
         choice === "local" ? "system" : "hosted";
+      shellLog.op("onboarding.complete", {
+        choice,
+        dataMode,
+        runtimeSource,
+      });
       await shellApi.saveRuntimeSettings({
         ...runtimeFromSettings(settings),
         runtimeSource,

@@ -41,6 +41,7 @@ export function CloseAskDialog({ open, onClose }: Props) {
 
   async function apply(toTray: boolean) {
     setBusy(true);
+    shellLog.op("window.close.apply", { toTray, remember });
     try {
       const cur = await shellApi.getShellSettings();
       const next: ShellSettings = {

@@ -97,6 +97,7 @@ export function useHarnessRecoveryActions(
   const seedBoot = opts?.seedBoot ?? life.seedBoot;
 
   const runCleanProfile = useCallback(async () => {
+    shellLog.op("recovery.cleanProfile", { surface });
     if (surface === "boot") {
       callbacks.onBootWorking?.();
       callbacks.onBootResetFault?.();
@@ -140,6 +141,7 @@ export function useHarnessRecoveryActions(
   }, [callbacks, seedBoot, showToast, surface, t]);
 
   const runResetConfig = useCallback(async () => {
+    shellLog.op("recovery.resetConfig", { surface });
     if (surface === "boot") {
       callbacks.onBootWorking?.();
       callbacks.onBootResetFault?.();
@@ -188,6 +190,7 @@ export function useHarnessRecoveryActions(
   }, [callbacks, life, seedBoot, showToast, surface, t]);
 
   const runReinstallDsh = useCallback(async () => {
+    shellLog.op("recovery.reinstallDsh", { surface });
     if (surface === "boot") {
       callbacks.onBootWorking?.();
       callbacks.onBootResetFault?.();
@@ -239,6 +242,7 @@ export function useHarnessRecoveryActions(
   }, [callbacks, life, seedBoot, showToast, surface, t]);
 
   const request = useCallback((id: RecoveryActionId) => {
+    shellLog.op(`recovery.request.${id}`, { surface });
     switch (id) {
       case "cleanProfile":
         setCleanProfileOpen(true);

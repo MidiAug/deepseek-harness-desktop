@@ -3,7 +3,7 @@
  * BootPanel 只负责冷启动安装 UI；不再向上维护第二套 conn。
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type {
   SessionPhase,
   StartCommand,
@@ -35,6 +35,7 @@ function withCacheBust(url: string): string {
 
 export function useShellSession() {
   const [phase, setPhase] = useState<SessionPhase>("idle");
+  const phaseRef = useRef<SessionPhase>("idle");
   const [serviceUrl, setServiceUrl] = useState<string | null>(null);
   const [port, setPort] = useState<number | null>(null);
   const [bootKey, setBootKey] = useState(0);
@@ -45,72 +46,94 @@ export function useShellSession() {
   const [bootMsg, setBootMsg] = useState("正在准备…");
   const [bootError, setBootError] = useState<string | null>(null);
 
+  const transitionPhase = useCallback(
+    (to: SessionPhase, reason?: string) => {
+      const from = phaseRef.current;
+      if (from !== to) {
+        shellLog.transition("session", from, to, reason);
+      }
+      phaseRef.current = to;
+      setPhase(to);
+    },
+    [],
+  );
+
   const markReady = useCallback((payload: ReadyPayload) => {
-    shellLog.info("session", `ready port=${payload.port}`);
+    shellLog.info("session", "ready", { port: payload.port });
     setBootError(null);
     setStartCommand("ensure_and_start");
     setServiceUrl(withCacheBust(payload.url));
     setPort(payload.port);
-    setPhase("ready");
+    transitionPhase("ready");
     setBootStealth(false);
     setIframeKey((k) => k + 1);
-  }, []);
+  }, [transitionPhase]);
 
   const markFailed = useCallback((error?: string) => {
-    shellLog.warn("session", "phase failed");
-    setPhase("failed");
+    transitionPhase("failed", error ?? "unknown");
+    if (error) {
+      shellLog.op("boot.failed", { reason: error }, "err");
+      setBootError(error);
+    } else {
+      shellLog.warn("session", "phase failed without reason");
+    }
     setServiceUrl(null);
     setBootStealth(false);
-    if (error) setBootError(error);
-  }, []);
+  }, [transitionPhase]);
 
   const markIframeConnected = useCallback(() => {
     shellLog.info("session", "iframe connected");
-    setPhase("ready");
-  }, []);
+    transitionPhase("ready", "iframe_onload");
+  }, [transitionPhase]);
 
   const markIframeError = useCallback(() => {
-    setPhase("failed");
+    const reason = "HEALTH_TIMEOUT: 官方 UI 加载失败";
+    transitionPhase("failed", reason);
     setServiceUrl(null);
     setBootStealth(false);
-    setBootError("HEALTH_TIMEOUT: 官方 UI 加载失败");
-  }, []);
+    setBootError(reason);
+    shellLog.op("boot.failed", { reason }, "err");
+  }, [transitionPhase]);
 
   /** BootPanel 进入工作态时：冷启动=installing，快路径=spawning */
   const markBootWorking = useCallback((coldInstall: boolean) => {
-    shellLog.info("session", coldInstall ? "boot installing" : "boot spawning");
     setBootError(null);
-    setPhase(coldInstall ? "installing" : "spawning");
-  }, []);
+    transitionPhase(coldInstall ? "installing" : "spawning", coldInstall ? "cold_install" : "fast_path");
+  }, [transitionPhase]);
 
   const restart = useCallback(() => {
-    setPhase("idle");
+    shellLog.op("session.restart");
+    transitionPhase("idle", "user_restart");
     setServiceUrl(null);
     setBootStealth(false);
     setBootError(null);
     setStartCommand("restart_harness");
     setBootKey((k) => k + 1);
-  }, []);
+  }, [transitionPhase]);
 
   /** 设置页发起 reset/reinstall 等：隐藏 iframe，进入 stealth 启动态，勿重复 auto-start */
   const beginHarnessOp = useCallback(() => {
+    shellLog.op("session.harness_op");
     setBootError(null);
     setServiceUrl(null);
     setPort(null);
-    setPhase("spawning");
+    transitionPhase("spawning", "external_op");
     setBootStealth(true);
     setStartCommand("external_op");
     setBootKey((k) => k + 1);
-  }, []);
+  }, [transitionPhase]);
 
   /** 停止托管进程；进入 stopped（Boot 可手动启，禁止自动 ensure） */
   const stop = useCallback(async () => {
+    shellLog.op("session.stop");
     try {
       await stopHarness();
+      shellLog.op("session.stop", undefined, "ok");
     } catch (e) {
       shellLog.error("session", "stop harness", e);
+      shellLog.op("session.stop", undefined, "err");
     }
-    setPhase("stopped");
+    transitionPhase("stopped", "user_stop");
     setServiceUrl(null);
     setPort(null);
     setBootStealth(false);
@@ -118,7 +141,7 @@ export function useShellSession() {
     setBootMsg("已停止 harness");
     setStartCommand("ensure_and_start");
     setBootKey((k) => k + 1);
-  }, []);
+  }, [transitionPhase]);
 
   // stopped 非错误：内容区状态面接管；顶栏不标红
   const titleConn: TitleConn =

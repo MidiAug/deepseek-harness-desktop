@@ -208,6 +208,7 @@ export function ChromeProvider({ children }: { children: ReactNode }) {
       };
       writeCachedTitlebarCompact(next.titlebarCompact);
       if (patch.shellTheme != null) {
+        shellLog.op("settings.ui.theme", { value: patch.shellTheme });
         void shellApi
           .setDshThemePreference(patch.shellTheme)
           .catch((e) => shellLog.error("chrome", "set theme", e));
@@ -222,6 +223,11 @@ export function ChromeProvider({ children }: { children: ReactNode }) {
         patch.selectionHygiene != null ||
         patch.sessionLogInTitlebar != null
       ) {
+        shellLog.op("settings.ui.patch", {
+          compact: patch.titlebarCompact ?? next.titlebarCompact,
+          hygiene: patch.selectionHygiene ?? next.selectionHygiene,
+          sessionLog: patch.sessionLogInTitlebar ?? next.sessionLogInTitlebar,
+        });
         void shellApi
           .saveUiSettings(uiOnly)
           .catch((e) => shellLog.error("chrome", "save ui", e));

@@ -227,8 +227,12 @@ fn get_shell_settings(app: tauri::AppHandle) -> ShellSettings {
 #[tauri::command]
 fn save_shell_settings(app: tauri::AppHandle, settings: ShellSettings) -> Result<(), String> {
     log::info!(target: "shell::ipc", "save_shell_settings");
+    let old = settings::load(&app);
+    logging::log_runtime_settings_diff(&old.runtime(), &settings.runtime());
+    logging::log_ui_settings_diff(&old.ui(), &settings.ui());
     settings::save(&app, &settings).map_err(|e| {
         log::warn!(target: "shell::ipc", "save_shell_settings err={e}");
+        logging::record_op("action=settings.shell.save outcome=err");
         e
     })
 }
@@ -239,8 +243,11 @@ fn save_runtime_settings(
     settings: RuntimeSettings,
 ) -> Result<(), String> {
     log::info!(target: "shell::ipc", "save_runtime_settings");
+    let old = settings::load(&app).runtime();
+    logging::log_runtime_settings_diff(&old, &settings);
     settings::save_runtime(&app, &settings).map_err(|e| {
         log::warn!(target: "shell::ipc", "save_runtime_settings err={e}");
+        logging::record_op("action=settings.runtime.save outcome=err");
         e
     })
 }
@@ -248,8 +255,11 @@ fn save_runtime_settings(
 #[tauri::command]
 fn save_ui_settings(app: tauri::AppHandle, settings: UiSettings) -> Result<(), String> {
     log::info!(target: "shell::ipc", "save_ui_settings");
+    let old = settings::load(&app).ui();
+    logging::log_ui_settings_diff(&old, &settings);
     settings::save_ui(&app, &settings).map_err(|e| {
         log::warn!(target: "shell::ipc", "save_ui_settings err={e}");
+        logging::record_op("action=settings.ui.save outcome=err");
         e
     })
 }
@@ -370,9 +380,28 @@ fn read_shell_log(app: tauri::AppHandle) -> Result<String, String> {
 fn export_diagnostics(
     app: tauri::AppHandle,
     state: tauri::State<'_, HarnessState>,
+    diag_ctx: tauri::State<'_, logging::DiagnosticsContext>,
 ) -> Result<diagnostics::ExportDiagnosticsResult, String> {
     log::info!(target: "shell::ipc", "export_diagnostics");
-    diagnostics::export_diagnostics(&app, &state)
+    diagnostics::export_diagnostics(&app, &state, &diag_ctx)
+}
+
+#[tauri::command]
+fn set_diagnostics_context(
+    diag_ctx: tauri::State<'_, logging::DiagnosticsContext>,
+    session_id: String,
+    app_state: serde_json::Value,
+    inject_errors: Vec<String>,
+) {
+    if let Ok(mut g) = diag_ctx.session_id.lock() {
+        *g = Some(session_id);
+    }
+    if let Ok(mut g) = diag_ctx.app_state.lock() {
+        *g = Some(app_state);
+    }
+    if let Ok(mut g) = diag_ctx.inject_errors.lock() {
+        *g = inject_errors;
+    }
 }
 
 #[tauri::command]
@@ -468,6 +497,7 @@ pub fn run() {
         // 开机自启：官方插件写 OS 启动项（Windows Run 键），免手写注册表
         .plugin(tauri_plugin_autostart::Builder::new().build())
         .manage(HarnessState::default())
+        .manage(logging::DiagnosticsContext::new())
         .invoke_handler(tauri::generate_handler![
             ensure_and_start,
             restart_harness,
@@ -501,6 +531,7 @@ pub fn run() {
             probe_harness_url,
             read_shell_log,
             export_diagnostics,
+            set_diagnostics_context,
             get_cli_link_status,
             set_cli_link_enabled,
             quit_app,

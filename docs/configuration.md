@@ -102,6 +102,16 @@
 
 卸载桌面端时：默认删除壳的程序与壳配置；**默认保留** `~/.dsh`。
 
+## 日志与诊断
+
+| 项 | 说明 |
+|----|------|
+| shell.log | 宿主 + 壳 UI 日志（含 `[ops]` 用户操作审计行）；`%AppData%/…/logs/` |
+| harness.log | dsh 子进程全量 stdout/stderr；spawn 行含 `gen=N` 代次 |
+| session_id | 每次打开应用生成，便于 grep 一次会话 |
+| 导出诊断 | 设置 → 数据与恢复：打包 log tail、ops 快照、app 状态、脱敏设置、runtime 快照 |
+| inject 错误 | 注入特性 init 失败默认写入 shell.log；全量 DOM 诊断仍须 `localStorage` 开关 |
+
 ### 落盘审计（B50）
 
 ```bash

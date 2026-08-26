@@ -7,6 +7,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Runtime};
 
 use crate::error::HostError;
+use crate::logging::{self, DiagnosticsContext};
 use crate::paths;
 use crate::progress;
 use crate::runtime::{build_runtime_status_json, package::read_harness_meta};
@@ -28,6 +29,9 @@ struct Manifest {
     harness_version: Option<String>,
     harness_digest: Option<String>,
     log_files: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    session_id: Option<String>,
+    spawn_gen: u64,
 }
 
 fn redact_runtime(rt: &RuntimeSettings) -> serde_json::Value {
@@ -83,11 +87,18 @@ fn reveal_in_folder(path: &PathBuf) -> Result<(), String> {
 pub fn export_diagnostics<R: Runtime>(
     app: &AppHandle<R>,
     state: &HarnessState,
+    diag_ctx: &DiagnosticsContext,
 ) -> Result<ExportDiagnosticsResult, String> {
     let cfg = settings::load(app);
     let rt = cfg.runtime();
     let ui = cfg.ui();
     let meta = read_harness_meta(app);
+
+    let session_id = diag_ctx
+        .session_id
+        .lock()
+        .ok()
+        .and_then(|g| g.clone());
 
     let base = paths::base_dir(app)?;
     let stamp = std::time::SystemTime::now()
@@ -101,6 +112,9 @@ pub fn export_diagnostics<R: Runtime>(
     let log_files = vec![
         "logs/shell.log".to_string(),
         "logs/harness.log".to_string(),
+        "ops-recent.jsonl".to_string(),
+        "inject-errors.jsonl".to_string(),
+        "app-state.json".to_string(),
     ];
 
     let manifest = Manifest {
@@ -109,6 +123,8 @@ pub fn export_diagnostics<R: Runtime>(
         harness_version: meta.version.clone(),
         harness_digest: meta.digest.clone(),
         log_files: log_files.clone(),
+        session_id: session_id.clone(),
+        spawn_gen: logging::current_spawn_gen(),
     };
     fs::write(
         out_dir.join("manifest.json"),
@@ -148,6 +164,9 @@ pub fn export_diagnostics<R: Runtime>(
     if let Some(obj) = runtime_status.as_object_mut() {
         obj.insert("pid".into(), serde_json::json!(pid));
         obj.insert("exportedAt".into(), serde_json::json!(stamp));
+        if let Some(sid) = &session_id {
+            obj.insert("sessionId".into(), serde_json::json!(sid));
+        }
     }
     fs::write(
         out_dir.join("runtime-status.json"),
@@ -155,6 +174,32 @@ pub fn export_diagnostics<R: Runtime>(
             .map_err(|e| format!("runtime-status json: {e}"))?,
     )
     .map_err(|e| format!("write runtime-status: {e}"))?;
+
+    let app_state = diag_ctx
+        .app_state
+        .lock()
+        .ok()
+        .and_then(|g| g.clone())
+        .unwrap_or(serde_json::json!({}));
+    fs::write(
+        out_dir.join("app-state.json"),
+        serde_json::to_string_pretty(&app_state).map_err(|e| format!("app-state json: {e}"))?,
+    )
+    .map_err(|e| format!("write app-state: {e}"))?;
+
+    let ops_recent = logging::ops_snapshot_jsonl();
+    fs::write(out_dir.join("ops-recent.jsonl"), ops_recent)
+        .map_err(|e| format!("write ops-recent: {e}"))?;
+
+    let inject_errors = diag_ctx
+        .inject_errors
+        .lock()
+        .ok()
+        .map(|g| g.clone())
+        .unwrap_or_default();
+    let inject_body = inject_errors.join("\n");
+    fs::write(out_dir.join("inject-errors.jsonl"), inject_body)
+        .map_err(|e| format!("write inject-errors: {e}"))?;
 
     let logs_dir = out_dir.join("logs");
     fs::create_dir_all(&logs_dir)

@@ -118,6 +118,7 @@ export function useBootPanel({
         clearLog: true,
       });
       onStatusMessageRef.current?.(msg);
+      shellLog.op("boot.start", { cmd });
       try {
         const ready = await shellApi.startHarness(cmd);
         const readyMsg = t("boot.msg.embedding");

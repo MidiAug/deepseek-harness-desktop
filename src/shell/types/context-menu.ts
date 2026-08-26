@@ -37,6 +37,14 @@ export type HarnessInjectDiag = {
   [key: string]: string | number | boolean | undefined;
 };
 
+/** iframe 注入错误：feature init / handler 失败（默认上报，非 opt-in diag） */
+export type HarnessInjectError = {
+  source: "dsh-shell-context-menu";
+  type: "inject-error";
+  event: string;
+  [key: string]: string | number | boolean | undefined;
+};
+
 export type SidebarContextMenuAction = "rename" | "fork" | "archive" | "delete";
 
 export type HarnessContextMenuAction = SidebarContextMenuAction | TextEditAction;

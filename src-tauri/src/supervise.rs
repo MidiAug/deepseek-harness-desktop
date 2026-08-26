@@ -293,6 +293,7 @@ pub async fn spawn_and_wait_healthy<R: Runtime>(
 
         stop_owned(state);
 
+        let gen = crate::logging::next_spawn_gen();
         let log_path = paths::harness_log_file(app)?;
         if let Some(parent) = log_path.parent() {
             fs::create_dir_all(parent).map_err(|e| {
@@ -302,10 +303,14 @@ pub async fn spawn_and_wait_healthy<R: Runtime>(
         append_log(
             &log_path,
             &format!(
-                "--- spawn ({:?}) dsh web --host 127.0.0.1 --port {port} ---",
+                "--- spawn gen={gen} ({:?}) dsh web --host 127.0.0.1 --port {port} ---",
                 plan.kind
             ),
         );
+        crate::logging::record_op(&format!(
+            "action=harness.spawn spawn_gen={gen} port={port} kind={:?} outcome=ok",
+            plan.kind
+        ));
 
         progress::emit_progress(
             app,

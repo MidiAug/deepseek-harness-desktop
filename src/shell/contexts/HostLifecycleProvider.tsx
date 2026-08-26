@@ -14,6 +14,7 @@ import {
   type ReactNode,
 } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { shellLog } from "../logger";
 import type { ProgressPayload, SessionPhase } from "../types/ipc-types";
 import {
   isHeartbeat,
@@ -73,6 +74,7 @@ function withLocked(
 export function HostLifecycleProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<HostLifecycleState>(INITIAL);
   const sessionBusyRef = useRef(false);
+  const lastStageRef = useRef<BootStageId | null>(null);
 
   const applyProgress = useCallback((payload: ProgressPayload) => {
     const { stage: rawStage, message: msg, percent: pct } = payload;
@@ -91,7 +93,13 @@ export function HostLifecycleProvider({ children }: { children: ReactNode }) {
         percent = percent != null && percent >= 75 ? percent : 75;
       } else {
         const mapped = mapStage(rawStage);
-        if (mapped) stageId = mapped;
+        if (mapped) {
+          if (mapped !== lastStageRef.current) {
+            lastStageRef.current = mapped;
+            shellLog.info("host", "stage", { stage: mapped, wire: rawStage });
+          }
+          stageId = mapped;
+        }
         if (pct != null) {
           percent = pct;
         } else if (mapped === "install-dsh" || isHeartbeat(msg)) {

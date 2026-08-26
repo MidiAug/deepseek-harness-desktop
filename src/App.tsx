@@ -16,6 +16,7 @@ import { ShellUpdateBanner } from "./components/chrome/ShellUpdateBanner";
 import {
   shellApi,
   shellLog,
+  setAppStateSnapshot,
   useChrome,
   useHostLifecycle,
   useLocale,
@@ -68,6 +69,7 @@ export default function App() {
   );
 
   const openSettings = useCallback((section?: SettingsSection) => {
+    shellLog.op("nav.settings.open", { section: section ?? "default" });
     // 延后到当前 click 冒泡结束后再挂遮罩，避免同次点击打到 backdrop 立刻关闭
     window.setTimeout(() => {
       setSettingsSection(section);
@@ -75,14 +77,17 @@ export default function App() {
     }, 0);
   }, []);
   const closeSettings = useCallback(() => {
+    shellLog.op("nav.settings.close");
     setSettingsOpen(false);
     setSettingsSection(undefined);
   }, []);
 
   const openPlatform = useCallback(() => {
+    shellLog.op("nav.platform.open");
     setBodyView("platform");
   }, []);
   const backFromPlatform = useCallback(() => {
+    shellLog.op("nav.platform.back");
     setBodyView("harness");
   }, []);
 
@@ -103,6 +108,24 @@ export default function App() {
   useEffect(() => {
     syncSessionPhase(session.phase);
   }, [session.phase, syncSessionPhase]);
+
+  useEffect(() => {
+    setAppStateSnapshot({
+      sessionPhase: session.phase,
+      onboardingGate,
+      bodyView,
+      port: session.port,
+      settingsOpen,
+      closeAskOpen,
+    });
+  }, [
+    session.phase,
+    session.port,
+    onboardingGate,
+    bodyView,
+    settingsOpen,
+    closeAskOpen,
+  ]);
 
   useEffect(() => {
     let unAsk: (() => void) | undefined;
@@ -283,20 +306,30 @@ export default function App() {
         onOpenSettings={() => openSettings()}
         onSessionLog={onSessionLog}
         sessionLogAvailable={sessionLogAvailable}
-        onRestart={restartAndCloseSettings}
-        onStop={() => void session.stop()}
+        onRestart={() => {
+          shellLog.op("titlebar.restart");
+          restartAndCloseSettings();
+        }}
+        onStop={() => {
+          shellLog.op("titlebar.stop");
+          void session.stop();
+        }}
         onOpenDshHome={() => {
+          shellLog.op("menu.openDshHome");
           void shellApi.openKnownPath("dshHome").catch((e) => shellLog.error("app", "open dshHome", e));
         }}
         onOpenLogs={() => {
+          shellLog.op("menu.openLogs");
           void shellApi.openKnownPath("logs").catch((e) => shellLog.error("app", "open logs", e));
         }}
         onHideToTray={() => {
+          shellLog.op("menu.hideToTray");
           void shellApi.hideToTray().catch((e) => shellLog.error("app", "hideToTray", e));
         }}
         onAbout={() => openSettings("about")}
         onOpenPlatform={openPlatform}
         onCopyVersion={() => {
+          shellLog.op("menu.copyVersion");
           void (async () => {
             try {
               const st = await shellApi.getRuntimeStatus();
