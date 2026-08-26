@@ -13,6 +13,8 @@ export type HarnessContextMenuOpen = {
   zone: HarnessContextMenuZone;
   x: number;
   y: number;
+  /** 打开菜单时 iframe 内已有选区的纯文本；壳侧 copy 用（保留用户手势） */
+  selectedText?: string;
 };
 
 export type HarnessContextMenuClose = {
@@ -45,4 +47,6 @@ export type ShellContextMenuState = {
   y: number;
   /** 壳层输入框：本地 execCommand，不经 iframe */
   shellTarget?: HTMLElement;
+  /** content 区打开菜单时已有选区 → 壳侧 writeText */
+  selectedText?: string;
 } | null;

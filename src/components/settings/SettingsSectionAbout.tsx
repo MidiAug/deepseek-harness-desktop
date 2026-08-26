@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import {
   shellApi,
   shellLog,
@@ -152,7 +152,10 @@ export function SettingsSectionAbout() {
   function copyLog() {
     const text = life.logLines.join("\n");
     if (!text) return;
-    void navigator.clipboard.writeText(text).catch(() => undefined);
+    void navigator.clipboard.writeText(text).then(
+      () => showToast(t("contextMenu.copied")),
+      () => undefined,
+    );
   }
 
   return (

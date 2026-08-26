@@ -76,7 +76,10 @@ type Props = {
   onSelect: (action: HarnessContextMenuAction) => void;
 };
 
-/** 壳顶层右键：侧栏 DSH Menu · 输入/正文复制菜单（分割线 + 快捷键）。 */
+/** 壳顶层右键：侧栏 DSH Menu · 输入/正文复制菜单（分割线 + 快捷键）。
+ * 菜单项必须 onMouseDown.preventDefault：否则按钮获焦会让 iframe 选区变「灰选」
+ *（与 Ctrl+C 的蓝→清 不一致）。这是编辑器惯例，不是事后清选能修的。
+ */
 export function ShellContextMenu({ menu, onClose, onSelect }: Props) {
   const { t } = useLocale();
   const listRef = useRef<HTMLDivElement>(null);
@@ -151,6 +154,10 @@ export function ShellContextMenu({ menu, onClose, onSelect }: Props) {
       className={menuClassName}
       role="menu"
       style={style}
+      onMouseDown={(e) => {
+        // 防止菜单容器获焦导致 iframe 选区变灰
+        if (e.target === e.currentTarget) e.preventDefault();
+      }}
       onPointerMove={() => {
         if (!hoverReady) setHoverReady(true);
       }}
@@ -165,6 +172,7 @@ export function ShellContextMenu({ menu, onClose, onSelect }: Props) {
                   type="button"
                   role="menuitem"
                   className="shell-context-menu-item shell-context-menu-item--text-edit"
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => onSelect(id)}
                 >
                   <span className="shell-context-menu-label">{t(labelKey)}</span>
@@ -179,6 +187,7 @@ export function ShellContextMenu({ menu, onClose, onSelect }: Props) {
               type="button"
               role="menuitem"
               className={`shell-context-menu-item${danger ? " danger" : ""}`}
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => onSelect(id)}
             >
               <span className="shell-context-menu-icon" aria-hidden>

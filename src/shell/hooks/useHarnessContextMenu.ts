@@ -1,4 +1,4 @@
-/** Harness iframe 右键 + 壳层：全局禁用原生菜单，仅白名单区域弹壳菜单。 */
+/** Harness iframe 右键 + 壳层：B49 桌面语义桥 */
 
 import {
   useCallback,
@@ -7,11 +7,7 @@ import {
   type RefObject,
 } from "react";
 import { useLocale } from "../locale";
-import {
-  clearFieldSelection,
-  runTextEditAction,
-  isTextEditAction,
-} from "../textEditActions";
+import { dispatchDesktopAction } from "../bridge/desktopBridge";
 import type {
   HarnessContextMenuAction,
   HarnessContextMenuClose,
@@ -105,10 +101,15 @@ export function useHarnessContextMenu(
       }
 
       const rect = frame.getBoundingClientRect();
+      const selectedText =
+        typeof data.selectedText === "string" && data.selectedText.trim()
+          ? data.selectedText.trim()
+          : undefined;
       setMenu({
         zone,
         x: rect.left + data.x,
         y: rect.top + data.y,
+        selectedText,
       });
     }
 
@@ -116,7 +117,6 @@ export function useHarnessContextMenu(
     return () => window.removeEventListener("message", onMsg);
   }, [harnessEnabled, iframeRef, notifyCopied]);
 
-  // 壳 DOM：一律拦截原生菜单；设置输入框弹编辑菜单
   useEffect(() => {
     function onShellContextMenu(ev: MouseEvent) {
       ev.preventDefault();
@@ -143,18 +143,6 @@ export function useHarnessContextMenu(
   }, [settingsInputEnabled]);
 
   useEffect(() => {
-    if (!settingsInputEnabled) return;
-    function onShellCopy(ev: ClipboardEvent) {
-      const target = ev.target;
-      if (!(target instanceof HTMLElement)) return;
-      if (!target.closest(SETTINGS_INPUT_SELECTOR)) return;
-      notifyCopied();
-    }
-    document.addEventListener("copy", onShellCopy);
-    return () => document.removeEventListener("copy", onShellCopy);
-  }, [settingsInputEnabled, notifyCopied]);
-
-  useEffect(() => {
     if (!menu) return;
     function dismiss() {
       setMenu(null);
@@ -169,38 +157,32 @@ export function useHarnessContextMenu(
 
   const selectAction = useCallback(
     (action: HarnessContextMenuAction) => {
-      const shellTarget = menu?.shellTarget;
-      if (shellTarget) {
-        if (isTextEditAction(action)) {
-          runTextEditAction(shellTarget, action);
-          if (action === "copy") {
-            clearFieldSelection(shellTarget);
-          }
-        }
-        setMenu(null);
-        return;
-      }
-
       const frame = iframeRef.current;
-      if (action === "selectAll") {
+      const ctx = menu
+        ? {
+            zone: menu.zone,
+            selectedText: menu.selectedText,
+            shellTarget: menu.shellTarget,
+          }
+        : null;
+
+      if (action === "selectAll" && !menu?.shellTarget) {
         try {
           frame?.focus();
           frame?.contentWindow?.focus();
         } catch {
-          /* 部分 WebView 可能拒绝跨窗 focus */
+          /* ignore */
         }
       }
-      try {
-        frame?.contentWindow?.postMessage(
-          { source: "dsh-shell", type: "context-menu-action", action },
-          "*",
-        );
-      } catch {
-        /* cross-origin 或未就绪 */
-      }
+
+      void dispatchDesktopAction(action, {
+        frame,
+        menu: ctx,
+        onCopied: notifyCopied,
+      });
       setMenu(null);
     },
-    [iframeRef, menu?.shellTarget],
+    [iframeRef, menu, notifyCopied],
   );
 
   return {
