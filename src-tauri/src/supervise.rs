@@ -13,6 +13,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Runtime};
 
 use crate::error::HostError;
+use crate::logging;
 use crate::paths;
 use crate::progress::{self, InstallStage};
 use crate::runtime::package::resolve_dsh_entry;
@@ -160,18 +161,19 @@ pub fn activate_clean_profile_session<R: Runtime>(
         .map_err(|e| e.to_string())? = Some(dir.clone());
     progress::append_shell_log(
         app,
-        &format!("[ops] clean_profile_session {}", dir.display()),
+        &format!("[clean_profile] session started"),
     );
+    logging::record_op("action=clean_profile.session outcome=ok");
     Ok(dir)
 }
 
 pub fn deactivate_clean_profile_session<R: Runtime>(
-    app: &AppHandle<R>,
+    _app: &AppHandle<R>,
     state: &HarnessState,
 ) {
     if let Ok(mut guard) = state.session_dsh_home.lock() {
         if guard.take().is_some() {
-            progress::append_shell_log(app, "[ops] exit_clean_profile_session");
+            logging::record_op("action=clean_profile.session_exit outcome=ok");
         }
     }
 }
@@ -245,6 +247,7 @@ fn is_port_in_use(port: u16) -> bool {
 pub async fn spawn_and_wait_healthy<R: Runtime>(
     app: &AppHandle<R>,
     state: &HarnessState,
+    op_id: Option<&str>,
 ) -> Result<(u16, String), String> {
     #[cfg(not(windows))]
     {
@@ -307,8 +310,11 @@ pub async fn spawn_and_wait_healthy<R: Runtime>(
                 plan.kind
             ),
         );
+        let op_part = op_id
+            .map(|id| format!(" op_id={id}"))
+            .unwrap_or_default();
         crate::logging::record_op(&format!(
-            "action=harness.spawn spawn_gen={gen} port={port} kind={:?} outcome=ok",
+            "action=harness.spawn spawn_gen={gen} port={port} kind={:?} outcome=ok{op_part}",
             plan.kind
         ));
 
@@ -409,7 +415,9 @@ pub async fn try_reuse_healthy<R: Runtime>(
                     "healed port drift {} -> {port}",
                     *g
                 );
-                progress::append_shell_log(app, &format!("[ops] healed port drift -> {port}"));
+                logging::record_op(&format!(
+                    "action=harness.heal_port port={port} outcome=ok"
+                ));
             }
             *g = port;
         }

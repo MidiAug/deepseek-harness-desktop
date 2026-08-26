@@ -41,9 +41,10 @@ use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
 async fn ensure_and_start(
     app: tauri::AppHandle,
     state: tauri::State<'_, HarnessState>,
+    op_id: Option<String>,
 ) -> Result<ReadyPayload, String> {
-    log::info!(target: "shell::ipc", "ensure_and_start");
-    let result = runtime::ensure_and_start(&app, &state).await;
+    log::info!(target: "shell::ipc", "ensure_and_start op_id={:?}", op_id);
+    let result = runtime::ensure_and_start(&app, &state, op_id.as_deref()).await;
     match &result {
         Ok(p) => log::info!(target: "shell::ipc", "ensure_and_start ok port={}", p.port),
         Err(e) => log::warn!(target: "shell::ipc", "ensure_and_start err={e}"),
@@ -55,9 +56,10 @@ async fn ensure_and_start(
 async fn restart_harness(
     app: tauri::AppHandle,
     state: tauri::State<'_, HarnessState>,
+    op_id: Option<String>,
 ) -> Result<ReadyPayload, String> {
-    log::info!(target: "shell::ipc", "restart_harness");
-    let result = runtime::restart_harness(&app, &state).await;
+    log::info!(target: "shell::ipc", "restart_harness op_id={:?}", op_id);
+    let result = runtime::restart_harness(&app, &state, op_id.as_deref()).await;
     match &result {
         Ok(p) => log::info!(target: "shell::ipc", "restart_harness ok port={}", p.port),
         Err(e) => log::warn!(target: "shell::ipc", "restart_harness err={e}"),
@@ -69,10 +71,11 @@ async fn restart_harness(
 fn stop_harness(
     app: tauri::AppHandle,
     state: tauri::State<'_, HarnessState>,
+    op_id: Option<String>,
 ) -> Result<(), String> {
-    log::info!(target: "shell::ipc", "stop_harness");
+    log::info!(target: "shell::ipc", "stop_harness op_id={:?}", op_id);
     supervise::stop_and_clear_pid(&app, &state);
-    progress::append_shell_log(&app, "[ops] stop_harness");
+    logging::record_op_outcome("harness.stop", "ok", op_id.as_deref(), "");
     Ok(())
 }
 
@@ -113,6 +116,32 @@ fn open_known_path(app: tauri::AppHandle, which: String) -> Result<(), String> {
     {
         let _ = path;
         Err(HostError::OpenPath("仅 Windows 支持".into()).into())
+    }
+}
+
+/// 仅允许壳已知外链（GitHub 仓库等）。
+#[tauri::command]
+fn open_external_url(url: String) -> Result<(), String> {
+    const ALLOWED: &[&str] = &[
+        "https://github.com/MidiAug/deepseek-harness-desktop",
+        "https://github.com/MidiAug/deepseek-harness-desktop/",
+    ];
+    let trimmed = url.trim();
+    if !ALLOWED.contains(&trimmed) {
+        return Err(format!("不允许打开该 URL: {trimmed}"));
+    }
+    #[cfg(windows)]
+    {
+        std::process::Command::new("cmd")
+            .args(["/C", "start", "", trimmed])
+            .spawn()
+            .map_err(|e| format!("open url: {e}"))?;
+        Ok(())
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = trimmed;
+        Err("仅 Windows 支持".into())
     }
 }
 
@@ -306,11 +335,11 @@ async fn prepare_shell_update(
 ) -> Result<(), String> {
     let _guard = state.boot_lock.lock().await;
     let _rt_lock = runtime_lock::acquire(&app, runtime_lock::LockPurpose::ShellUpdate)?;
-    progress::append_shell_log(&app, "[ops] prepare_shell_update");
+    logging::record_op("action=shell.prepare_update outcome=ok");
     progress::emit_progress(&app, InstallStage::ShellUpdate, "正在停止托管进程以便安装壳更新…", Some(10));
     supervise::stop_and_clear_pid(&app, &state);
     tokio::time::sleep(std::time::Duration::from_millis(1200)).await;
-    progress::append_shell_log(&app, "[ops] prepare_shell_update done");
+    logging::record_op("action=shell.prepare_update outcome=done");
     Ok(())
 }
 
@@ -318,20 +347,40 @@ async fn prepare_shell_update(
 async fn start_clean_profile(
     app: tauri::AppHandle,
     state: tauri::State<'_, HarnessState>,
+    op_id: Option<String>,
 ) -> Result<ReadyPayload, String> {
-    log::info!(target: "shell::ipc", "start_clean_profile");
-    progress::append_shell_log(&app, "[ops] start_clean_profile");
-    runtime::start_clean_profile(&app, &state).await
+    log::info!(target: "shell::ipc", "start_clean_profile op_id={:?}", op_id);
+    let result = runtime::start_clean_profile(&app, &state).await;
+    match &result {
+        Ok(p) => logging::record_op_outcome(
+            "clean_profile.start",
+            "ok",
+            op_id.as_deref(),
+            &format!("port={}", p.port),
+        ),
+        Err(e) => logging::record_op_err("clean_profile.start", op_id.as_deref(), e),
+    }
+    result
 }
 
 #[tauri::command]
 async fn exit_clean_profile(
     app: tauri::AppHandle,
     state: tauri::State<'_, HarnessState>,
+    op_id: Option<String>,
 ) -> Result<ReadyPayload, String> {
-    log::info!(target: "shell::ipc", "exit_clean_profile");
-    progress::append_shell_log(&app, "[ops] exit_clean_profile");
-    runtime::exit_clean_profile(&app, &state).await
+    log::info!(target: "shell::ipc", "exit_clean_profile op_id={:?}", op_id);
+    let result = runtime::exit_clean_profile(&app, &state).await;
+    match &result {
+        Ok(p) => logging::record_op_outcome(
+            "clean_profile.exit",
+            "ok",
+            op_id.as_deref(),
+            &format!("port={}", p.port),
+        ),
+        Err(e) => logging::record_op_err("clean_profile.exit", op_id.as_deref(), e),
+    }
+    result
 }
 
 /// 重置托管 harness（保留 Node；不碰 `$DSH_HOME`）后重新 ensure。
@@ -339,9 +388,20 @@ async fn exit_clean_profile(
 async fn reset_hosted_runtime(
     app: tauri::AppHandle,
     state: tauri::State<'_, HarnessState>,
+    op_id: Option<String>,
 ) -> Result<ReadyPayload, String> {
-    progress::append_shell_log(&app, "[ops] reset_hosted_runtime");
-    runtime::reset_hosted_runtime(&app, &state).await
+    log::info!(target: "shell::ipc", "reset_hosted_runtime op_id={:?}", op_id);
+    let result = runtime::reset_hosted_runtime(&app, &state).await;
+    match &result {
+        Ok(p) => logging::record_op_outcome(
+            "recovery.reset_hosted_runtime",
+            "ok",
+            op_id.as_deref(),
+            &format!("port={}", p.port),
+        ),
+        Err(e) => logging::record_op_err("recovery.reset_hosted_runtime", op_id.as_deref(), e),
+    }
+    result
 }
 
 /// 清空首跑选定的 DSH_HOME 并重启。
@@ -349,10 +409,20 @@ async fn reset_hosted_runtime(
 async fn reset_dsh_home(
     app: tauri::AppHandle,
     state: tauri::State<'_, HarnessState>,
+    op_id: Option<String>,
 ) -> Result<ReadyPayload, String> {
-    log::info!(target: "shell::ipc", "reset_dsh_home");
-    progress::append_shell_log(&app, "[ops] reset_dsh_home");
-    runtime::reset_dsh_home(&app, &state).await
+    log::info!(target: "shell::ipc", "reset_dsh_home op_id={:?}", op_id);
+    let result = runtime::reset_dsh_home(&app, &state).await;
+    match &result {
+        Ok(p) => logging::record_op_outcome(
+            "recovery.reset_dsh_home",
+            "ok",
+            op_id.as_deref(),
+            &format!("port={}", p.port),
+        ),
+        Err(e) => logging::record_op_err("recovery.reset_dsh_home", op_id.as_deref(), e),
+    }
+    result
 }
 
 /// 按设置记录的 Harness 安装方式重装 dsh 包。
@@ -360,10 +430,20 @@ async fn reset_dsh_home(
 async fn reinstall_dsh(
     app: tauri::AppHandle,
     state: tauri::State<'_, HarnessState>,
+    op_id: Option<String>,
 ) -> Result<ReadyPayload, String> {
-    log::info!(target: "shell::ipc", "reinstall_dsh");
-    progress::append_shell_log(&app, "[ops] reinstall_dsh");
-    runtime::reinstall_dsh(&app, &state).await
+    log::info!(target: "shell::ipc", "reinstall_dsh op_id={:?}", op_id);
+    let result = runtime::reinstall_dsh(&app, &state).await;
+    match &result {
+        Ok(p) => logging::record_op_outcome(
+            "recovery.reinstall_dsh",
+            "ok",
+            op_id.as_deref(),
+            &format!("port={}", p.port),
+        ),
+        Err(e) => logging::record_op_err("recovery.reinstall_dsh", op_id.as_deref(), e),
+    }
+    result
 }
 
 #[tauri::command]
@@ -384,6 +464,12 @@ fn export_diagnostics(
 ) -> Result<diagnostics::ExportDiagnosticsResult, String> {
     log::info!(target: "shell::ipc", "export_diagnostics");
     diagnostics::export_diagnostics(&app, &state, &diag_ctx)
+}
+
+/// 壳 UI ops 写入 Rust ring（与 `shellLog.op` 配对）。
+#[tauri::command]
+fn record_ui_op(line: String) {
+    logging::record_op(line.trim());
 }
 
 #[tauri::command]
@@ -461,6 +547,11 @@ pub fn run() {
         }));
         builder = builder.plugin(tauri_plugin_window_state::Builder::default().build());
     }
+    // debug 专用：Hypothesi MCP Bridge，供 Cursor Agent 对真实 WebView 交互调试（Release 不注册）
+    #[cfg(debug_assertions)]
+    {
+        builder = builder.plugin(tauri_plugin_mcp_bridge::init());
+    }
     let log_dir = logging::host_log_dir();
     let _ = std::fs::create_dir_all(&log_dir);
     let mut log_builder = tauri_plugin_log::Builder::new()
@@ -484,9 +575,8 @@ pub fn run() {
             .target(tauri_plugin_log::Target::new(
                 tauri_plugin_log::TargetKind::Stdout,
             ))
-            .target(tauri_plugin_log::Target::new(
-                tauri_plugin_log::TargetKind::Webview,
-            ));
+            .level_for("reqwest", log::LevelFilter::Warn)
+            .level_for("tungstenite", log::LevelFilter::Warn);
     }
     let app = builder
         .plugin(log_builder.build())
@@ -505,6 +595,7 @@ pub fn run() {
             open_known_path,
             reveal_downloaded_file,
             open_loopback_url,
+            open_external_url,
             open_platform_window,
             show_platform_webview,
             hide_platform_webview,
@@ -531,6 +622,7 @@ pub fn run() {
             probe_harness_url,
             read_shell_log,
             export_diagnostics,
+            record_ui_op,
             set_diagnostics_context,
             get_cli_link_status,
             set_cli_link_enabled,

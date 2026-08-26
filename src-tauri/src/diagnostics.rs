@@ -9,7 +9,6 @@ use tauri::{AppHandle, Runtime};
 use crate::error::HostError;
 use crate::logging::{self, DiagnosticsContext};
 use crate::paths;
-use crate::progress;
 use crate::runtime::{build_runtime_status_json, package::read_harness_meta};
 use crate::settings::{self, RuntimeSettings};
 use crate::supervise::HarnessState;
@@ -224,7 +223,9 @@ pub fn export_diagnostics<R: Runtime>(
         .map_err(|e| format!("write harness.log: {e}"))?;
 
     let path_str = out_dir.to_string_lossy().into_owned();
-    progress::append_shell_log(app, &format!("[ops] export_diagnostics {path_str}"));
+    logging::record_op(&format!(
+        "action=diagnostics.export outcome=ok path=diagnostic-{stamp}"
+    ));
     reveal_in_folder(&out_dir)?;
     Ok(ExportDiagnosticsResult { path: path_str })
 }

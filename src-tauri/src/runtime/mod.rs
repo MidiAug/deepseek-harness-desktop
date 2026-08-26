@@ -70,7 +70,7 @@ pub async fn upgrade_system_harness<R: Runtime>(
 
     let plan = system_plan_or_err()?;
     supervise::set_pending_launch(state, plan)?;
-    let (port, url) = supervise::spawn_and_wait_healthy(app, state).await?;
+    let (port, url) = supervise::spawn_and_wait_healthy(app, state, None).await?;
     progress::emit_progress(
         app,
         InstallStage::UpdateDsh,
@@ -84,20 +84,24 @@ pub async fn upgrade_system_harness<R: Runtime>(
 pub async fn ensure_and_start<R: Runtime>(
     app: &AppHandle<R>,
     state: &HarnessState,
+    op_id: Option<&str>,
 ) -> Result<ReadyPayload, String> {
     log::info!(target: "shell::runtime", "ensure_and_start begin");
     let _guard = state.boot_lock.lock().await;
     if let Some(ready) = try_reuse_if_matches_desired(app, state).await {
         log::info!(target: "shell::runtime", "reuse healthy port={}", ready.port);
+        let op_part = op_id
+            .map(|id| format!(" op_id={id}"))
+            .unwrap_or_default();
         logging::record_op(&format!(
-            "action=runtime.reuse port={} outcome=ok",
+            "action=runtime.reuse port={} outcome=ok{op_part}",
             ready.port
         ));
         return Ok(ready);
     }
     progress::emit_progress(app, InstallStage::Detect, "清扫残留进程…", Some(2));
     supervise::sweep_orphans(app);
-    reconcile_to_settings(app, state).await
+    reconcile_to_settings(app, state, op_id).await
 }
 
 /// 已健康且种类对齐 Desired 才复用；偏好已改则强制走 reconcile。
@@ -125,6 +129,7 @@ async fn try_reuse_if_matches_desired<R: Runtime>(
 async fn reconcile_to_settings<R: Runtime>(
     app: &AppHandle<R>,
     state: &HarnessState,
+    op_id: Option<&str>,
 ) -> Result<ReadyPayload, String> {
     progress::emit_progress(app, InstallStage::Start, "正在停止旧进程…", Some(5));
     supervise::stop_and_clear_pid(app, state);
@@ -152,9 +157,14 @@ async fn reconcile_to_settings<R: Runtime>(
     );
     supervise::set_pending_launch(state, plan)?;
 
-    let (port, url) = supervise::spawn_and_wait_healthy(app, state).await?;
+    let (port, url) = supervise::spawn_and_wait_healthy(app, state, op_id).await?;
     log::info!(target: "shell::runtime", "reconcile ok port={port}");
-    logging::record_op(&format!("action=runtime.reconcile port={port} outcome=ok"));
+    let op_part = op_id
+        .map(|id| format!(" op_id={id}"))
+        .unwrap_or_default();
+    logging::record_op(&format!(
+        "action=runtime.reconcile port={port} outcome=ok{op_part}"
+    ));
     Ok(ReadyPayload { url, port })
 }
 
@@ -188,7 +198,7 @@ pub async fn start_clean_profile<R: Runtime>(
         }
     };
     supervise::set_pending_launch(state, plan)?;
-    let (port, url) = supervise::spawn_and_wait_healthy(app, state).await?;
+    let (port, url) = supervise::spawn_and_wait_healthy(app, state, None).await?;
     progress::emit_progress(
         app,
         InstallStage::Ready,
@@ -208,7 +218,7 @@ pub async fn exit_clean_profile<R: Runtime>(
     supervise::deactivate_clean_profile_session(app, state);
     supervise::stop_and_clear_pid(app, state);
     tokio::time::sleep(std::time::Duration::from_millis(800)).await;
-    let (port, url) = supervise::spawn_and_wait_healthy(app, state).await?;
+    let (port, url) = supervise::spawn_and_wait_healthy(app, state, None).await?;
     progress::emit_progress(
         app,
         InstallStage::Ready,
@@ -255,7 +265,7 @@ pub async fn reset_dsh_home<R: Runtime>(
 
     let plan = resolve_launch_plan(app, &cfg).await?;
     supervise::set_pending_launch(state, plan)?;
-    let (port, url) = supervise::spawn_and_wait_healthy(app, state).await?;
+    let (port, url) = supervise::spawn_and_wait_healthy(app, state, None).await?;
     progress::emit_progress(
         app,
         InstallStage::Ready,
@@ -300,7 +310,7 @@ async fn reinstall_system_dsh<R: Runtime>(
 
     let plan = system_plan_or_err()?;
     supervise::set_pending_launch(state, plan)?;
-    let (port, url) = supervise::spawn_and_wait_healthy(app, state).await?;
+    let (port, url) = supervise::spawn_and_wait_healthy(app, state, None).await?;
     progress::emit_progress(
         app,
         InstallStage::Ready,
@@ -364,7 +374,7 @@ pub async fn reset_hosted_runtime<R: Runtime>(
     progress::emit_progress(app, InstallStage::Detect, "重新安装托管运行时…", Some(40));
     let plan = ensure_hosted_then_plan(app).await?;
     supervise::set_pending_launch(state, plan)?;
-    let (port, url) = supervise::spawn_and_wait_healthy(app, state).await?;
+    let (port, url) = supervise::spawn_and_wait_healthy(app, state, None).await?;
     progress::emit_progress(app, InstallStage::Ready, &format!("重置完成 · 端口 {port}"), Some(100));
     Ok(ReadyPayload { url, port })
 }
@@ -434,10 +444,11 @@ async fn fs_remove_dir_all_retry_for(
 pub async fn restart_harness<R: Runtime>(
     app: &AppHandle<R>,
     state: &HarnessState,
+    op_id: Option<&str>,
 ) -> Result<ReadyPayload, String> {
     log::info!(target: "shell::runtime", "restart_harness begin (reconcile)");
     let _guard = state.boot_lock.lock().await;
-    reconcile_to_settings(app, state).await
+    reconcile_to_settings(app, state, op_id).await
 }
 
 #[cfg(test)]

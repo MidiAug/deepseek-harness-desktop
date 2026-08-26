@@ -41,3 +41,6 @@ latest.json
 
 # Playwright MCP runtime artifacts
 .playwright-mcp/
+
+# Tauri MCP screenshot artifacts (see docs/agent-testing.md)
+.tauri-mcp/

@@ -154,3 +154,5 @@ export function normalizeShellSettings(
 }
 
 export const PLATFORM_URL = "https://platform.deepseek.com";
+export const GITHUB_REPO_URL =
+  "https://github.com/MidiAug/deepseek-harness-desktop";

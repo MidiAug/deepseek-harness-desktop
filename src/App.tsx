@@ -228,10 +228,13 @@ export default function App() {
     return () => window.clearTimeout(t);
   }, [showHarness, harnessVisible, iframeRevealed, session.iframeKey]);
 
-  const restartAndCloseSettings = useCallback(() => {
-    closeSettings();
-    session.restart();
-  }, [closeSettings, session.restart]);
+  const restartAndCloseSettings = useCallback(
+    (linkedOpId?: string, action = "session.restart") => {
+      closeSettings();
+      session.restart(linkedOpId, action);
+    },
+    [closeSettings, session.restart],
+  );
 
   // 弹窗开/关：通知 iframe；关闭时焦点回 harness，避免 Ctrl+A 选中壳层
   useEffect(() => {
@@ -307,12 +310,12 @@ export default function App() {
         onSessionLog={onSessionLog}
         sessionLogAvailable={sessionLogAvailable}
         onRestart={() => {
-          shellLog.op("titlebar.restart");
-          restartAndCloseSettings();
+          const opId = shellLog.opBegin("titlebar.restart");
+          restartAndCloseSettings(opId, "titlebar.restart");
         }}
         onStop={() => {
-          shellLog.op("titlebar.stop");
-          void session.stop();
+          const opId = shellLog.opBegin("titlebar.stop");
+          void session.stop(opId, "titlebar.stop");
         }}
         onOpenDshHome={() => {
           shellLog.op("menu.openDshHome");
@@ -350,7 +353,11 @@ export default function App() {
 
       <div className="shell-body" ref={shellBodyRef}>
         {onboardingGate === "loading" && (
-          <SessionStatusSurface message={t("onboarding.loading")} working />
+          <SessionStatusSurface
+            message={t("onboarding.loading")}
+            working
+            surfaceReason="onboarding"
+          />
         )}
         {onboardingGate === "wizard" && (
           <OnboardingWizard onComplete={() => setOnboardingGate("ready")} />
@@ -411,8 +418,12 @@ export default function App() {
         onHarnessReady={session.markReady}
         onBeginHarnessOp={session.beginHarnessOp}
         onHarnessOpFailed={session.markFailed}
-        onStopHarness={() => session.stop()}
+        onStopHarness={async (opId, action) => {
+          await session.stop(opId, action);
+          life.resetIdle({ clearProgress: true });
+        }}
         onRestartHarness={restartAndCloseSettings}
+        sessionPhase={session.phase}
       />
       <CloseAskDialog open={closeAskOpen} onClose={() => setCloseAskOpen(false)} />
       <ShellContextMenu

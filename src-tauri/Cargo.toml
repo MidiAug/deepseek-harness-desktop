@@ -50,6 +50,7 @@ tauri-plugin-autostart = "2"
 tauri-plugin-dialog = "2"
 specta = { version = "=2.0.0-rc.22", features = ["derive", "serde"] }
 specta-typescript = "=0.0.9"
+tauri-plugin-mcp-bridge = "0.12"
 
 # Windows：CreateProcessW 隐藏控制台 + 保留进程 HANDLE（R1）
 [target.'cfg(windows)'.dependencies]

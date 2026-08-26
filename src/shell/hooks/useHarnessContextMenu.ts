@@ -94,6 +94,11 @@ export function useHarnessContextMenu(
         const line = formatInjectDiag(data);
         recordInjectError(line);
         shellLog.warn("inject", line);
+        shellLog.op(
+          "inject.error",
+          { event: String(data.event ?? "unknown") },
+          "err",
+        );
         return;
       }
 
@@ -132,6 +137,7 @@ export function useHarnessContextMenu(
         y: rect.top + data.y,
         selectedText,
       });
+      shellLog.op("contextMenu.open", { zone });
     }
 
     window.addEventListener("message", onMsg);
@@ -201,6 +207,7 @@ export function useHarnessContextMenu(
         menu: ctx,
         onCopied: notifyCopied,
       });
+      shellLog.op("contextMenu.action", { zone: menu?.zone ?? "unknown", action });
       setMenu(null);
     },
     [iframeRef, menu, notifyCopied],

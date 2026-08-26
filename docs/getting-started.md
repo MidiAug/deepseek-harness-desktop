@@ -33,6 +33,8 @@ pnpm tauri dev
 - 清空托管程序后重装：删除上述 `runtime` / `harness` 再启动（**不要**随便删 `~/.dsh`）  
 - 若曾装过其它 Harness 桌面壳，请先结束其残留 `node`（否则可能占 3081 并返回异常状态）  
 
+用 Cursor Agent 对**运行中的应用**做交互式排查（截图、点击、IPC）见 [agent-testing.md](agent-testing.md)（debug 构建 + MCP）。
+
 ## 进阶
 
 数据目录、代理与版本说明见 [configuration.md](configuration.md)。默认与官方 CLI 共用 `~/.dsh`（会话与插件可复用）；harness **程序**仍由本壳托管与更新。

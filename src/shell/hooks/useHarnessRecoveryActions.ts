@@ -3,6 +3,7 @@ import * as shellApi from "../api/shellApi";
 import { useAppToast } from "../contexts/ShellToastProvider";
 import { useHostLifecycle } from "../contexts/HostLifecycleProvider";
 import { shellLog } from "../logger";
+import { recordRecoveryAction } from "../diagnosticsContext";
 import type { ReadyPayload } from "../types/ipc-types";
 import { useLocale } from "../locale";
 import type { LocaleKey } from "../locale";
@@ -97,7 +98,9 @@ export function useHarnessRecoveryActions(
   const seedBoot = opts?.seedBoot ?? life.seedBoot;
 
   const runCleanProfile = useCallback(async () => {
-    shellLog.op("recovery.cleanProfile", { surface });
+    const action = "recovery.cleanProfile";
+    recordRecoveryAction(action);
+    const opId = shellLog.opBegin(action, { surface });
     if (surface === "boot") {
       callbacks.onBootWorking?.();
       callbacks.onBootResetFault?.();
@@ -108,7 +111,8 @@ export function useHarnessRecoveryActions(
         clearLog: true,
       });
       try {
-        const ready = await shellApi.startCleanProfile();
+        const ready = await shellApi.startCleanProfile(opId);
+        shellLog.opEnd(opId, action, "ok");
         seedBoot({
           message: t("boot.msg.embedding"),
           stageId: "start",
@@ -117,6 +121,7 @@ export function useHarnessRecoveryActions(
         callbacks.onBootReady?.(ready);
       } catch (e) {
         const msg = typeof e === "string" ? e : String(e);
+        shellLog.opEnd(opId, action, "err");
         shellLog.error("boot", "start_clean_profile", msg);
         seedBoot({ message: t("boot.msg.failed"), stageId: "start" });
         callbacks.onBootError?.(msg);
@@ -127,13 +132,15 @@ export function useHarnessRecoveryActions(
     callbacks.reportFault?.(null);
     setCleanProfileBusy(true);
     try {
-      const ready = await shellApi.startCleanProfile();
+      const ready = await shellApi.startCleanProfile(opId);
+      shellLog.opEnd(opId, action, "ok");
       setCleanProfileOpen(false);
       showToast(t("settings.data.cleanProfile.done"));
       callbacks.refreshRuntime();
       callbacks.onHarnessReady?.(ready);
     } catch (e) {
       const msg = typeof e === "string" ? e : String(e);
+      shellLog.opEnd(opId, action, "err");
       callbacks.reportFault?.(msg, runCleanProfile);
     } finally {
       setCleanProfileBusy(false);
@@ -141,7 +148,9 @@ export function useHarnessRecoveryActions(
   }, [callbacks, seedBoot, showToast, surface, t]);
 
   const runResetConfig = useCallback(async () => {
-    shellLog.op("recovery.resetConfig", { surface });
+    const action = "recovery.resetConfig";
+    recordRecoveryAction(action);
+    const opId = shellLog.opBegin(action, { surface });
     if (surface === "boot") {
       callbacks.onBootWorking?.();
       callbacks.onBootResetFault?.();
@@ -154,11 +163,13 @@ export function useHarnessRecoveryActions(
         clearLog: true,
       });
       try {
-        const ready = await shellApi.resetDshHome();
+        const ready = await shellApi.resetDshHome(opId);
+        shellLog.opEnd(opId, action, "ok");
         setResetConfigOpen(false);
         callbacks.onBootReady?.(ready);
       } catch (e) {
         const msg = typeof e === "string" ? e : String(e);
+        shellLog.opEnd(opId, action, "err");
         shellLog.error("boot", "reset_dsh_home", msg);
         seedBoot({ message: t("boot.msg.resetConfigFailed"), stageId: "start" });
         callbacks.onBootError?.(msg);
@@ -176,12 +187,14 @@ export function useHarnessRecoveryActions(
     callbacks.onBeginHarnessOp?.();
     life.beginOps(t("boot.msg.resettingConfig"));
     try {
-      const ready = await shellApi.resetDshHome();
+      const ready = await shellApi.resetDshHome(opId);
+      shellLog.opEnd(opId, action, "ok");
       callbacks.refreshRuntime();
       callbacks.onHarnessReady?.(ready);
       showToast(t("settings.data.resetConfig.done"));
     } catch (e) {
       const msg = typeof e === "string" ? e : String(e);
+      shellLog.opEnd(opId, action, "err");
       callbacks.onHarnessOpFailed?.(msg);
     } finally {
       life.endOps({ clearProgress: true });
@@ -190,7 +203,9 @@ export function useHarnessRecoveryActions(
   }, [callbacks, life, seedBoot, showToast, surface, t]);
 
   const runReinstallDsh = useCallback(async () => {
-    shellLog.op("recovery.reinstallDsh", { surface });
+    const action = "recovery.reinstallDsh";
+    recordRecoveryAction(action);
+    const opId = shellLog.opBegin(action, { surface });
     if (surface === "boot") {
       callbacks.onBootWorking?.();
       callbacks.onBootResetFault?.();
@@ -202,7 +217,8 @@ export function useHarnessRecoveryActions(
         clearLog: true,
       });
       try {
-        const ready = await shellApi.reinstallDsh();
+        const ready = await shellApi.reinstallDsh(opId);
+        shellLog.opEnd(opId, action, "ok");
         setReinstallOpen(false);
         seedBoot({
           message: t("boot.msg.embedding"),
@@ -212,6 +228,7 @@ export function useHarnessRecoveryActions(
         callbacks.onBootReady?.(ready);
       } catch (e) {
         const msg = typeof e === "string" ? e : String(e);
+        shellLog.opEnd(opId, action, "err");
         shellLog.error("boot", "reinstall_dsh", msg);
         seedBoot({ message: t("boot.msg.reinstallFailed"), stageId: "start" });
         callbacks.onBootError?.(msg);
@@ -228,12 +245,14 @@ export function useHarnessRecoveryActions(
     callbacks.onBeginHarnessOp?.();
     life.beginOps(t("boot.msg.reinstalling"));
     try {
-      const ready = await shellApi.reinstallDsh();
+      const ready = await shellApi.reinstallDsh(opId);
+      shellLog.opEnd(opId, action, "ok");
       callbacks.refreshRuntime();
       callbacks.onHarnessReady?.(ready);
       showToast(t("settings.data.reinstallDsh.done"));
     } catch (e) {
       const msg = typeof e === "string" ? e : String(e);
+      shellLog.opEnd(opId, action, "err");
       callbacks.onHarnessOpFailed?.(msg);
     } finally {
       life.endOps({ clearProgress: true });

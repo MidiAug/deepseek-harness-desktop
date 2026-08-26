@@ -12,7 +12,13 @@ export function usePlatformWebview(
 ) {
   useEffect(() => {
     if (!active || !shellBodyEl) {
-      void hidePlatformWebview().catch((e: unknown) => shellLog.error("platform", "hide", e));
+      void hidePlatformWebview()
+        .then(() => {
+          if (!active) {
+            shellLog.infoThrottled("platform", "hide", 2000);
+          }
+        })
+        .catch((e: unknown) => shellLog.error("platform", "hide", e));
       return;
     }
 
@@ -25,6 +31,9 @@ export function usePlatformWebview(
       const top = shellBodyEl.getBoundingClientRect().top;
       if (top < 0) return;
       void showPlatformWebview({ top, theme })
+        .then(() => {
+          shellLog.infoThrottled("platform", "show", 2000, { top: Math.round(top) });
+        })
         .catch((e: unknown) => shellLog.error("platform", "show", e));
     };
 

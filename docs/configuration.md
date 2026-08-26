@@ -106,7 +106,8 @@
 
 | 项 | 说明 |
 |----|------|
-| shell.log | 宿主 + 壳 UI 日志（含 `[ops]` 用户操作审计行）；`%AppData%/…/logs/` |
+| shell.log | 宿主 + 壳 UI 日志（含 `[ui::ops]` / `[shell::ops]` 用户操作审计行）；`%AppData%/…/logs/` |
+| ops-recent.jsonl | 诊断导出内：Rust ring 快照，**含 UI 与 Rust 两侧 ops**（B53） |
 | harness.log | dsh 子进程全量 stdout/stderr；spawn 行含 `gen=N` 代次 |
 | session_id | 每次打开应用生成，便于 grep 一次会话 |
 | 导出诊断 | 设置 → 数据与恢复：打包 log tail、ops 快照、app 状态、脱敏设置、runtime 快照 |

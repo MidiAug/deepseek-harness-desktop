@@ -5,7 +5,7 @@ import {
   type ReactNode,
   type SetStateAction,
 } from "react";
-import type { ReadyPayload, RuntimeStatus } from "../types/ipc-types";
+import type { ReadyPayload, RuntimeStatus, SessionPhase } from "../types/ipc-types";
 import type { ShellSettings } from "../settings";
 
 export type SettingsPanelContextValue = {
@@ -39,9 +39,10 @@ export type SettingsPanelContextValue = {
   onCloseSettings?: () => void;
   onBeginHarnessOp?: () => void;
   onHarnessOpFailed?: (message: string) => void;
-  onStopHarness?: () => void | Promise<void>;
-  /** 关设置后按会话 restart（内容区状态面）；与 stop 不同 */
-  onRestartHarness?: () => void;
+  onStopHarness?: (opId?: string, action?: string) => void | Promise<void>;
+  onRestartHarness?: (opId?: string, action?: string) => void;
+  /** 壳会话 FSM；stopped 时服务状态显示「已停止」 */
+  sessionPhase?: SessionPhase;
   onDiagnosticsExported?: (path: string) => void;
   onDiagnosticsError?: (
     message: string,

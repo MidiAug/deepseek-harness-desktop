@@ -84,9 +84,16 @@ export { shellLog } from "./logger";
 export { getShellSessionId } from "./sessionId";
 export {
   buildDiagnosticsContextPayload,
+  clearBootError,
+  recordBootError,
   recordInjectError,
+  recordRecoveryAction,
   setAppStateSnapshot,
 } from "./diagnosticsContext";
+export {
+  setLinkedHarnessStart,
+  takeLinkedHarnessStart,
+} from "./sessionOpLink";
 export { withInvokeAudit } from "./invokeAudit";
 export {
   PLATFORM_URL,

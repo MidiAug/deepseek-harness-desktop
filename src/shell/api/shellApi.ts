@@ -7,6 +7,7 @@ import {
 } from "@tauri-apps/plugin-autostart";
 import { buildDiagnosticsContextPayload } from "../diagnosticsContext";
 import { withInvokeAudit } from "../invokeAudit";
+import { shellLog } from "../logger";
 import type {
   RuntimeSettings,
   ShellSettings,
@@ -25,23 +26,33 @@ import type {
 /** StrictMode 双挂载共享同一次 ensure，避免串行第二次清扫杀进程。 */
 let ensureInflight: Promise<ReadyPayload> | null = null;
 
-export function ensureAndStart(): Promise<ReadyPayload> {
+export function restartHarness(opId?: string): Promise<ReadyPayload> {
+  return withInvokeAudit<ReadyPayload>(
+    "restart_harness",
+    opId ? { opId } : undefined,
+    opId,
+  );
+}
+
+export function startHarness(cmd: StartCommand, opId?: string): Promise<ReadyPayload> {
+  return cmd === "restart_harness"
+    ? withInvokeAudit<ReadyPayload>("restart_harness", undefined, opId)
+    : ensureAndStart(opId);
+}
+
+export function ensureAndStart(opId?: string): Promise<ReadyPayload> {
   if (!ensureInflight) {
-    ensureInflight = withInvokeAudit<ReadyPayload>("ensure_and_start").finally(
+    ensureInflight = withInvokeAudit<ReadyPayload>(
+      "ensure_and_start",
+      opId ? { opId } : undefined,
+      opId,
+    ).finally(
       () => {
         ensureInflight = null;
       },
     );
   }
   return ensureInflight;
-}
-
-export function restartHarness(): Promise<ReadyPayload> {
-  return withInvokeAudit<ReadyPayload>("restart_harness");
-}
-
-export function startHarness(cmd: StartCommand): Promise<ReadyPayload> {
-  return cmd === "restart_harness" ? restartHarness() : ensureAndStart();
 }
 
 export function probeEnvironment(): Promise<EnvironmentProbe> {
@@ -72,12 +83,15 @@ export function saveShellSettings(settings: ShellSettings): Promise<void> {
   return withInvokeAudit("save_shell_settings", { settings });
 }
 
-export function saveRuntimeSettings(settings: RuntimeSettings): Promise<void> {
-  return withInvokeAudit("save_runtime_settings", { settings });
+export function saveRuntimeSettings(
+  settings: RuntimeSettings,
+  opId?: string,
+): Promise<void> {
+  return withInvokeAudit("save_runtime_settings", { settings }, opId);
 }
 
-export function saveUiSettings(settings: UiSettings): Promise<void> {
-  return withInvokeAudit("save_ui_settings", { settings });
+export function saveUiSettings(settings: UiSettings, opId?: string): Promise<void> {
+  return withInvokeAudit("save_ui_settings", { settings }, opId);
 }
 
 export function checkHarnessUpdate(): Promise<HarnessUpdateCheck> {
@@ -94,13 +108,21 @@ export function prepareShellUpdate(): Promise<void> {
 }
 
 /** 清除 AppData harness 后重装（保留 Node；不碰 DSH_HOME）。 */
-export function resetHostedRuntime(): Promise<ReadyPayload> {
-  return withInvokeAudit<ReadyPayload>("reset_hosted_runtime");
+export function resetHostedRuntime(opId?: string): Promise<ReadyPayload> {
+  return withInvokeAudit<ReadyPayload>(
+    "reset_hosted_runtime",
+    opId ? { opId } : undefined,
+    opId,
+  );
 }
 
 /** 清空首跑选定的 DSH_HOME 并重启（删数据目录内容；不删 dsh 包）。 */
-export function resetDshHome(): Promise<ReadyPayload> {
-  return withInvokeAudit<ReadyPayload>("reset_dsh_home");
+export function resetDshHome(opId?: string): Promise<ReadyPayload> {
+  return withInvokeAudit<ReadyPayload>(
+    "reset_dsh_home",
+    opId ? { opId } : undefined,
+    opId,
+  );
 }
 
 /** 探活官方 UI（Rust reqwest，不受 WebView CSP 限制）。 */
@@ -109,18 +131,30 @@ export function probeHarnessUrl(url: string): Promise<boolean> {
 }
 
 /** 按设置记录的 Harness 安装方式重装 dsh 包。 */
-export function reinstallDsh(): Promise<ReadyPayload> {
-  return withInvokeAudit<ReadyPayload>("reinstall_dsh");
+export function reinstallDsh(opId?: string): Promise<ReadyPayload> {
+  return withInvokeAudit<ReadyPayload>(
+    "reinstall_dsh",
+    opId ? { opId } : undefined,
+    opId,
+  );
 }
 
 /** 以 AppData 干净 profile 会话启动（临时 DSH_HOME，不删用户 ~/.dsh）。 */
-export function startCleanProfile(): Promise<ReadyPayload> {
-  return withInvokeAudit<ReadyPayload>("start_clean_profile");
+export function startCleanProfile(opId?: string): Promise<ReadyPayload> {
+  return withInvokeAudit<ReadyPayload>(
+    "start_clean_profile",
+    opId ? { opId } : undefined,
+    opId,
+  );
 }
 
 /** 退出干净 profile 会话并回到正式 DSH_HOME。 */
-export function exitCleanProfile(): Promise<ReadyPayload> {
-  return withInvokeAudit<ReadyPayload>("exit_clean_profile");
+export function exitCleanProfile(opId?: string): Promise<ReadyPayload> {
+  return withInvokeAudit<ReadyPayload>(
+    "exit_clean_profile",
+    opId ? { opId } : undefined,
+    opId,
+  );
 }
 
 export function readShellLog(): Promise<string> {
@@ -141,8 +175,20 @@ export async function syncDiagnosticsContext(): Promise<void> {
 }
 
 export async function exportDiagnostics(): Promise<ExportDiagnosticsResult> {
-  await syncDiagnosticsContext();
-  return withInvokeAudit<ExportDiagnosticsResult>("export_diagnostics");
+  const opId = shellLog.opBegin("diagnostics.export");
+  try {
+    await syncDiagnosticsContext();
+    const result = await withInvokeAudit<ExportDiagnosticsResult>(
+      "export_diagnostics",
+      undefined,
+      opId,
+    );
+    shellLog.opEnd(opId, "diagnostics.export", "ok");
+    return result;
+  } catch (e) {
+    shellLog.opEnd(opId, "diagnostics.export", "err");
+    throw e;
+  }
 }
 
 /** 原生目录选择（首跑 DSH_HOME 等）。取消时返回 null。 */
@@ -156,7 +202,11 @@ export async function pickDirectory(
     defaultPath: defaultPath?.trim() || undefined,
   });
   if (selected == null) return null;
-  return Array.isArray(selected) ? (selected[0] ?? null) : selected;
+  const path = Array.isArray(selected) ? (selected[0] ?? null) : selected;
+  if (path) {
+    shellLog.op("dialog.pickDirectory", { ok: true });
+  }
+  return path;
 }
 
 export function openKnownPath(which: KnownPath): Promise<void> {
@@ -181,12 +231,16 @@ export function quitApp(): Promise<void> {
   return withInvokeAudit("quit_app");
 }
 
-export function stopHarness(): Promise<void> {
-  return withInvokeAudit("stop_harness");
+export function stopHarness(opId?: string): Promise<void> {
+  return withInvokeAudit("stop_harness", opId ? { opId } : undefined, opId);
 }
 
 export function openLoopbackUrl(url: string): Promise<void> {
   return withInvokeAudit("open_loopback_url", { url });
+}
+
+export function openExternalUrl(url: string): Promise<void> {
+  return withInvokeAudit("open_external_url", { url });
 }
 
 export function openPlatformWindow(): Promise<void> {
@@ -214,8 +268,8 @@ export function getDshThemePreference(): Promise<string> {
 }
 
 /** 写入 DSH 主题（与官方外观三项相同），并通知壳换肤 */
-export function setDshThemePreference(preference: string): Promise<void> {
-  return withInvokeAudit("set_dsh_theme_preference", { preference });
+export function setDshThemePreference(preference: string, opId?: string): Promise<void> {
+  return withInvokeAudit("set_dsh_theme_preference", { preference }, opId);
 }
 
 /** DSH `settings.yaml` → locale.preference：zh | en */
@@ -257,6 +311,7 @@ export function getAutostartEnabled(): Promise<boolean> {
 }
 
 export async function setAutostartEnabled(enabled: boolean): Promise<void> {
+  shellLog.op("settings.runtime.autostart", { enabled });
   if (enabled) await enableAutostart();
   else await disableAutostart();
 }

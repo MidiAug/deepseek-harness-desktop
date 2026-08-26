@@ -40,12 +40,13 @@ type HostLifecycleApi = HostLifecycleState & {
   endOps: (opts?: { clearProgress?: boolean }) => void;
   /** App 把 SessionPhase 同步进来，避免 Provider 依赖 useShellSession */
   syncSessionPhase: (phase: SessionPhase) => void;
-  /** BootPanel 启动前写入初始文案/阶段 */
+  /** BootPanel 启动前写入初始文案/阶段；keepIdle 时不锁设置（如用户主动停止） */
   seedBoot: (opts: {
     message: string;
     stageId?: BootStageId | null;
     percent?: number | null;
     clearLog?: boolean;
+    keepIdle?: boolean;
   }) => void;
   resetIdle: (opts?: { clearProgress?: boolean }) => void;
 };
@@ -171,6 +172,10 @@ export function HostLifecycleProvider({ children }: { children: ReactNode }) {
     const sessionBusy = phase === "installing" || phase === "spawning";
     sessionBusyRef.current = sessionBusy;
     setState((prev) => {
+      if (phase === "stopped") {
+        if (prev.busyReason === "ops") return prev;
+        return withLocked({ ...INITIAL, busyReason: "idle" });
+      }
       if (sessionBusy) {
         if (prev.busyReason === "ops") return prev;
         if (prev.busyReason === "idle") {
@@ -181,7 +186,7 @@ export function HostLifecycleProvider({ children }: { children: ReactNode }) {
         }
         return prev;
       }
-      // ready / failed / stopped / embedding / idle：非 ops 则放行
+      // ready / failed / embedding / idle：非 ops 则放行
       if (prev.busyReason === "ops") return prev;
       if (prev.busyReason === "idle") return prev;
       return withLocked({
@@ -197,23 +202,26 @@ export function HostLifecycleProvider({ children }: { children: ReactNode }) {
       stageId?: BootStageId | null;
       percent?: number | null;
       clearLog?: boolean;
+      keepIdle?: boolean;
     }) => {
-      setState((prev) =>
-        withLocked({
+      setState((prev) => {
+        const nextBusy: BusyReason = opts.keepIdle
+          ? "idle"
+          : prev.busyReason === "ops"
+            ? "ops"
+            : prev.busyReason === "idle"
+              ? "boot"
+              : prev.busyReason;
+        return withLocked({
           stageId: opts.stageId ?? prev.stageId ?? "detect",
           message: opts.message,
           percent: opts.percent !== undefined ? opts.percent : prev.percent,
           logLines: opts.clearLog
             ? pushLogLine([], opts.message)
             : pushLogLine(prev.logLines, opts.message),
-          busyReason:
-            prev.busyReason === "ops"
-              ? "ops"
-              : prev.busyReason === "idle"
-                ? "boot"
-                : prev.busyReason,
-        }),
-      );
+          busyReason: nextBusy,
+        });
+      });
     },
     [],
   );

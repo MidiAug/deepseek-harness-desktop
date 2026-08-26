@@ -61,6 +61,7 @@ pnpm tauri dev
 ```
 
 - debug 默认端口 **3081**（正式包 **3080**；占用时自动顺延）  
+- **Agent 结对调试**（Cursor + Tauri MCP）：见 [docs/agent-testing.md](docs/agent-testing.md)  
 - 发行构建：`pnpm check:release` → `pnpm tauri build`（自更新签名需设置 `TAURI_SIGNING_PRIVATE_KEY`，见 Tauri 文档）
 
 更多细节：[docs/getting-started.md](docs/getting-started.md)

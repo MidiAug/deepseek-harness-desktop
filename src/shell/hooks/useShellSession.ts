@@ -11,7 +11,9 @@ import type {
   ReadyPayload,
 } from "../types/ipc-types";
 import { stopHarness } from "../api/shellApi";
+import { clearBootError, recordBootError } from "../diagnosticsContext";
 import { shellLog } from "../logger";
+import { setLinkedHarnessStart } from "../sessionOpLink";
 import {
   readCachedResolvedThemeForIframe,
   RESOLVED_THEME_CACHE_KEY,
@@ -59,6 +61,7 @@ export function useShellSession() {
   );
 
   const markReady = useCallback((payload: ReadyPayload) => {
+    clearBootError();
     shellLog.info("session", "ready", { port: payload.port });
     setBootError(null);
     setStartCommand("ensure_and_start");
@@ -72,6 +75,7 @@ export function useShellSession() {
   const markFailed = useCallback((error?: string) => {
     transitionPhase("failed", error ?? "unknown");
     if (error) {
+      recordBootError(error);
       shellLog.op("boot.failed", { reason: error }, "err");
       setBootError(error);
     } else {
@@ -92,6 +96,7 @@ export function useShellSession() {
     setServiceUrl(null);
     setBootStealth(false);
     setBootError(reason);
+    recordBootError(reason);
     shellLog.op("boot.failed", { reason }, "err");
   }, [transitionPhase]);
 
@@ -101,8 +106,9 @@ export function useShellSession() {
     transitionPhase(coldInstall ? "installing" : "spawning", coldInstall ? "cold_install" : "fast_path");
   }, [transitionPhase]);
 
-  const restart = useCallback(() => {
-    shellLog.op("session.restart");
+  const restart = useCallback((linkedOpId?: string, action = "session.restart") => {
+    const opId = linkedOpId ?? shellLog.opBegin(action);
+    setLinkedHarnessStart({ opId, action });
     transitionPhase("idle", "user_restart");
     setServiceUrl(null);
     setBootStealth(false);
@@ -124,14 +130,14 @@ export function useShellSession() {
   }, [transitionPhase]);
 
   /** 停止托管进程；进入 stopped（Boot 可手动启，禁止自动 ensure） */
-  const stop = useCallback(async () => {
-    shellLog.op("session.stop");
+  const stop = useCallback(async (linkedOpId?: string, action = "session.stop") => {
+    const opId = linkedOpId ?? shellLog.opBegin(action);
     try {
-      await stopHarness();
-      shellLog.op("session.stop", undefined, "ok");
+      await stopHarness(opId);
+      shellLog.opEnd(opId, action, "ok");
     } catch (e) {
       shellLog.error("session", "stop harness", e);
-      shellLog.op("session.stop", undefined, "err");
+      shellLog.opEnd(opId, action, "err");
     }
     transitionPhase("stopped", "user_stop");
     setServiceUrl(null);
@@ -140,7 +146,16 @@ export function useShellSession() {
     setBootError(null);
     setBootMsg("已停止 harness");
     setStartCommand("ensure_and_start");
-    setBootKey((k) => k + 1);
+    setBootKey((k) => {
+      const next = k + 1;
+      shellLog.info("session", "boot panel remount scheduled", {
+        bootKey: next,
+        reason: "user_stop",
+        autoStart: false,
+        note: "harness stopped; shell UI still on localhost",
+      });
+      return next;
+    });
   }, [transitionPhase]);
 
   // stopped 非错误：内容区状态面接管；顶栏不标红

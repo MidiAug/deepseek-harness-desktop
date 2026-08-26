@@ -208,10 +208,16 @@ export function ChromeProvider({ children }: { children: ReactNode }) {
       };
       writeCachedTitlebarCompact(next.titlebarCompact);
       if (patch.shellTheme != null) {
-        shellLog.op("settings.ui.theme", { value: patch.shellTheme });
+        const opId = shellLog.opBegin("settings.ui.theme", {
+          value: patch.shellTheme,
+        });
         void shellApi
-          .setDshThemePreference(patch.shellTheme)
-          .catch((e) => shellLog.error("chrome", "set theme", e));
+          .setDshThemePreference(patch.shellTheme, opId)
+          .then(() => shellLog.opEnd(opId, "settings.ui.theme", "ok"))
+          .catch((e) => {
+            shellLog.opEnd(opId, "settings.ui.theme", "err");
+            shellLog.error("chrome", "set theme", e);
+          });
       }
       const uiOnly = {
         titlebarCompact: next.titlebarCompact,
@@ -223,14 +229,18 @@ export function ChromeProvider({ children }: { children: ReactNode }) {
         patch.selectionHygiene != null ||
         patch.sessionLogInTitlebar != null
       ) {
-        shellLog.op("settings.ui.patch", {
+        const opId = shellLog.opBegin("settings.ui.patch", {
           compact: patch.titlebarCompact ?? next.titlebarCompact,
           hygiene: patch.selectionHygiene ?? next.selectionHygiene,
           sessionLog: patch.sessionLogInTitlebar ?? next.sessionLogInTitlebar,
         });
         void shellApi
-          .saveUiSettings(uiOnly)
-          .catch((e) => shellLog.error("chrome", "save ui", e));
+          .saveUiSettings(uiOnly, opId)
+          .then(() => shellLog.opEnd(opId, "settings.ui.patch", "ok"))
+          .catch((e) => {
+            shellLog.opEnd(opId, "settings.ui.patch", "err");
+            shellLog.error("chrome", "save ui", e);
+          });
       }
       return next;
     });

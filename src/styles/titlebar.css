@@ -82,7 +82,6 @@
   height: 100%;
 }
 
-.titlebar-compact .icon-btn,
 .titlebar-compact .win-btn,
 .titlebar-compact .menu-trigger {
   color: var(--color-muted);
@@ -92,9 +91,8 @@
 }
 
 .titlebar-compact .icon-btn {
-  margin: 0 0.15rem 0 0;
-  min-height: 100%;
-  border-radius: 0;
+  color: var(--color-muted);
+  align-self: center;
 }
 
 .titlebar-compact .icon-btn:hover,

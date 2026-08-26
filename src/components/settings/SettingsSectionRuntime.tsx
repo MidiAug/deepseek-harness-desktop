@@ -53,6 +53,7 @@ export function SettingsSectionRuntime() {
     refreshRuntime,
     onStopHarness,
     onRestartHarness,
+    sessionPhase,
   } = useSettingsPanelContext();
   const { t } = useLocale();
   const { showToast } = useAppToast();
@@ -116,14 +117,21 @@ export function SettingsSectionRuntime() {
     if (!pendingSource || restartConfirmBusy) return;
     const nextSource = pendingSource;
     setRestartConfirmBusy(true);
+    let saveOpId = "";
     try {
       const next = { ...settings, runtimeSource: nextSource };
       setSettings(next);
-      await shellApi.saveRuntimeSettings(runtimeFromSettings(next));
+      saveOpId = shellLog.opBegin("settings.runtime.sourceChange");
+      await shellApi.saveRuntimeSettings(runtimeFromSettings(next), saveOpId);
+      shellLog.opEnd(saveOpId, "settings.runtime.sourceChange", "ok");
       setPendingSource(null);
       setRestartConfirmOpen(false);
-      onRestartHarness?.();
+      const opId = shellLog.opBegin("settings.runtime.restart");
+      onRestartHarness?.(opId, "settings.runtime.restart");
     } catch (e) {
+      if (saveOpId) {
+        shellLog.opEnd(saveOpId, "settings.runtime.sourceChange", "err");
+      }
       setError(String(e));
     } finally {
       setRestartConfirmBusy(false);
@@ -154,9 +162,11 @@ export function SettingsSectionRuntime() {
                 <span className={`settings-pill${ready ? " ok" : " warn"}`}>
                   {processKind === "ready"
                     ? t("settings.status.running")
-                    : processKind === "busy"
-                      ? t("settings.status.busy")
-                      : t("settings.status.notRunning")}
+                    : sessionPhase === "stopped"
+                      ? t("settings.status.stopped")
+                      : processKind === "busy"
+                        ? t("settings.status.busy")
+                        : t("settings.status.notRunning")}
                 </span>
                 <div className="settings-status-actions">
                   {ready ? (
@@ -172,8 +182,8 @@ export function SettingsSectionRuntime() {
                           aria-label={t("settings.port.restartTip")}
                           disabled={locked}
                           onClick={() => {
-                            shellLog.op("settings.runtime.restart");
-                            onRestartHarness?.();
+                            const opId = shellLog.opBegin("settings.runtime.restart");
+                            onRestartHarness?.(opId, "settings.runtime.restart");
                           }}
                         >
                           {t("settings.port.restart")}
@@ -191,8 +201,8 @@ export function SettingsSectionRuntime() {
                           disabled={locked}
                           onClick={() => {
                             void (async () => {
-                              shellLog.op("settings.runtime.stop");
-                              await onStopHarness?.();
+                              const opId = shellLog.opBegin("settings.runtime.stop");
+                              await onStopHarness?.(opId, "settings.runtime.stop");
                               refreshRuntime();
                               showToast(t("settings.port.stopped"));
                             })();

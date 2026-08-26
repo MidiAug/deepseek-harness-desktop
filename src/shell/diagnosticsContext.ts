@@ -9,6 +9,8 @@ export type AppStateSnapshot = {
   port?: number | null;
   settingsOpen?: boolean;
   closeAskOpen?: boolean;
+  lastBootError?: string;
+  lastRecoveryAction?: string;
 };
 
 const INJECT_ERRORS_MAX = 50;
@@ -26,6 +28,18 @@ export function setAppStateSnapshot(partial: AppStateSnapshot): void {
 
 export function getAppStateSnapshot(): AppStateSnapshot {
   return { ...appState };
+}
+
+export function recordBootError(reason: string): void {
+  setAppStateSnapshot({ lastBootError: reason.slice(0, 500) });
+}
+
+export function clearBootError(): void {
+  setAppStateSnapshot({ lastBootError: undefined });
+}
+
+export function recordRecoveryAction(action: string): void {
+  setAppStateSnapshot({ lastRecoveryAction: action });
 }
 
 export function recordInjectError(line: string): void {

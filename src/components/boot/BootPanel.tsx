@@ -74,11 +74,22 @@ export function BootPanel(props: Props) {
     return confirmDialogs;
   }
 
+  const statusSurfaceReason = showFault
+    ? "fault"
+    : awaitingManualStart
+      ? "stopped"
+      : embedding
+        ? "embedding"
+        : working
+          ? "working"
+          : "status";
+
   if (surfaceMode === "status") {
     return (
       <>
         {confirmDialogs}
         <SessionStatusSurface
+          surfaceReason={statusSurfaceReason}
           message={
             embedding
               ? t("boot.msg.embedding")

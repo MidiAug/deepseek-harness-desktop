@@ -115,7 +115,7 @@ pub async fn apply_harness_update<R: Runtime>(
     progress::emit_progress(app, InstallStage::UpdateDsh, "正在重新启动 harness…", Some(92));
     let plan = crate::supervise::LaunchPlan::hosted(app)?;
     supervise::set_pending_launch(state, plan)?;
-    let (port, url) = supervise::spawn_and_wait_healthy(app, state).await?;
+    let (port, url) = supervise::spawn_and_wait_healthy(app, state, None).await?;
     progress::emit_progress(
         app,
         InstallStage::UpdateDsh,

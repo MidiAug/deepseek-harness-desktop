@@ -3,22 +3,28 @@
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{LazyLock, Mutex};
+use std::time::{Duration, Instant};
 
 use serde::Serialize;
 
 use crate::settings::{RuntimeSettings, UiSettings};
 
 const OPS_CAPACITY: usize = 200;
+const RING_DEDUPE_MS: u64 = 50;
 
 static SPAWN_GEN: AtomicU64 = AtomicU64::new(0);
 
 struct OpsRing {
     lines: VecDeque<String>,
+    last_line: String,
+    last_at: Instant,
 }
 
 static OPS_RING: LazyLock<Mutex<OpsRing>> = LazyLock::new(|| {
     Mutex::new(OpsRing {
         lines: VecDeque::with_capacity(OPS_CAPACITY),
+        last_line: String::new(),
+        last_at: Instant::now() - Duration::from_secs(3600),
     })
 });
 
@@ -37,10 +43,50 @@ impl DiagnosticsContext {
 
 fn push_ring(line: &str) {
     let mut guard = OPS_RING.lock().unwrap_or_else(|e| e.into_inner());
+    let now = Instant::now();
+    if guard.last_line == line
+        && now.duration_since(guard.last_at) < Duration::from_millis(RING_DEDUPE_MS)
+    {
+        return;
+    }
+    guard.last_line = line.to_string();
+    guard.last_at = now;
     if guard.lines.len() >= OPS_CAPACITY {
         guard.lines.pop_front();
     }
     guard.lines.push_back(line.to_string());
+}
+
+fn sanitize_ops_fragment(raw: &str, max_len: usize) -> String {
+    raw.replace('\n', " ")
+        .replace('\r', " ")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .chars()
+        .take(max_len)
+        .collect()
+}
+
+/// IPC 边界 ops：成功/失败 + 可选 op_id（与 UI shellLog 配对）。
+pub fn record_op_outcome(action: &str, outcome: &str, op_id: Option<&str>, extra: &str) {
+    let op_part = op_id
+        .map(|id| format!(" op_id={id}"))
+        .unwrap_or_default();
+    let extra_part = if extra.is_empty() {
+        String::new()
+    } else {
+        format!(" {extra}")
+    };
+    record_op(&format!(
+        "action={action} outcome={outcome}{extra_part}{op_part}"
+    ));
+}
+
+/// 失败 ops：reason 截断脱换行。
+pub fn record_op_err(action: &str, op_id: Option<&str>, reason: &str) {
+    let reason = sanitize_ops_fragment(reason, 120);
+    record_op_outcome(action, "err", op_id, &format!("reason={reason}"));
 }
 
 /// 记 ops 行：落盘 + ring。
@@ -190,6 +236,16 @@ fn basename_or_dash(path: &str) -> String {
 mod tests {
     use super::*;
     use crate::settings::{MirrorKind, ProxyMode};
+
+    #[test]
+    fn ring_dedupes_identical_line_within_50ms() {
+        record_op("action=test.dedupe outcome=ok");
+        let after_first = ops_snapshot_jsonl();
+        assert_eq!(after_first.matches("test.dedupe").count(), 1);
+        record_op("action=test.dedupe outcome=ok");
+        let after_second = ops_snapshot_jsonl();
+        assert_eq!(after_second.matches("test.dedupe").count(), 1);
+    }
 
     #[test]
     fn runtime_diff_logs_mirror_change() {

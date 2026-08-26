@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   shellApi,
   shellLog,
+  takeLinkedHarnessStart,
   useHarnessRecoveryActions,
   useHostLifecycle,
   useLocale,
@@ -71,8 +72,9 @@ export function useBootPanel({
       msg: string,
       stageId?: Parameters<typeof life.seedBoot>[0]["stageId"],
       percent?: number | null,
+      keepIdle?: boolean,
     ) => {
-      seedBootRef.current({ message: msg, stageId, percent });
+      seedBootRef.current({ message: msg, stageId, percent, keepIdle });
       onStatusMessageRef.current?.(msg);
     },
     [],
@@ -118,9 +120,12 @@ export function useBootPanel({
         clearLog: true,
       });
       onStatusMessageRef.current?.(msg);
-      shellLog.op("boot.start", { cmd });
+      const linked = takeLinkedHarnessStart();
+      const action = linked?.action ?? "boot.start";
+      const opId = linked?.opId ?? shellLog.opBegin(action, { cmd });
       try {
-        const ready = await shellApi.startHarness(cmd);
+        const ready = await shellApi.startHarness(cmd, opId);
+        shellLog.opEnd(opId, action, "ok");
         const readyMsg = t("boot.msg.embedding");
         seedBootRef.current({
           message: readyMsg,
@@ -131,6 +136,7 @@ export function useBootPanel({
         onReady(ready);
       } catch (e) {
         const msg = typeof e === "string" ? e : String(e);
+        shellLog.opEnd(opId, action, "err");
         shellLog.error("boot", `startHarness ${cmd}`, msg);
         setFailed(true);
         setError(msg);
@@ -204,7 +210,12 @@ export function useBootPanel({
       if (startCommand === "external_op" || !autoStart) {
         if (!autoStart && startCommand !== "external_op") {
           setAwaitingManualStart(true);
-          setStatus(t("boot.msg.stopped"), "start", null);
+          shellLog.info("boot", "awaiting manual start", {
+            startCommand,
+            autoStart,
+            note: "stop does not quit shell; BootPanel will remount status surface",
+          });
+          setStatus(t("boot.msg.stopped"), "start", null, true);
           onStatusMessageRef.current?.(t("boot.msg.stopped"));
         }
         return;
@@ -255,8 +266,15 @@ export function useBootPanel({
 
   useEffect(() => {
     onStealthChangeRef.current?.(stealth);
+    if (stealth) {
+      shellLog.debug("boot", "panel stealth hide surface", {
+        autoStart,
+        startCommand,
+        runtimeKnown,
+      });
+    }
     return () => onStealthChangeRef.current?.(false);
-  }, [stealth]);
+  }, [stealth, autoStart, startCommand, runtimeKnown]);
 
   const { message, percent, stageId, logLines } = life;
   const barIndeterminate =

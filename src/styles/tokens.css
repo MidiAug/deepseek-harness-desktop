@@ -105,13 +105,13 @@ body {
 }
 
 .icon-btn {
-  width: 2.2rem;
-  min-width: 2.2rem;
-  border-radius: 4px;
-  margin: 0.2rem 0.15rem 0.2rem 0;
-  align-self: stretch;
-  height: auto;
-  min-height: calc(var(--titlebar-h) - 0.4rem);
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  border-radius: 6px;
+  margin: 0 2px 0 0;
+  align-self: center;
 }
 
 .icon-btn:hover,

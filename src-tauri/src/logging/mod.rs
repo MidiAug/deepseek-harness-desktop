@@ -7,7 +7,7 @@ mod rate_limit;
 pub use harness_detail::{extract_plugin_root_cause, tail_since_last_spawn, tail_text};
 pub use ops::{
     current_spawn_gen, log_runtime_settings_diff, log_ui_settings_diff, next_spawn_gen,
-    ops_snapshot_jsonl, record_op, DiagnosticsContext,
+    ops_snapshot_jsonl, record_op, record_op_err, record_op_outcome, DiagnosticsContext,
 };
 
 use std::path::PathBuf;

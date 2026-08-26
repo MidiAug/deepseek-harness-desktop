@@ -20,15 +20,14 @@ import { SettingsUpdateProgress } from "./SettingsUpdateProgress";
 import { ShellTooltip } from "../chrome/ShellTooltip";
 import { parseFaultDisplay, CTA_LABEL_KEYS } from "../../shell/errors";
 import type { RuntimeStatus } from "../../shell";
+import { GITHUB_REPO_URL } from "../../shell/settings";
 
 function harnessVersionLabel(
   runtime: RuntimeStatus | null,
-  locked: boolean,
   t: (key: import("../../shell/locale").LocaleKey) => string,
 ): string {
   if (runtime?.harnessVersion) return runtime.harnessVersion;
   if (runtime?.processRunning) return t("settings.about.harnessRunning");
-  if (locked) return t("settings.about.installing");
   return t("settings.about.notInstalled");
 }
 
@@ -136,7 +135,7 @@ export function SettingsSectionAbout() {
       </>
     ) : null;
 
-  const harnessLabel = harnessVersionLabel(runtime, locked, t);
+  const harnessLabel = harnessVersionLabel(runtime, t);
 
   useEffect(() => {
     if (life.logLines.length === 0) return;
@@ -178,11 +177,6 @@ export function SettingsSectionAbout() {
                 <span className="settings-about-ver shell-copyable">
                   {harnessLabel}
                 </span>
-                {locked ? (
-                  <span className="settings-pill warn">
-                    {t("settings.about.installing")}
-                  </span>
-                ) : null}
               </dd>
             </div>
           </dl>
@@ -380,6 +374,30 @@ export function SettingsSectionAbout() {
                 void shellApi
                   .openPlatformWindow()
                   .catch((e) => shellLog.error("about", "open platform", e));
+              }}
+            >
+              {t("settings.about.openPlatformAction")}
+            </button>
+          </ShellTooltip>
+        </SettingsPrefRow>
+        <SettingsPrefRow
+          title={t("settings.about.githubRepo")}
+          description={t("settings.about.githubHint")}
+        >
+          <ShellTooltip
+            label={t("settings.about.openGithubTip")}
+            side="top"
+            delayMs={300}
+          >
+            <button
+              type="button"
+              className="btn ghost"
+              aria-label={t("settings.about.openGithubTip")}
+              onClick={() => {
+                shellLog.op("nav.github.open");
+                void shellApi
+                  .openExternalUrl(GITHUB_REPO_URL)
+                  .catch((e) => shellLog.error("about", "open github", e));
               }}
             >
               {t("settings.about.openPlatformAction")}

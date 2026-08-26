@@ -22,6 +22,7 @@ import {
   SettingsPanelProvider,
   type ReadyPayload,
   type RuntimeStatus,
+  type SessionPhase,
 } from "../../shell";
 import { ShellTooltip } from "../chrome/ShellTooltip";
 import { useLocale, useSectionLabels } from "../../shell/locale";
@@ -53,8 +54,9 @@ type Props = {
   onHarnessReady?: (payload: ReadyPayload) => void;
   onBeginHarnessOp?: () => void;
   onHarnessOpFailed?: (message: string) => void;
-  onStopHarness?: () => void | Promise<void>;
-  onRestartHarness?: () => void;
+  onStopHarness?: (opId?: string, action?: string) => void | Promise<void>;
+  onRestartHarness?: (opId?: string, action?: string) => void;
+  sessionPhase?: SessionPhase;
 };
 
 type PanelProps = {
@@ -63,8 +65,9 @@ type PanelProps = {
   onHarnessReady?: (payload: ReadyPayload) => void;
   onBeginHarnessOp?: () => void;
   onHarnessOpFailed?: (message: string) => void;
-  onStopHarness?: () => void | Promise<void>;
-  onRestartHarness?: () => void;
+  onStopHarness?: (opId?: string, action?: string) => void | Promise<void>;
+  onRestartHarness?: (opId?: string, action?: string) => void;
+  sessionPhase?: SessionPhase;
   runtime: RuntimeStatus | null;
   refreshRuntime: () => void | Promise<void>;
   fault: FaultState | null;
@@ -93,6 +96,7 @@ function SettingsModalPanel({
   onHarnessOpFailed,
   onStopHarness,
   onRestartHarness,
+  sessionPhase,
   runtime,
   refreshRuntime,
   fault,
@@ -226,13 +230,15 @@ function SettingsModalPanel({
 
   function persistRuntime(next: ShellSettings, softHint?: string) {
     reportFault(null);
-    shellLog.op("settings.runtime.patch");
+    const opId = shellLog.opBegin("settings.runtime.patch");
     void shellApi
-      .saveRuntimeSettings(runtimeFromSettings(next))
+      .saveRuntimeSettings(runtimeFromSettings(next), opId)
       .then(() => {
+        shellLog.opEnd(opId, "settings.runtime.patch", "ok");
         if (softHint) showToast(softHint);
       })
       .catch((e) => {
+        shellLog.opEnd(opId, "settings.runtime.patch", "err");
         const msg = typeof e === "string" ? e : String(e);
         const snapshot = { ...next };
         reportFault(msg, () => persistRuntime(snapshot, softHint));
@@ -293,6 +299,7 @@ function SettingsModalPanel({
     onHarnessOpFailed,
     onStopHarness,
     onRestartHarness,
+    sessionPhase,
     onDiagnosticsExported: (path: string) => {
       showToast(t("settings.about.exportDiagnosticsDone", { path }));
     },
@@ -383,6 +390,7 @@ function SettingsModalOpen({
   onHarnessOpFailed,
   onStopHarness,
   onRestartHarness,
+  sessionPhase,
 }: Omit<Props, "open">) {
   const [runtime, setRuntime] = useState<RuntimeStatus | null>(null);
   const [fault, setFault] = useState<FaultState | null>(null);
@@ -408,6 +416,12 @@ function SettingsModalOpen({
       void refreshRuntime();
     }
   }, [life.locked, refreshRuntime]);
+
+  useEffect(() => {
+    if (sessionPhase === "stopped") {
+      void refreshRuntime();
+    }
+  }, [sessionPhase, refreshRuntime]);
 
   const reportFault = useCallback(
     (message: string | null, retry?: () => void | Promise<void>) => {
@@ -435,6 +449,7 @@ function SettingsModalOpen({
         onHarnessOpFailed={onHarnessOpFailed}
         onStopHarness={onStopHarness}
         onRestartHarness={onRestartHarness}
+        sessionPhase={sessionPhase}
         runtime={runtime}
         refreshRuntime={refreshRuntime}
         fault={fault}
@@ -454,6 +469,7 @@ export function SettingsModal({
   onHarnessOpFailed,
   onStopHarness,
   onRestartHarness,
+  sessionPhase,
 }: Props) {
   if (!open) return null;
   return (
@@ -465,6 +481,7 @@ export function SettingsModal({
       onHarnessOpFailed={onHarnessOpFailed}
       onStopHarness={onStopHarness}
       onRestartHarness={onRestartHarness}
+      sessionPhase={sessionPhase}
     />
   );
 }
