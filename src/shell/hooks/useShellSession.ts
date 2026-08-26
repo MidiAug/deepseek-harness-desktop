@@ -11,9 +11,14 @@ import type {
   ReadyPayload,
 } from "../types/ipc-types";
 import { stopHarness } from "../api/shellApi";
+import { useHostLifecycle } from "../contexts/HostLifecycleProvider";
 import { clearBootError, recordBootError } from "../diagnosticsContext";
 import { shellLog } from "../logger";
 import { setLinkedHarnessStart } from "../sessionOpLink";
+import {
+  deriveShowBootPanel,
+  deriveShowIframe,
+} from "../sessionPhase";
 import {
   readCachedResolvedThemeForIframe,
   RESOLVED_THEME_CACHE_KEY,
@@ -36,6 +41,7 @@ function withCacheBust(url: string): string {
 }
 
 export function useShellSession() {
+  const { setBootFault, clearBootFault } = useHostLifecycle();
   const [phase, setPhase] = useState<SessionPhase>("idle");
   const phaseRef = useRef<SessionPhase>("idle");
   const [serviceUrl, setServiceUrl] = useState<string | null>(null);
@@ -44,9 +50,6 @@ export function useShellSession() {
   const [startCommand, setStartCommand] =
     useState<StartCommand>("ensure_and_start");
   const [iframeKey, setIframeKey] = useState(0);
-  const [bootStealth, setBootStealth] = useState(false);
-  const [bootMsg, setBootMsg] = useState("正在准备…");
-  const [bootError, setBootError] = useState<string | null>(null);
 
   const transitionPhase = useCallback(
     (to: SessionPhase, reason?: string) => {
@@ -62,72 +65,67 @@ export function useShellSession() {
 
   const markReady = useCallback((payload: ReadyPayload) => {
     clearBootError();
+    clearBootFault();
     shellLog.info("session", "ready", { port: payload.port });
-    setBootError(null);
     setStartCommand("ensure_and_start");
     setServiceUrl(withCacheBust(payload.url));
     setPort(payload.port);
-    transitionPhase("ready");
-    setBootStealth(false);
+    transitionPhase("embedding", "service_ready");
     setIframeKey((k) => k + 1);
-  }, [transitionPhase]);
+  }, [transitionPhase, clearBootFault]);
 
   const markFailed = useCallback((error?: string) => {
     transitionPhase("failed", error ?? "unknown");
     if (error) {
       recordBootError(error);
+      setBootFault(error);
       shellLog.op("boot.failed", { reason: error }, "err");
-      setBootError(error);
     } else {
       shellLog.warn("session", "phase failed without reason");
     }
     setServiceUrl(null);
-    setBootStealth(false);
-  }, [transitionPhase]);
+  }, [transitionPhase, setBootFault]);
 
   const markIframeConnected = useCallback(() => {
     shellLog.info("session", "iframe connected");
-    transitionPhase("ready", "iframe_onload");
+    transitionPhase("ready", "iframe_health_ok");
   }, [transitionPhase]);
 
   const markIframeError = useCallback(() => {
     const reason = "HEALTH_TIMEOUT: 官方 UI 加载失败";
     transitionPhase("failed", reason);
     setServiceUrl(null);
-    setBootStealth(false);
-    setBootError(reason);
+    setBootFault(reason);
     recordBootError(reason);
     shellLog.op("boot.failed", { reason }, "err");
-  }, [transitionPhase]);
+  }, [transitionPhase, setBootFault]);
 
   /** BootPanel 进入工作态时：冷启动=installing，快路径=spawning */
   const markBootWorking = useCallback((coldInstall: boolean) => {
-    setBootError(null);
+    clearBootFault();
     transitionPhase(coldInstall ? "installing" : "spawning", coldInstall ? "cold_install" : "fast_path");
-  }, [transitionPhase]);
+  }, [transitionPhase, clearBootFault]);
 
   const restart = useCallback((linkedOpId?: string, action = "session.restart") => {
     const opId = linkedOpId ?? shellLog.opBegin(action);
     setLinkedHarnessStart({ opId, action });
     transitionPhase("idle", "user_restart");
     setServiceUrl(null);
-    setBootStealth(false);
-    setBootError(null);
+    clearBootFault();
     setStartCommand("restart_harness");
     setBootKey((k) => k + 1);
-  }, [transitionPhase]);
+  }, [transitionPhase, clearBootFault]);
 
   /** 设置页发起 reset/reinstall 等：隐藏 iframe，进入 stealth 启动态，勿重复 auto-start */
   const beginHarnessOp = useCallback(() => {
     shellLog.op("session.harness_op");
-    setBootError(null);
+    clearBootFault();
     setServiceUrl(null);
     setPort(null);
     transitionPhase("spawning", "external_op");
-    setBootStealth(true);
     setStartCommand("external_op");
     setBootKey((k) => k + 1);
-  }, [transitionPhase]);
+  }, [transitionPhase, clearBootFault]);
 
   /** 停止托管进程；进入 stopped（Boot 可手动启，禁止自动 ensure） */
   const stop = useCallback(async (linkedOpId?: string, action = "session.stop") => {
@@ -142,9 +140,7 @@ export function useShellSession() {
     transitionPhase("stopped", "user_stop");
     setServiceUrl(null);
     setPort(null);
-    setBootStealth(false);
-    setBootError(null);
-    setBootMsg("已停止 harness");
+    clearBootFault();
     setStartCommand("ensure_and_start");
     setBootKey((k) => {
       const next = k + 1;
@@ -156,7 +152,7 @@ export function useShellSession() {
       });
       return next;
     });
-  }, [transitionPhase]);
+  }, [transitionPhase, clearBootFault]);
 
   // stopped 非错误：内容区状态面接管；顶栏不标红
   const titleConn: TitleConn =
@@ -166,15 +162,9 @@ export function useShellSession() {
         ? "error"
         : "preparing";
 
-  const showBootPanel =
-    phase === "idle" ||
-    phase === "installing" ||
-    phase === "spawning" ||
-    phase === "embedding" ||
-    phase === "failed" ||
-    phase === "stopped";
+  const showBootPanel = deriveShowBootPanel(phase);
 
-  const showIframe = phase === "ready" && serviceUrl != null;
+  const showIframe = deriveShowIframe(phase, serviceUrl);
 
   /** B47：进度只进内容区，不再替换顶栏产品名 */
   const titleActivity: string | null = null;
@@ -189,12 +179,7 @@ export function useShellSession() {
     bootKey,
     startCommand,
     iframeKey,
-    bootStealth,
-    bootMsg,
-    bootError,
     bootAutoStart,
-    setBootStealth,
-    setBootMsg,
     markReady,
     markFailed,
     markBootWorking,

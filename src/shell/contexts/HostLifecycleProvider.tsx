@@ -23,6 +23,12 @@ import {
   pushLogLine,
   type BootStageId,
 } from "../hostProgressMap";
+import {
+  INITIAL_BOOT_FAULT,
+  INITIAL_BOOT_META,
+  type BootFault,
+  type BootMeta,
+} from "../bootSurfaceMode";
 
 export type BusyReason = "idle" | "boot" | "ops" | "progress";
 
@@ -33,14 +39,14 @@ export type HostLifecycleState = {
   logLines: string[];
   busyReason: BusyReason;
   locked: boolean;
+  bootFault: BootFault;
+  bootMeta: BootMeta;
 };
 
 type HostLifecycleApi = HostLifecycleState & {
   beginOps: (initialMsg: string) => void;
   endOps: (opts?: { clearProgress?: boolean }) => void;
-  /** App 把 SessionPhase 同步进来，避免 Provider 依赖 useShellSession */
   syncSessionPhase: (phase: SessionPhase) => void;
-  /** BootPanel 启动前写入初始文案/阶段；keepIdle 时不锁设置（如用户主动停止） */
   seedBoot: (opts: {
     message: string;
     stageId?: BootStageId | null;
@@ -49,11 +55,13 @@ type HostLifecycleApi = HostLifecycleState & {
     keepIdle?: boolean;
   }) => void;
   resetIdle: (opts?: { clearProgress?: boolean }) => void;
+  setBootFault: (message: string | null) => void;
+  setBootMeta: (partial: Partial<BootMeta>) => void;
+  clearBootFault: () => void;
 };
 
 const HostLifecycleContext = createContext<HostLifecycleApi | null>(null);
 
-/** idle/clear 后 message 必须为空，否则关于区会误画「正在准备」进度条 */
 const INITIAL: HostLifecycleState = {
   stageId: null,
   message: "",
@@ -61,15 +69,16 @@ const INITIAL: HostLifecycleState = {
   logLines: [],
   busyReason: "idle",
   locked: false,
+  bootFault: INITIAL_BOOT_FAULT,
+  bootMeta: INITIAL_BOOT_META,
 };
 
-function withLocked(
-  partial: Omit<HostLifecycleState, "locked">,
+function patchLocked(
+  prev: HostLifecycleState,
+  patch: Partial<Omit<HostLifecycleState, "locked">>,
 ): HostLifecycleState {
-  return {
-    ...partial,
-    locked: partial.busyReason !== "idle",
-  };
+  const merged = { ...prev, ...patch };
+  return { ...merged, locked: merged.busyReason !== "idle" };
 }
 
 export function HostLifecycleProvider({ children }: { children: ReactNode }) {
@@ -109,7 +118,7 @@ export function HostLifecycleProvider({ children }: { children: ReactNode }) {
       }
 
       const done = percent != null && percent >= 100 && !keepOps;
-      return withLocked({
+      return patchLocked(prev, {
         stageId,
         message,
         percent,
@@ -135,8 +144,8 @@ export function HostLifecycleProvider({ children }: { children: ReactNode }) {
   }, [applyProgress]);
 
   const beginOps = useCallback((initialMsg: string) => {
-    setState(
-      withLocked({
+    setState((prev) =>
+      patchLocked(prev, {
         stageId: "detect",
         message: initialMsg,
         percent: null,
@@ -150,21 +159,14 @@ export function HostLifecycleProvider({ children }: { children: ReactNode }) {
     const sessionBusy = sessionBusyRef.current;
     setState((prev) => {
       if (opts?.clearProgress && !sessionBusy) {
-        return withLocked({
-          ...INITIAL,
-          busyReason: "idle",
-        });
+        return patchLocked(prev, { ...INITIAL, busyReason: "idle" });
       }
       if (sessionBusy) {
-        return withLocked({
-          ...prev,
+        return patchLocked(prev, {
           busyReason: prev.logLines.length > 0 ? "progress" : "boot",
         });
       }
-      return withLocked({
-        ...prev,
-        busyReason: "idle",
-      });
+      return patchLocked(prev, { busyReason: "idle" });
     });
   }, []);
 
@@ -174,25 +176,18 @@ export function HostLifecycleProvider({ children }: { children: ReactNode }) {
     setState((prev) => {
       if (phase === "stopped") {
         if (prev.busyReason === "ops") return prev;
-        return withLocked({ ...INITIAL, busyReason: "idle" });
+        return patchLocked(prev, { ...INITIAL, busyReason: "idle" });
       }
       if (sessionBusy) {
         if (prev.busyReason === "ops") return prev;
         if (prev.busyReason === "idle") {
-          return withLocked({
-            ...prev,
-            busyReason: "boot",
-          });
+          return patchLocked(prev, { busyReason: "boot" });
         }
         return prev;
       }
-      // ready / failed / embedding / idle：非 ops 则放行
       if (prev.busyReason === "ops") return prev;
       if (prev.busyReason === "idle") return prev;
-      return withLocked({
-        ...prev,
-        busyReason: "idle",
-      });
+      return patchLocked(prev, { busyReason: "idle" });
     });
   }, []);
 
@@ -212,7 +207,7 @@ export function HostLifecycleProvider({ children }: { children: ReactNode }) {
             : prev.busyReason === "idle"
               ? "boot"
               : prev.busyReason;
-        return withLocked({
+        return patchLocked(prev, {
           stageId: opts.stageId ?? prev.stageId ?? "detect",
           message: opts.message,
           percent: opts.percent !== undefined ? opts.percent : prev.percent,
@@ -229,10 +224,30 @@ export function HostLifecycleProvider({ children }: { children: ReactNode }) {
   const resetIdle = useCallback((opts?: { clearProgress?: boolean }) => {
     setState((prev) => {
       if (opts?.clearProgress) {
-        return withLocked({ ...INITIAL, busyReason: "idle" });
+        return patchLocked(prev, { ...INITIAL, busyReason: "idle" });
       }
-      return withLocked({ ...prev, busyReason: "idle" });
+      return patchLocked(prev, { busyReason: "idle" });
     });
+  }, []);
+
+  const setBootFault = useCallback((message: string | null) => {
+    setState((prev) =>
+      patchLocked(prev, { bootFault: { message } }),
+    );
+  }, []);
+
+  const setBootMeta = useCallback((partial: Partial<BootMeta>) => {
+    setState((prev) =>
+      patchLocked(prev, {
+        bootMeta: { ...prev.bootMeta, ...partial },
+      }),
+    );
+  }, []);
+
+  const clearBootFault = useCallback(() => {
+    setState((prev) =>
+      patchLocked(prev, { bootFault: INITIAL_BOOT_FAULT }),
+    );
   }, []);
 
   const value = useMemo<HostLifecycleApi>(
@@ -243,8 +258,21 @@ export function HostLifecycleProvider({ children }: { children: ReactNode }) {
       syncSessionPhase,
       seedBoot,
       resetIdle,
+      setBootFault,
+      setBootMeta,
+      clearBootFault,
     }),
-    [state, beginOps, endOps, syncSessionPhase, seedBoot, resetIdle],
+    [
+      state,
+      beginOps,
+      endOps,
+      syncSessionPhase,
+      seedBoot,
+      resetIdle,
+      setBootFault,
+      setBootMeta,
+      clearBootFault,
+    ],
   );
 
   return (

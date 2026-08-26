@@ -31,6 +31,8 @@ export const boot = {
   "onboarding.saving": "保存中…",
   "onboarding.done": "首跑偏好已保存。",
   "onboarding.continueDefault": "使用默认设置继续",
+  "onboarding.gateFailed": "无法读取首跑偏好，请检查磁盘权限后重试。",
+  "onboarding.retry": "重试",
   "boot.title.firstRun": "首次准备",
   "boot.title.repair": "修复安装",
   "boot.lead.firstRun": "安装托管 Node 与 harness 后自动打开官方界面。",

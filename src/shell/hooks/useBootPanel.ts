@@ -14,16 +14,20 @@ import {
   resolveInstallMode,
   type InstallMode,
 } from "../runtime/installMode";
+import {
+  deriveShowFault,
+  deriveStealth,
+  deriveSurfaceMode,
+  type BootSurfaceMode,
+} from "../bootSurfaceMode";
 
-export type BootSurfaceMode = "install" | "status";
+export type { BootSurfaceMode };
 
 export type UseBootPanelOpts = {
   startCommand: StartCommand;
-  /** false：用户主动停止后挂载，禁止自动 ensure */
   autoStart?: boolean;
   forceStealth?: boolean;
   embedding?: boolean;
-  sessionError?: string | null;
   onReady: (payload: ReadyPayload) => void;
   onError: (message: string) => void;
   onBootWorking?: (coldInstall: boolean) => void;
@@ -37,7 +41,6 @@ export function useBootPanel({
   autoStart = true,
   forceStealth = false,
   embedding = false,
-  sessionError = null,
   onReady,
   onError,
   onBootWorking,
@@ -47,25 +50,32 @@ export function useBootPanel({
 }: UseBootPanelOpts) {
   const life = useHostLifecycle();
   const { t } = useLocale();
-  const [failed, setFailed] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [fastPath, setFastPath] = useState(false);
-  const [runtimeKnown, setRuntimeKnown] = useState(false);
-  const [repairing, setRepairing] = useState(false);
   const [logOpen, setLogOpen] = useState(true);
   const [dshHomePath, setDshHomePath] = useState("");
   const [installMode, setInstallMode] = useState<InstallMode>("hosted");
   const [awaitingManualStart, setAwaitingManualStart] = useState(false);
   const logBodyRef = useRef<HTMLDivElement>(null);
   const startedRef = useRef(false);
+  const aliveRef = useRef(true);
   const onStealthChangeRef = useRef(onStealthChange);
   const onStatusMessageRef = useRef(onStatusMessage);
   const onBootWorkingRef = useRef(onBootWorking);
   const seedBootRef = useRef(life.seedBoot);
+  const setBootFaultRef = useRef(life.setBootFault);
+  const clearBootFaultRef = useRef(life.clearBootFault);
+  const setBootMetaRef = useRef(life.setBootMeta);
   onStealthChangeRef.current = onStealthChange;
   onStatusMessageRef.current = onStatusMessage;
   onBootWorkingRef.current = onBootWorking;
   seedBootRef.current = life.seedBoot;
+  setBootFaultRef.current = life.setBootFault;
+  clearBootFaultRef.current = life.clearBootFault;
+  setBootMetaRef.current = life.setBootMeta;
+
+  const { bootFault, bootMeta } = life;
+  const error = bootFault.message;
+  const showFault = deriveShowFault(bootFault);
+  const { fastPath, repairing, runtimeKnown } = bootMeta;
 
   const setStatus = useCallback(
     (
@@ -86,8 +96,7 @@ export function useBootPanel({
       refreshRuntime: () => undefined,
       onBootReady: onReady,
       onBootError: (msg) => {
-        setFailed(true);
-        setError(msg);
+        setBootFaultRef.current(msg);
         startedRef.current = false;
         onError(msg);
       },
@@ -96,8 +105,7 @@ export function useBootPanel({
         onBootWorkingRef.current?.(true);
       },
       onBootResetFault: () => {
-        setFailed(false);
-        setError(null);
+        clearBootFaultRef.current();
       },
     },
     {
@@ -109,8 +117,7 @@ export function useBootPanel({
 
   const start = useCallback(
     async (cmd: StartCommand) => {
-      setFailed(false);
-      setError(null);
+      clearBootFaultRef.current();
       const msg =
         cmd === "restart_harness" ? t("boot.msg.restart") : t("boot.msg.ensure");
       seedBootRef.current({
@@ -125,6 +132,7 @@ export function useBootPanel({
       const opId = linked?.opId ?? shellLog.opBegin(action, { cmd });
       try {
         const ready = await shellApi.startHarness(cmd, opId);
+        if (!aliveRef.current) return;
         shellLog.opEnd(opId, action, "ok");
         const readyMsg = t("boot.msg.embedding");
         seedBootRef.current({
@@ -135,15 +143,15 @@ export function useBootPanel({
         onStatusMessageRef.current?.(readyMsg);
         onReady(ready);
       } catch (e) {
-        const msg = typeof e === "string" ? e : String(e);
+        if (!aliveRef.current) return;
+        const errMsg = typeof e === "string" ? e : String(e);
         shellLog.opEnd(opId, action, "err");
-        shellLog.error("boot", `startHarness ${cmd}`, msg);
-        setFailed(true);
-        setError(msg);
+        shellLog.error("boot", `startHarness ${cmd}`, errMsg);
+        setBootFaultRef.current(errMsg);
         seedBootRef.current({ message: t("boot.msg.failed"), stageId: "start" });
         onStatusMessageRef.current?.(t("boot.msg.failed"));
         startedRef.current = false;
-        onError(msg);
+        onError(errMsg);
       }
     },
     [onReady, onError, t],
@@ -178,6 +186,7 @@ export function useBootPanel({
   );
 
   useEffect(() => {
+    aliveRef.current = true;
     void (async () => {
       let coldInstall = true;
       try {
@@ -191,8 +200,11 @@ export function useBootPanel({
         setDshHomePath(st.dshHome ?? st.effectiveDshHome ?? "");
         const ready = st.nodeReady && st.harnessReady;
         const partial = Boolean(st.harnessPartial);
-        setFastPath(ready);
-        setRepairing(partial && !ready);
+        setBootMetaRef.current({
+          fastPath: ready,
+          repairing: partial && !ready,
+          runtimeKnown: true,
+        });
         coldInstall = !ready;
         if (ready) {
           setStatus(t("boot.msg.ensure"), "start");
@@ -200,13 +212,14 @@ export function useBootPanel({
           setStatus(t("boot.lead.repair"), "install-dsh");
         }
       } catch {
-        setFastPath(false);
+        setBootMetaRef.current({
+          fastPath: false,
+          repairing: false,
+          runtimeKnown: true,
+        });
         coldInstall = true;
-      } finally {
-        setRuntimeKnown(true);
       }
 
-      // 主动停止 / 外部运维：禁止自动 ensure，也勿把 session 打成 spawning
       if (startCommand === "external_op" || !autoStart) {
         if (!autoStart && startCommand !== "external_op") {
           setAwaitingManualStart(true);
@@ -227,6 +240,9 @@ export function useBootPanel({
         void start(startCommand);
       }
     })();
+    return () => {
+      aliveRef.current = false;
+    };
   }, [start, startCommand, autoStart, setStatus, t]);
 
   useEffect(() => {
@@ -239,22 +255,16 @@ export function useBootPanel({
     return () => window.cancelAnimationFrame(id);
   }, [life.logLines, logOpen]);
 
-  useEffect(() => {
-    if (!sessionError) return;
-    setFailed(true);
-    setError(sessionError);
-  }, [sessionError]);
-
-  const showFault = failed && !!error;
-  // 仅运维 stealth / 探测前空白；Capability OK 不再用 slowBoot 翻出安装卡
-  const stealth = forceStealth || !runtimeKnown;
+  const stealth = deriveStealth(forceStealth, bootMeta);
   const working = !showFault && !awaitingManualStart && !embedding;
 
-  /** 安装大卡：真缺包/修复且非停止/失败；其余极简状态面 */
-  const surfaceMode: BootSurfaceMode =
-    showFault || awaitingManualStart || embedding || fastPath || !runtimeKnown
-      ? "status"
-      : "install";
+  const surfaceMode = deriveSurfaceMode({
+    showFault,
+    awaitingManualStart,
+    embedding,
+    fastPath,
+    runtimeKnown,
+  });
 
   const startManual = useCallback(() => {
     if (startedRef.current) return;

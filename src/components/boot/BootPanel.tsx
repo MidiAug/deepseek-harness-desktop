@@ -22,7 +22,6 @@ type Props = {
   autoStart?: boolean;
   forceStealth?: boolean;
   embedding?: boolean;
-  sessionError?: string | null;
   onReady: (payload: ReadyPayload) => void;
   onError: (message: string) => void;
   onBootWorking?: (coldInstall: boolean) => void;

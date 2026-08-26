@@ -25,6 +25,7 @@ import {
   useSidebarLayout,
   useHarnessContextMenu,
   useSessionLogDownload,
+  useAppToast,
 } from "./shell";
 import {
   clearShellSelections,
@@ -38,16 +39,19 @@ import {
   postSelectionTrace,
   suppressHoverResidue,
 } from "./shell/harnessFrameBridge";
+import { isHarnessFrameMessage } from "./shell/bridge/harnessMessage";
+import { useHarnessIframeHealth } from "./shell/hooks/useHarnessIframeHealth";
 import "./App.css";
 
 export default function App() {
   const { t } = useLocale();
+  const { showToast } = useAppToast();
   const session = useShellSession();
   const life = useHostLifecycle();
   const { syncSessionPhase } = life;
-  const { sidebarWidthPx } = useSidebarLayout(session.iframeKey);
-  const { chrome, resolvedTheme } = useChrome();
   const harnessFrameRef = useRef<HTMLIFrameElement | null>(null);
+  const { sidebarWidthPx } = useSidebarLayout(session.iframeKey, harnessFrameRef);
+  const { chrome, resolvedTheme } = useChrome();
   const [shellBodyEl, setShellBodyEl] = useState<HTMLDivElement | null>(null);
   const shellBodyRef = useCallback((node: HTMLDivElement | null) => {
     setShellBodyEl(node);
@@ -60,8 +64,9 @@ export default function App() {
   >(undefined);
   const [closeAskOpen, setCloseAskOpen] = useState(false);
   const [onboardingGate, setOnboardingGate] = useState<
-    "loading" | "wizard" | "ready"
+    "loading" | "wizard" | "ready" | "fault"
   >("loading");
+  const onboardingLoadGen = useRef(0);
   const [sessionLogAvailable, setSessionLogAvailable] = useState(false);
   const [iframeRevealed, setIframeRevealed] = useState(false);
   const { onSessionLog, resetSessionLogPending } = useSessionLogDownload(
@@ -91,19 +96,23 @@ export default function App() {
     setBodyView("harness");
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    void shellApi.getShellSettings().then((s) => {
-      if (cancelled) return;
+  const loadOnboardingGate = useCallback(async () => {
+    const gen = ++onboardingLoadGen.current;
+    setOnboardingGate("loading");
+    try {
+      const s = await shellApi.getShellSettings();
+      if (gen !== onboardingLoadGen.current) return;
       setOnboardingGate(s.onboardingDone ? "ready" : "wizard");
-    }).catch((e) => {
+    } catch (e) {
       shellLog.error("app", "onboarding gate", e);
-      if (!cancelled) setOnboardingGate("ready");
-    });
-    return () => {
-      cancelled = true;
-    };
+      if (gen !== onboardingLoadGen.current) return;
+      setOnboardingGate("fault");
+    }
   }, []);
+
+  useEffect(() => {
+    void loadOnboardingGate();
+  }, [loadOnboardingGate]);
 
   useEffect(() => {
     syncSessionPhase(session.phase);
@@ -131,6 +140,7 @@ export default function App() {
     let unAsk: (() => void) | undefined;
     let unFocus: (() => void) | undefined;
     let unPlatform: (() => void) | undefined;
+    let unOrphan: (() => void) | undefined;
 
     void listen("shell-ask-close", () => {
       setCloseAskOpen(true);
@@ -142,6 +152,13 @@ export default function App() {
       setBodyView("platform");
     }).then((fn) => {
       unPlatform = fn;
+    });
+
+    void listen("orphan-swept", () => {
+      showToast(t("shell.orphanSwept"));
+      shellLog.info("boot", "orphan-swept toast");
+    }).then((fn) => {
+      unOrphan = fn;
     });
 
     void getCurrentWindow()
@@ -156,11 +173,13 @@ export default function App() {
       unAsk?.();
       unFocus?.();
       unPlatform?.();
+      unOrphan?.();
     };
-  }, []);
+  }, [showToast, t]);
 
   useEffect(() => {
     function onMessage(ev: MessageEvent) {
+      if (!isHarnessFrameMessage(ev, harnessFrameRef.current)) return;
       const d = ev.data;
       if (!d || d.source !== "dsh-harness" || d.type !== "session-log-available") {
         return;
@@ -218,15 +237,35 @@ export default function App() {
   const showHarness =
     session.showIframe && !!session.serviceUrl;
   const harnessVisible = bodyView === "harness";
+  const embeddingActive = session.phase === "embedding";
 
-  // onLoad 未触发时兜底，避免 iframe 永久 opacity 0
+  const { onIframeLoad: onHarnessIframeLoad } = useHarnessIframeHealth({
+    active: showHarness && harnessVisible && embeddingActive,
+    serviceUrl: session.serviceUrl,
+    iframeKey: session.iframeKey,
+    onConnected: () => {
+      session.markIframeConnected();
+      setIframeRevealed(true);
+    },
+    onFailed: session.markIframeError,
+  });
+
+  // embedding 阶段探活超时前的视觉兜底（非健康判定）
   useEffect(() => {
-    if (!showHarness || !harnessVisible || iframeRevealed) return;
-    const t = window.setTimeout(() => {
+    if (!showHarness || !harnessVisible || iframeRevealed || !embeddingActive) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
       setIframeRevealed(true);
     }, 8000);
-    return () => window.clearTimeout(t);
-  }, [showHarness, harnessVisible, iframeRevealed, session.iframeKey]);
+    return () => window.clearTimeout(timer);
+  }, [
+    showHarness,
+    harnessVisible,
+    iframeRevealed,
+    embeddingActive,
+    session.iframeKey,
+  ]);
 
   const restartAndCloseSettings = useCallback(
     (linkedOpId?: string, action = "session.restart") => {
@@ -359,6 +398,15 @@ export default function App() {
             surfaceReason="onboarding"
           />
         )}
+        {onboardingGate === "fault" && (
+          <SessionStatusSurface
+            message={t("onboarding.gateFailed")}
+            surfaceReason="onboarding_fault"
+            awaitingManualStart
+            startLabel={t("onboarding.retry")}
+            onStartManual={() => void loadOnboardingGate()}
+          />
+        )}
         {onboardingGate === "wizard" && (
           <OnboardingWizard onComplete={() => setOnboardingGate("ready")} />
         )}
@@ -370,13 +418,11 @@ export default function App() {
             startCommand={session.startCommand}
             autoStart={session.bootAutoStart}
             forceStealth={opsActive && settingsOpen}
-            sessionError={session.bootError}
+            embedding={embeddingActive}
             onReady={session.markReady}
             onError={session.markFailed}
             onBootWorking={session.markBootWorking}
             onOpenSettings={() => openSettings()}
-            onStealthChange={session.setBootStealth}
-            onStatusMessage={session.setBootMsg}
           />
         )}
 
@@ -399,11 +445,7 @@ export default function App() {
               );
               setHarnessShellModalOpen(frame, shellBackdropOpen);
               if (shellBackdropOpen) clearShellSelections(frame);
-              requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                  setIframeRevealed(true);
-                });
-              });
+              onHarnessIframeLoad();
             }}
             onError={session.markIframeError}
           />

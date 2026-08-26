@@ -31,6 +31,8 @@ export const boot = {
   "onboarding.saving": "Saving…",
   "onboarding.done": "First-run preferences saved.",
   "onboarding.continueDefault": "Continue with defaults",
+  "onboarding.gateFailed": "Could not read first-run preferences — check disk access and retry.",
+  "onboarding.retry": "Retry",
   "boot.title.firstRun": "First-time setup",
   "boot.title.repair": "Repair install",
   "boot.lead.firstRun": "Installs managed Node and harness, then opens the official UI.",
