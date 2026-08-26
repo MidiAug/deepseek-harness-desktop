@@ -1,4 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  getFocusableElements,
+  resolveFocusTrapTab,
+} from "./shellDialogFocus";
 
 type Props = {
   open: boolean;
@@ -48,7 +52,25 @@ export function ShellDialogFrame({
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape" && !busy && dismissArmed) onDismiss();
+      if (e.key === "Escape" && !busy && dismissArmed) {
+        onDismiss();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const panel = panelRef.current;
+      if (!panel) return;
+      const focusable = getFocusableElements(panel);
+      const active = document.activeElement;
+      const activeIndex =
+        active instanceof HTMLElement ? focusable.indexOf(active) : -1;
+      const wrap = resolveFocusTrapTab(e.shiftKey, activeIndex, focusable.length);
+      if (wrap === "first") {
+        e.preventDefault();
+        focusable[0]?.focus({ preventScroll: true });
+      } else if (wrap === "last") {
+        e.preventDefault();
+        focusable[focusable.length - 1]?.focus({ preventScroll: true });
+      }
     }
     document.addEventListener("keydown", onKey, true);
     window.getSelection()?.removeAllRanges();
