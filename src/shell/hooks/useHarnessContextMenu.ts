@@ -20,6 +20,7 @@ import type {
 import { useAppToast } from "../contexts/ShellToastProvider";
 import { shellLog } from "../logger";
 import { recordInjectError } from "../diagnosticsContext";
+import { isHarnessFrameMessage } from "../bridge/harnessMessage";
 
 const MSG_SOURCE = "dsh-shell-context-menu";
 const INJECT_DIAG_SOURCE = "dsh-shell-inject";
@@ -61,6 +62,8 @@ export function useHarnessContextMenu(
     }
 
     function onMsg(ev: MessageEvent) {
+      const frame = iframeRef.current;
+      if (!isHarnessFrameMessage(ev, frame)) return;
       const data = ev.data as
         | HarnessContextMenuOpen
         | HarnessContextMenuClose
@@ -69,9 +72,6 @@ export function useHarnessContextMenu(
         | HarnessInjectError
         | null;
       if (!data) return;
-
-      const frame = iframeRef.current;
-      if (!frame || ev.source !== frame.contentWindow) return;
 
       if (
         data.type === "diag" &&

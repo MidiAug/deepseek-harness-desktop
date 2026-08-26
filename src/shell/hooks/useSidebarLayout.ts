@@ -1,13 +1,17 @@
 /** 侧栏几何：WebView init 注入 → postMessage（跨源唯一可靠通道）。 */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type RefObject } from "react";
+import { isHarnessFrameMessage } from "../bridge/harnessMessage";
 import type { SidebarLayout } from "../types/ipc-types";
 
 const SIDEBAR_MSG = "dsh-shell-sidebar-probe";
 /** 尚未收到注入上报时的展开态回退宽 */
 export const SIDEBAR_FALLBACK_PX = 260;
 
-export function useSidebarLayout(iframeKey: number) {
+export function useSidebarLayout(
+  iframeKey: number,
+  frameRef: RefObject<HTMLIFrameElement | null>,
+) {
   const [sidebar, setSidebar] = useState<SidebarLayout | null>(null);
 
   // iframe 换 key 时清掉旧几何，避免错位叠层
@@ -17,6 +21,7 @@ export function useSidebarLayout(iframeKey: number) {
 
   useEffect(() => {
     function onMsg(ev: MessageEvent) {
+      if (!isHarnessFrameMessage(ev, frameRef.current)) return;
       const data = ev.data as {
         source?: string;
         ok?: boolean;
@@ -43,7 +48,7 @@ export function useSidebarLayout(iframeKey: number) {
     }
     window.addEventListener("message", onMsg);
     return () => window.removeEventListener("message", onMsg);
-  }, []);
+  }, [frameRef]);
 
   return {
     sidebar,

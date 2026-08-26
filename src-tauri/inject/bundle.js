@@ -136,6 +136,14 @@
 
   /** 壳消息多路分发：各 feature/service 注册 handler，单条失败不拖垮全局 */
   function onShellMessage(ev) {
+    if (!ev || !ev.origin) return;
+    var origin = String(ev.origin);
+    var okOrigin =
+      origin === global.location.origin ||
+      /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\]|tauri\.localhost|asset\.localhost)(:\d+)?$/i.test(
+        origin,
+      );
+    if (!okOrigin) return;
     var d = ev && ev.data;
     if (!d || d.source !== SHELL_SOURCE) return;
     if (d.type === "desktop-action") {
