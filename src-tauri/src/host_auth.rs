@@ -84,4 +84,11 @@ mod tests {
         assert!(!url_has_launch_token("http://127.0.0.1:1/"));
         assert!(!url_has_launch_token("http://127.0.0.1:1/?t=1"));
     }
+
+    /// 对抗：仅 LAN 行、无 loopback → 不得当作壳探活 URL。
+    #[test]
+    fn ignores_lan_only_token_url() {
+        let log = "[out] dsh web: http://192.168.1.2:3081/?token=abc\n";
+        assert!(parse_authenticated_url_from_log(log).is_none());
+    }
 }

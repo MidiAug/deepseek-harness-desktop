@@ -52,6 +52,14 @@ pub fn acquire<R: Runtime>(
     purpose: LockPurpose,
 ) -> Result<RuntimeLockGuard, String> {
     let path = paths::runtime_lock_file(app)?;
+    acquire_at(path, purpose)
+}
+
+/// 按路径抢锁（测试与 `acquire` 共用；不依赖 `AppHandle`）。
+pub fn acquire_at(
+    path: std::path::PathBuf,
+    purpose: LockPurpose,
+) -> Result<RuntimeLockGuard, String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)
             .map_err(|e| String::from(HostError::install(format!("mkdir lock: {e}"))))?;
@@ -135,6 +143,21 @@ mod tests {
     use super::*;
     use std::path::PathBuf;
 
+    fn temp_lock_dir(tag: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "dsh-lock-test-{}-{}-{}",
+            tag,
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
     #[test]
     fn purpose_labels() {
         assert_eq!(LockPurpose::ShellUpdate.as_str(), "shell-update");
@@ -143,9 +166,7 @@ mod tests {
 
     #[test]
     fn drop_removes_own_lock() {
-        let dir = std::env::temp_dir().join(format!("dsh-lock-test-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&dir);
-        fs::create_dir_all(&dir).unwrap();
+        let dir = temp_lock_dir("drop");
         let path = dir.join(".runtime.lock");
         let pid = std::process::id();
         fs::write(&path, format!("{pid}\ntest\n")).unwrap();
@@ -157,6 +178,75 @@ mod tests {
         }
         assert!(!path.is_file());
         let _ = fs::remove_dir_all(&dir);
-        let _: PathBuf = dir;
+    }
+
+    /// 故障注入：活着的持有者 → 后来者必须失败（INSTALL_FAILED 文案）。
+    #[test]
+    fn live_holder_blocks_acquire() {
+        let dir = temp_lock_dir("live");
+        let path = dir.join(".runtime.lock");
+
+        // 真子进程作活持有者（勿用固定系统 PID：权限/查询在部分环境失败）。
+        let mut child = {
+            #[cfg(windows)]
+            {
+                use std::os::windows::process::CommandExt;
+                std::process::Command::new("powershell")
+                    .args(["-NoProfile", "-Command", "Start-Sleep -Seconds 60"])
+                    .creation_flags(0x0800_0000)
+                    .spawn()
+                    .expect("spawn sleep fixture")
+            }
+            #[cfg(not(windows))]
+            {
+                std::process::Command::new("sleep")
+                    .arg("60")
+                    .spawn()
+                    .expect("spawn sleep fixture")
+            }
+        };
+        let foreign_alive = child.id();
+        assert_ne!(foreign_alive, std::process::id());
+        assert!(
+            pid_alive(foreign_alive),
+            "fixture child pid {foreign_alive} must be alive"
+        );
+        fs::write(&path, format!("{foreign_alive}\nensure\n")).unwrap();
+
+        let err = match acquire_at(path.clone(), LockPurpose::Reset) {
+            Err(e) => e,
+            Ok(_g) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                panic!("expected live holder to block acquire");
+            }
+        };
+        assert!(
+            err.starts_with("INSTALL_FAILED:"),
+            "expected INSTALL_FAILED prefix, got {err}"
+        );
+        assert!(err.contains("运行时忙"), "expected busy message, got {err}");
+        assert!(path.is_file(), "failed acquire must not delete live holder lock");
+        let _ = child.kill();
+        let _ = child.wait();
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// 故障注入：死 pid / 无效锁 → 可抢占。
+    #[test]
+    fn dead_holder_is_preempted() {
+        let dir = temp_lock_dir("dead");
+        let path = dir.join(".runtime.lock");
+        // 极大 pid：几乎不可能存活
+        fs::write(&path, "2147483646\nensure\n").unwrap();
+        assert!(!pid_alive(2147483646));
+
+        let guard = acquire_at(path.clone(), LockPurpose::Ensure).unwrap();
+        assert!(path.is_file());
+        let text = fs::read_to_string(&path).unwrap();
+        assert!(text.starts_with(&format!("{}\n", std::process::id())));
+        drop(guard);
+        assert!(!path.is_file());
+        let _ = fs::remove_dir_all(&dir);
     }
 }

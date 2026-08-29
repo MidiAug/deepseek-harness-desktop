@@ -34,14 +34,5 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Fitness
-        run: pnpm fitness
-
-      - name: Unit tests (TS)
-        run: pnpm test:unit
-
-      - name: Unit tests (Rust)
-        run: cargo test --manifest-path src-tauri/Cargo.toml
-
-      - name: Release checks
-        run: pnpm check:release
+      - name: Host hard gates
+        run: pnpm check:host

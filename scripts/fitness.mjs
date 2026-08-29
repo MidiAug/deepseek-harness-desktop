@@ -1,6 +1,6 @@
 /**
- * Fitness 聚合（R10 / R10b）：
- * 硬门：F-import · F-invoke · F-stage · F-bindings · jscpd
+ * Fitness 聚合（R10 / R10b / B66）：
+ * 硬门：F-import · F-invoke · F-stage · F-bindings · F-fault-prefix · jscpd
  * soft/advisory：knip（见 A9；非「已清零死代码」）
  */
 import { spawnSync } from "node:child_process";
@@ -30,6 +30,7 @@ function run(label, cmd, args, { soft = false } = {}) {
 
 run("F-import", "node", ["scripts/fitness-import.mjs"]);
 run("F-invoke", "node", ["scripts/fitness-invoke.mjs"]);
+run("F-fault-prefix", "node", ["scripts/fitness-fault-prefix.mjs"]);
 run("F-stage", "pnpm", [
   "exec",
   "node",

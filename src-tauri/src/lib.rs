@@ -5,6 +5,7 @@ mod contracts;
 mod diagnostics;
 mod error;
 mod host_auth;
+mod host_resilience;
 mod inject;
 mod install;
 mod net;

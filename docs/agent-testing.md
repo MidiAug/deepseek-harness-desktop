@@ -86,6 +86,28 @@ Harness 主区在 `main` 内 iframe（loopback 端口）；Shell 设置/顶栏�
 - 仅在本地开发机使用；勿对不可信页面开放远程调试
 - Agent 不得借此给 Harness iframe 开通用 FS/Shell（产品红线不变）
 
+## 对抗清单（B66 · 严厉点验）
+
+> 自动化门禁：`pnpm check:host`（CI）；真机旅程：`pnpm check:host:live`（需 `:9222`）。  
+> 下列 **不进 CI**，供 Agent/人工对抗抽检；每条写明失败信号。
+
+| # | 场景 | 做法 | 失败信号 |
+|---|------|------|----------|
+| 1 | 冷启动就绪 | 等 Boot 结束；`__dshShellAudit()` | `sessionPhase≠ready` 或 `bootFault` 非空 |
+| 2 | iframe 探活 | invoke `probe_harness_url` 用 iframe src | 返回非 `true` |
+| 3 | token 兼容 | 看 iframe src 是否含 `token=` | 有 token 却探活失败；或日志有 token 但 iframe 被剥掉 |
+| 4 | 设置打开不闪关 | 顶栏开设置，等 1s | 弹窗自行关闭 |
+| 5 | 服务停止 | 设置→停止；再 audit | 仍 `processRunning` / iframe 仍宣称 ready 且探活成功 |
+| 6 | 服务重启 | 停止后再启动/重启 | 无新 `op_id` 链或最终非 ready |
+| 7 | Recovery 连点 | 故障态连点同一 CTA 两次 | 双 npm install / 双 ensure（日志两条并行 install） |
+| 8 | 关窗清扫 | 非托盘退出后查托管 node | AppData `harness` 下 node 仍存活 |
+| 9 | postMessage 源 | 伪造非白名单 origin 消息 | 壳状态被改（侧栏宽/主题等） |
+| 10 | 诊断导出 | `export_diagnostics` | 缺 `ops-recent.jsonl` / 无 `session_id` |
+
+抽检建议：发版前至少跑 **1、2、7、8**；改 lifecycle 时加 **5、6、7**。
+
+自动化韧性（B67）：本地 `pnpm audit:fault`；有 `:9222` 时 `pnpm check:host:live`（含 **J2 杀托管 node → restart**）。
+
 ## 故障排查
 
 | 现象 | 检查 |

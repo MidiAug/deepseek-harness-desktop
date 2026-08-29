@@ -231,6 +231,17 @@ pub fn validate_dsh_home_reset_target<R: Runtime>(
     app: &AppHandle<R>,
     home: &Path,
 ) -> Result<(), String> {
+    let app_base = base_dir(app)?;
+    let clean = clean_profile_session_dir(app)?;
+    validate_dsh_home_reset_target_at(home, &app_base, &clean)
+}
+
+/// 路径版重置目标校验（可测；不依赖 AppHandle）。
+pub fn validate_dsh_home_reset_target_at(
+    home: &Path,
+    app_base: &Path,
+    clean_profile: &Path,
+) -> Result<(), String> {
     if !home.is_absolute() {
         return Err("DSH_HOME 须为绝对路径".into());
     }
@@ -244,13 +255,13 @@ pub fn validate_dsh_home_reset_target<R: Runtime>(
     if home.parent().is_none_or(|p| p.as_os_str().is_empty()) {
         return Err("不能清空盘符根目录".into());
     }
-    let app_base = base_dir(app)?;
-    let app_base = app_base.canonicalize().unwrap_or(app_base);
+    let app_base = app_base.canonicalize().unwrap_or_else(|_| app_base.to_path_buf());
     if home == app_base {
         return Err("不能清空应用 AppData 根目录".into());
     }
-    let clean = clean_profile_session_dir(app)?;
-    let clean = clean.canonicalize().unwrap_or(clean);
+    let clean = clean_profile
+        .canonicalize()
+        .unwrap_or_else(|_| clean_profile.to_path_buf());
     if home == clean {
         return Err("不能清空临时干净 profile 目录".into());
     }
@@ -459,5 +470,72 @@ mod tests {
         let r = evaluate_hosted_dsh_home_slot(&base, false);
         assert!(r.occupied);
         let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn is_our_dsh_home_needs_dsh_markers() {
+        let base = std::env::temp_dir().join(format!(
+            "dsh-path-test-markers-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&base);
+        fs::create_dir_all(&base).unwrap();
+        assert!(!is_our_dsh_home(&base));
+        fs::write(base.join("settings.yaml"), "locale: zh-CN\n").unwrap();
+        assert!(is_our_dsh_home(&base));
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn hosted_reuse_meta_detects_our_primary() {
+        let primary = std::env::temp_dir().join(format!(
+            "dsh-path-test-reuse-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&primary);
+        fs::create_dir_all(&primary).unwrap();
+        fs::create_dir_all(primary.join("conversations")).unwrap();
+        let (ok, path) = hosted_dsh_home_reuse_meta(&primary, &primary.to_string_lossy());
+        assert!(ok);
+        assert_eq!(path.as_deref(), Some(primary.to_string_lossy().as_ref()));
+        let _ = fs::remove_dir_all(&primary);
+    }
+
+    #[test]
+    fn reset_target_rejects_dangerous_paths() {
+        let app_base = std::env::temp_dir().join(format!(
+            "dsh-reset-app-{}",
+            std::process::id()
+        ));
+        let clean = app_base.join("clean-profile-session");
+        let safe = app_base.join("dsh-home");
+        let _ = fs::remove_dir_all(&app_base);
+        fs::create_dir_all(&safe).unwrap();
+        fs::create_dir_all(&clean).unwrap();
+
+        assert!(
+            validate_dsh_home_reset_target_at(Path::new("relative"), &app_base, &clean).is_err()
+        );
+        if let Some(user_home) = dirs::home_dir() {
+            let err = validate_dsh_home_reset_target_at(&user_home, &app_base, &clean).unwrap_err();
+            assert!(err.contains("主目录"), "{err}");
+        }
+        #[cfg(windows)]
+        {
+            let err = validate_dsh_home_reset_target_at(Path::new(r"C:\"), &app_base, &clean)
+                .unwrap_err();
+            assert!(err.contains("盘符根"), "{err}");
+        }
+        let err = validate_dsh_home_reset_target_at(&app_base, &app_base, &clean).unwrap_err();
+        assert!(err.contains("AppData"), "{err}");
+        let err = validate_dsh_home_reset_target_at(&clean, &app_base, &clean).unwrap_err();
+        assert!(err.contains("干净 profile"), "{err}");
+        assert!(validate_dsh_home_reset_target_at(&safe, &app_base, &clean).is_ok());
+        let _ = fs::remove_dir_all(&app_base);
+    }
+
+    #[test]
+    fn resolve_dsh_home_for_mode_rejects_empty() {
+        assert!(resolve_dsh_home_for_mode("  ", "hosted", true).is_err());
     }
 }

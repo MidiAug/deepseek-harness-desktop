@@ -14,6 +14,10 @@
     "check:inject-selectors": "node scripts/check-inject-selectors.mjs",
     "test:unit": "node --test --experimental-strip-types src/shell/errors/recoveryMatrix.test.ts src/shell/errors/parseFaultDisplay.test.ts src/shell/errors/formatBoundaryError.test.ts src/shell/hostProgressMap.test.ts src/shell/bootProgressDisplay.test.ts src/shell/settings.test.ts src/shell/formatPathShort.test.ts src/shell/hooks/useHarnessRecoveryActions.test.ts src/shell/runtime/statusProcess.test.ts src/components/chrome/shellDialogDismiss.test.ts src/components/chrome/shellDialogFocus.test.ts src/shell/inject/copyActiveSelection.logic.test.ts src/shell/bridge/policies.test.ts src/shell/bridge/routing.test.ts src/shell/bridge/messageOrigin.test.ts src/shell/bridge/harnessMessage.test.ts src/shell/sessionPhase.test.ts src/shell/bootSurfaceMode.test.ts src/shell/settingsFaultBoundary.test.ts src/shell/harnessUrl.test.ts",
     "check:inject-copy": "node scripts/check-copy-active-selection.mjs",
+    "check:host": "node scripts/check-host.mjs",
+    "check:host:live": "node scripts/audit-golden-journey.mjs",
+    "audit:fault": "node scripts/audit-fault-inject.mjs",
+    "audit:dsh": "node scripts/audit-dsh-app.mjs",
     "audit:snapshot": "node scripts/audit-system-snapshot.mjs",
     "audit:runtime": "node scripts/audit-runtime-probe.mjs",
     "audit:path-identity": "node scripts/audit-path-identity.mjs",
@@ -28,7 +32,8 @@
     "check:bindings": "node scripts/check-bindings.mjs",
     "fitness": "node scripts/fitness.mjs",
     "fitness:import": "node scripts/fitness-import.mjs",
-    "fitness:invoke": "node scripts/fitness-invoke.mjs"
+    "fitness:invoke": "node scripts/fitness-invoke.mjs",
+    "fitness:fault-prefix": "node scripts/fitness-fault-prefix.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

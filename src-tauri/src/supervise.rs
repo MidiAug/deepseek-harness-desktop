@@ -3,7 +3,6 @@
 use std::ffi::OsString;
 use std::fs::{self, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
-use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener};
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::Mutex;
@@ -206,44 +205,30 @@ pub fn sweep_orphans<R: Runtime>(app: &AppHandle<R>) -> bool {
         let _ = fs::remove_file(&pid_path);
         return false;
     };
-    if !is_port_in_use(port) {
-        let _ = fs::remove_file(&pid_path);
-        return false;
+    let port_busy = crate::host_resilience::is_port_in_use(port);
+    let owner = if port_busy {
+        port_owner_pid(port)
+    } else {
+        None
+    };
+    match crate::host_resilience::decide_orphan_sweep(pid, port, port_busy, owner) {
+        crate::host_resilience::SweepDecision::ClearStaleFile => {
+            let _ = fs::remove_file(&pid_path);
+            false
+        }
+        crate::host_resilience::SweepDecision::LeaveAlone => false,
+        crate::host_resilience::SweepDecision::KillOwner { pid, port } => {
+            kill_pid_tree(pid);
+            log::info!(target: "shell::supervise", "sweep_orphans killed pid={pid} port={port}");
+            progress::append_shell_log(app, &format!("sweep_orphans killed pid={pid} port={port}"));
+            let _ = fs::remove_file(&pid_path);
+            true
+        }
     }
-    if port_owner_pid(port) != Some(pid) {
-        return false;
-    }
-    kill_pid_tree(pid);
-    log::info!(target: "shell::supervise", "sweep_orphans killed pid={pid} port={port}");
-    progress::append_shell_log(app, &format!("sweep_orphans killed pid={pid} port={port}"));
-    let _ = fs::remove_file(&pid_path);
-    true
 }
 
 fn find_available_port(start: u16) -> Result<u16, String> {
-    let mut port = start;
-    for _ in 0..20 {
-        if !is_port_in_use(port) {
-            return Ok(port);
-        }
-        port = port
-            .checked_add(1)
-            .ok_or_else(|| String::from(HostError::spawn("无可用端口")))?;
-    }
-    Err(String::from(
-        HostError::spawn(format!(
-            "自 {start} 起连续端口均被占用（常见原因：其他桌面端仍占 3081）"
-        )),
-    ))
-}
-
-fn is_port_free_for_bind(port: u16) -> bool {
-    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), port);
-    TcpListener::bind(addr).is_ok()
-}
-
-fn is_port_in_use(port: u16) -> bool {
-    !is_port_free_for_bind(port)
+    crate::host_resilience::find_available_port(start, 20)
 }
 
 pub async fn spawn_and_wait_healthy<R: Runtime>(
@@ -479,10 +464,39 @@ async fn wait_healthy<R: Runtime>(
     timeout: Duration,
 ) -> Result<String, String> {
     let bare = paths::service_url(port);
-    let deadline = tokio::time::Instant::now() + timeout;
-    let mut tick: u32 = 0;
-    loop {
-        if tokio::time::Instant::now() > deadline {
+    let result = crate::host_resilience::wait_until_probe_ok(
+        timeout,
+        Duration::from_millis(400),
+        || process_still_ours(state, expected_pid),
+        |tick| {
+            if tick % 3 == 0 {
+                progress::emit_progress(
+                    app,
+                    InstallStage::Start,
+                    &format!("等待官方 UI 就绪（{bare}）…"),
+                    Some(92),
+                );
+            }
+        },
+        || {
+            let probe_url = resolve_probe_url(app, port);
+            async move {
+                if probe_service_healthy(&probe_url).await {
+                    Some(probe_url)
+                } else {
+                    None
+                }
+            }
+        },
+    )
+    .await;
+
+    match result {
+        Ok(url) => {
+            log::info!(target: "shell::supervise", "healthy url={url}");
+            Ok(url)
+        }
+        Err(crate::host_resilience::WaitFail::Timeout) => {
             if harness_log_suggests_plugin_issue(app) {
                 return Err(String::from(HostError::plugin_load_failed(
                     plugin_load_failed_message(
@@ -491,12 +505,11 @@ async fn wait_healthy<R: Runtime>(
                     ),
                 )));
             }
-            return Err(String::from(HostError::health_timeout(format!(
+            Err(String::from(HostError::health_timeout(format!(
                 "{bare} 在时限内未返回 HTTP 200（请查看 AppData/logs/harness.log）"
-            ))));
+            ))))
         }
-
-        if !process_still_ours(state, expected_pid) {
+        Err(crate::host_resilience::WaitFail::ProcessGone) => {
             if harness_log_suggests_plugin_issue(app) {
                 return Err(String::from(HostError::plugin_load_failed(
                     plugin_load_failed_message(
@@ -507,27 +520,10 @@ async fn wait_healthy<R: Runtime>(
                     ),
                 )));
             }
-            return Err(String::from(HostError::spawn(format!(
+            Err(String::from(HostError::spawn(format!(
                 "dsh 进程 {expected_pid} 已退出，未能监听 {port}"
-            ))));
+            ))))
         }
-
-        let probe_url = resolve_probe_url(app, port);
-        if probe_service_healthy(&probe_url).await {
-            log::info!(target: "shell::supervise", "healthy url={probe_url}");
-            return Ok(probe_url);
-        }
-
-        tick = tick.wrapping_add(1);
-        if tick % 3 == 0 {
-            progress::emit_progress(
-                app,
-                InstallStage::Start,
-                &format!("等待官方 UI 就绪（{bare}）…"),
-                Some(92),
-            );
-        }
-        tokio::time::sleep(Duration::from_millis(400)).await;
     }
 }
 
@@ -759,7 +755,7 @@ mod tests {
     fn is_port_in_use_detects_listener() {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let port = listener.local_addr().unwrap().port();
-        assert!(is_port_in_use(port));
+        assert!(crate::host_resilience::is_port_in_use(port));
     }
 
     fn serve_http_once(listener: TcpListener, status_line: &str) {
@@ -869,5 +865,15 @@ mod tests {
         );
         stop.store(true, Ordering::SeqCst);
         let _ = server.await;
+    }
+
+    /// 故障注入：无监听 → 探活必须失败（非 panic）。
+    #[tokio::test]
+    async fn probe_service_healthy_connection_refused() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        drop(listener);
+        let url = format!("http://127.0.0.1:{port}/");
+        assert!(!probe_service_healthy(&url).await);
     }
 }

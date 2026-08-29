@@ -8,7 +8,6 @@ use std::path::{Path, PathBuf};
 use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Runtime};
 
-use crate::error::HostError;
 use crate::paths;
 
 /// 本地 harness 元数据（可读摘要，非强签名）。
@@ -21,18 +20,26 @@ pub struct HarnessMeta {
 
 /// 优先固定相对路径；否则读 package.json 的 bin 字段兜底。
 pub fn resolve_dsh_entry<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
+    let harness = paths::harness_dir(app)?;
     let primary = paths::dsh_entry(app)?;
-    if paths::is_file(&primary) {
-        return Ok(primary);
-    }
-
     let pkg = dsh_package_json(app)?;
-    if !pkg.is_file() {
-        return Ok(primary);
+    Ok(resolve_dsh_entry_at(&harness, &primary, &pkg))
+}
+
+/// 路径版入口解析（可测）。
+pub fn resolve_dsh_entry_at(harness_dir: &Path, primary: &Path, pkg: &Path) -> PathBuf {
+    if paths::is_file(primary) {
+        return primary.to_path_buf();
     }
-    let text = fs::read_to_string(&pkg).map_err(|e| format!("read dsh package.json: {e}"))?;
-    let json: serde_json::Value =
-        serde_json::from_str(&text).map_err(|e| format!("parse dsh package.json: {e}"))?;
+    if !pkg.is_file() {
+        return primary.to_path_buf();
+    }
+    let Ok(text) = fs::read_to_string(pkg) else {
+        return primary.to_path_buf();
+    };
+    let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) else {
+        return primary.to_path_buf();
+    };
     let bin = json.get("bin").and_then(|b| {
         if let Some(s) = b.as_str() {
             Some(s.to_string())
@@ -41,16 +48,16 @@ pub fn resolve_dsh_entry<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, Stri
         }
     });
     if let Some(rel) = bin {
-        let candidate = paths::harness_dir(app)?
+        let candidate = harness_dir
             .join("node_modules")
             .join("@deepseek-ai")
             .join("dsh")
             .join(rel);
         if candidate.is_file() {
-            return Ok(candidate);
+            return candidate;
         }
     }
-    Ok(primary)
+    primary.to_path_buf()
 }
 
 fn dsh_package_json<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
@@ -64,58 +71,9 @@ fn dsh_package_json<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
 /// npm 安装后闭包门禁：入口文件 + dsh 声明的 `@deepseek-ai/*` 依赖目录须存在。
 pub fn assert_harness_closure<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
     let entry = resolve_dsh_entry(app)?;
-    if !paths::is_file(&entry) {
-        return Err(String::from(
-            HostError::install(format!("安装后未找到入口 {}", entry.display())),
-        ));
-    }
     let pkg = dsh_package_json(app)?;
-    if !pkg.is_file() {
-        return Err(String::from(
-            HostError::install(format!("缺少 dsh package.json（{}）", pkg.display())),
-        ));
-    }
-    let text = fs::read_to_string(&pkg)
-        .map_err(|e| String::from(HostError::install(format!("读 dsh package.json: {e}"))))?;
-    let json: serde_json::Value = serde_json::from_str(&text)
-        .map_err(|e| String::from(HostError::install(format!("解析 dsh package.json: {e}"))))?;
-
-    let mut missing: Vec<String> = Vec::new();
-    // 仅硬依赖：optionalDependencies 允许缺席
     let harness = paths::harness_dir(app)?;
-    let dsh_root = harness
-        .join("node_modules")
-        .join("@deepseek-ai")
-        .join("dsh");
-    if let Some(deps) = json.get("dependencies").and_then(|v| v.as_object()) {
-        for name in deps.keys() {
-            if !name.starts_with("@deepseek-ai/") {
-                continue;
-            }
-            let short = name.trim_start_matches("@deepseek-ai/");
-            let top = harness
-                .join("node_modules")
-                .join("@deepseek-ai")
-                .join(short);
-            let nested = dsh_root
-                .join("node_modules")
-                .join("@deepseek-ai")
-                .join(short);
-            if !top.is_dir() && !nested.is_dir() {
-                missing.push(name.clone());
-            }
-        }
-    }
-    if !missing.is_empty() {
-        missing.sort();
-        return Err(String::from(
-            HostError::install(format!(
-                "harness 闭包不完整，缺少依赖：{}。请重试安装或「重置托管运行时」。",
-                missing.join(", ")
-            )),
-        ));
-    }
-    Ok(())
+    crate::host_resilience::assert_harness_closure_at(&harness, &entry, &pkg)
 }
 
 /// 入口文件缺失，但 harness 树里已有依赖痕迹（中断更新/半安装）。
@@ -123,20 +81,10 @@ pub fn is_harness_partial<R: Runtime>(app: &AppHandle<R>) -> bool {
     let Ok(entry) = resolve_dsh_entry(app) else {
         return false;
     };
-    if paths::is_file(&entry) {
-        return false;
-    }
     let Ok(harness) = paths::harness_dir(app) else {
         return false;
     };
-    if harness.join("package.json").is_file() {
-        return true;
-    }
-    let scope = harness.join("node_modules").join("@deepseek-ai");
-    match fs::read_dir(&scope) {
-        Ok(rd) => rd.filter_map(|e| e.ok()).next().is_some(),
-        Err(_) => false,
-    }
+    crate::host_resilience::is_harness_partial_at(&harness, &entry)
 }
 
 /// 读已安装 harness 的 version + digest；未安装则字段为空。
@@ -218,5 +166,56 @@ mod tests {
         assert_eq!(meta.version.as_deref(), Some("1.2.3"));
         assert_eq!(meta.digest.as_ref().map(|d| d.len()), Some(16));
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn entry_prefers_primary_when_present() {
+        let root = std::env::temp_dir().join(format!("dsh-entry-pri-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let primary = root.join("node_modules/@deepseek-ai/dsh/lib/bin.js");
+        fs::create_dir_all(primary.parent().unwrap()).unwrap();
+        fs::write(&primary, "primary").unwrap();
+        let pkg = root.join("node_modules/@deepseek-ai/dsh/package.json");
+        fs::write(
+            &pkg,
+            r#"{"bin":{"dsh":"cli-alt.js"}}"#,
+        )
+        .unwrap();
+        let got = resolve_dsh_entry_at(&root, &primary, &pkg);
+        assert_eq!(got, primary);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn entry_falls_back_to_package_bin() {
+        let root = std::env::temp_dir().join(format!("dsh-entry-bin-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let primary = root.join("node_modules/@deepseek-ai/dsh/lib/bin.js");
+        let alt = root.join("node_modules/@deepseek-ai/dsh/cli-alt.js");
+        fs::create_dir_all(alt.parent().unwrap()).unwrap();
+        fs::write(&alt, "alt").unwrap();
+        let pkg = root.join("node_modules/@deepseek-ai/dsh/package.json");
+        fs::write(
+            &pkg,
+            r#"{"bin":{"dsh":"cli-alt.js"}}"#,
+        )
+        .unwrap();
+        assert!(!primary.is_file());
+        let got = resolve_dsh_entry_at(&root, &primary, &pkg);
+        assert_eq!(got, alt);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn system_entry_meta_walks_up_to_package() {
+        let root = std::env::temp_dir().join(format!("dsh-sys-meta-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let entry = root.join("lib/bin.js");
+        fs::create_dir_all(entry.parent().unwrap()).unwrap();
+        fs::write(&entry, "x").unwrap();
+        fs::write(root.join("package.json"), r#"{"version":"9.9.9"}"#).unwrap();
+        let meta = read_harness_meta_from_system_entry(&entry);
+        assert_eq!(meta.version.as_deref(), Some("9.9.9"));
+        let _ = fs::remove_dir_all(&root);
     }
 }
