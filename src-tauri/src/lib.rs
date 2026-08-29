@@ -94,12 +94,7 @@ fn open_known_path(app: tauri::AppHandle, which: String) -> Result<(), String> {
     let path = match which.as_str() {
         "dshHome" => paths::dsh_home(&app, Some(cfg.dsh_home_override.as_str())),
         "appData" => paths::base_dir(&app)?,
-        "logs" => {
-            let p = paths::shell_log_file(&app)?;
-            p.parent()
-                .map(|x| x.to_path_buf())
-                .unwrap_or(p)
-        }
+        "logs" => crate::logging::host_log_dir(),
         _ => return Err(HostError::OpenPath(format!("未知目标 {which}")).into()),
     };
     if !path.exists() {

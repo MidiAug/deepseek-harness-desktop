@@ -34,7 +34,7 @@
 ## npm install 极慢或无输出
 
 - 壳已对 npm 使用 npmmirror + IPv4 优先；若仍失败，检查系统代理 / 防火墙  
-- 关于页更新日志应持续出现 npm 行或「仍在执行」心跳；也可打开 `%APPDATA%\com.deepseek.harness.desktop\logs\shell.log`  
+- 关于页更新日志应持续出现 npm 行或「仍在执行」心跳；也可打开 `%LOCALAPPDATA%\com.deepseek.harness.desktop\logs\shell.log`  
 - 可点「重置托管运行时」，或手动清空 `%APPDATA%\com.deepseek.harness.desktop\harness` 后点「重试」  
 
 ## 下载 Node / 安装包失败
@@ -56,7 +56,7 @@
 - 「检查 harness 更新」走当前镜像/代理的 npm registry；失败时看 `INSTALL_FAILED:` 文案与代理设置  
 - 「更新并重启」会停托管进程、移除旧包、强制 `npm install @deepseek-ai/dsh@latest` 再拉起；**可能需数分钟**  
 - 关于页会显示**进度条**与**滚动过程日志**（npm 输出按行流式刷新；约 12s 无输出会有心跳提示）  
-- 完整记录仍写入 `%APPDATA%\com.deepseek.harness.desktop\logs\shell.log`（与 `harness.log` 分开）  
+- 完整记录仍写入 `%LOCALAPPDATA%\com.deepseek.harness.desktop\logs\shell.log`（与 Roaming 下 `harness.log` 分开）  
 - 壳更新：发行构建会自动检查；开发态请用发行包或见 [releases.md](releases.md)  
 
 ## 代理下插件安装失败

@@ -85,7 +85,7 @@
 | 层 | 默认 | 内容 |
 |----|------|------|
 | **安装** | `%LOCALAPPDATA%\DeepSeek Harness Desktop\` | `deepseek-harness-desktop.exe` 与壳前端资源 |
-| **壳托管（AppData）** | `%APPDATA%\com.deepseek.harness.desktop`（可能被占用后改为 `-shell` 等后缀） | Node、harness npm、`settings.json`、日志 |
+| **壳托管（AppData）** | `%APPDATA%\com.deepseek.harness.desktop`（可能被占用后改为 `-shell` 等后缀） | Node、harness npm、`settings.json`、`harness.log` |
 | **用户 DSH 数据** | `~/.dsh` 或 hosted 下 `dsh-home` | 会话、插件、`settings.yaml` |
 
 若 AppData 主路径已被其他程序占用，壳会自动选用备用目录（`-shell` / `-desktop` / `-2`…）并在首跑/设置 → 数据与恢复中提示；**固定备用全满**时落 `-emerg-<pid>` 紧急目录（绝不写入 foreign 主路径）。设置页可打开**实际** AppData 文件夹。
@@ -106,11 +106,11 @@
 
 | 项 | 说明 |
 |----|------|
-| shell.log | 宿主 + 壳 UI 日志（含 `[ui::ops]` / `[shell::ops]` 用户操作审计行）；`%AppData%/…/logs/` |
+| shell.log | 宿主 + 壳 UI 日志（含 `[ui::ops]` / `[shell::ops]`）；**`%LOCALAPPDATA%\com.deepseek.harness.desktop\logs\`**（设置「打开日志」打开此目录） |
+| harness.log | dsh 子进程 stdout/stderr；`%APPDATA%\com.deepseek.harness.desktop\logs\`；spawn 行含 `gen=N` |
 | ops-recent.jsonl | 诊断导出内：Rust ring 快照，**含 UI 与 Rust 两侧 ops**（B53） |
-| harness.log | dsh 子进程全量 stdout/stderr；spawn 行含 `gen=N` 代次 |
 | session_id | 每次打开应用生成，便于 grep 一次会话 |
-| 导出诊断 | 设置 → 数据与恢复：打包 log tail、ops 快照、app 状态、脱敏设置、runtime 快照 |
+| 导出诊断 | 设置 → 数据与恢复：打包 log tail（含 Local `shell.log` + Roaming `harness.log`）、ops 快照、app 状态、脱敏设置、runtime 快照 |
 | inject 错误 | 注入特性 init 失败默认写入 shell.log；全量 DOM 诊断仍须 `localStorage` 开关 |
 
 ### 落盘审计（B50）

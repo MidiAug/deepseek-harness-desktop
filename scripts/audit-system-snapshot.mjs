@@ -15,6 +15,11 @@ const appData = join(
   process.env.APPDATA || "",
   "com.deepseek.harness.desktop",
 );
+const localLogs = join(
+  process.env.LOCALAPPDATA || "",
+  "com.deepseek.harness.desktop",
+  "logs",
+);
 
 function tail(path, lines = 20) {
   if (!existsSync(path)) return null;
@@ -62,7 +67,7 @@ const snapshot = {
   },
   logTail: {
     harness: tail(join(appData, "logs", "harness.log")),
-    shell: tail(join(appData, "logs", "shell.log")),
+    shell: tail(join(localLogs, "shell.log")),
   },
   processes: harnessLines,
   loopback3081: (() => {
