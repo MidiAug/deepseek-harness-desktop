@@ -20,6 +20,13 @@ function read(rel) {
   return readFileSync(p, "utf8");
 }
 
+/** 可选读：文件可不存在（如 gitignore 的 `dev/`），不记错误 */
+function readOptional(rel) {
+  const p = resolve(root, rel);
+  if (!existsSync(p)) return null;
+  return readFileSync(p, "utf8");
+}
+
 const confText = read("src-tauri/tauri.conf.json");
 if (confText) {
   const conf = JSON.parse(confText);
@@ -121,10 +128,11 @@ if (pathsRs) {
     errors.push("paths.rs 缺少 pub const NODE_VERSION");
   } else {
     const version = nodeMatch[1];
-    const docSources = ["dev/maintainer-release.md", "docs/releases.md"];
+    const docSources = ["docs/releases.md", "dev/maintainer-release.md"];
     let docVersion = null;
     for (const src of docSources) {
-      const text = read(src);
+      // docs/ 必有；dev/ 本地可选（公开仓 gitignore 不上传）
+      const text = src.startsWith("dev/") ? readOptional(src) : read(src);
       if (!text) continue;
       const explicit = text.match(/NODE_VERSION:\s*(v[\d.]+)/);
       const inline = text.match(/\*\*Node (v[\d.]+)\*\*/);
@@ -132,9 +140,7 @@ if (pathsRs) {
       if (docVersion) break;
     }
     if (!docVersion) {
-      errors.push(
-        "docs/releases.md 或 dev/maintainer-release.md 缺少 Node 版本说明",
-      );
+      errors.push("docs/releases.md 缺少 Node 版本说明（**Node vX.Y.Z**）");
     } else if (version !== docVersion) {
       errors.push(
         `NODE_VERSION 不一致: paths.rs=${version} docs=${docVersion}`,
