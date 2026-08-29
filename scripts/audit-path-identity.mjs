@@ -119,8 +119,13 @@ function staticChecks() {
     hooks.includes("SetLnkAppUserModelId") &&
     hooks.includes("NSIS_HOOK_PREINSTALL") &&
     hooks.includes("FindFirst") &&
-    hooks.includes("Abort");
-  phase("static:nsis-hooks-dual-shortcut", okHooks, "hooks.nsh conflict+AUMID+zh alias");
+    hooks.includes("Abort") &&
+    hooks.includes('Delete "$INSTDIR\\uninstall.exe"');
+  phase(
+    "static:nsis-hooks-dual-shortcut",
+    okHooks,
+    "hooks.nsh conflict+residual+AUMID+zh alias",
+  );
 }
 
 // ── Phase 2: Rust disk audit ───────────────────────────────────────────
@@ -267,6 +272,34 @@ function nsisInstallAudit() {
     `exit=${conflictRun.status ?? "null"} (expect non-zero)`,
   );
   rmSync(conflictDir, { recursive: true, force: true });
+
+  // 3a2. B71：仅剩 uninstall.exe（「卸载后安装」残留）应能静默装
+  const residualDir = join(tmpdir(), `dsh-audit-residual-${process.pid}`);
+  try {
+    rmSync(residualDir, { recursive: true, force: true });
+  } catch {
+    /* ignore */
+  }
+  mkdirSync(residualDir, { recursive: true });
+  writeFileSync(join(residualDir, "uninstall.exe"), "stub");
+  const residualRun = run(setup, ["/S", `/D=${residualDir}`], { timeout: 300_000 });
+  const residualExe = join(residualDir, "deepseek-harness-desktop.exe");
+  phase(
+    "nsis:install-uninstall-exe-residual",
+    residualRun.status === 0 && existsSync(residualExe),
+    `exit=${residualRun.status} exe=${existsSync(residualExe)}`,
+  );
+  if (existsSync(join(residualDir, "uninstall.exe"))) {
+    killRunningApp();
+    run(join(residualDir, "uninstall.exe"), ["/S", `_?=${residualDir}`], {
+      timeout: 180_000,
+    });
+  }
+  try {
+    rmSync(residualDir, { recursive: true, force: true });
+  } catch {
+    /* ignore */
+  }
 
   // 3b. 正常静默安装
   const installRun = run(setup, ["/S", `/D=${installDir}`], { timeout: 300_000 });

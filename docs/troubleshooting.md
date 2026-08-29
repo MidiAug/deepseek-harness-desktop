@@ -48,7 +48,13 @@
 - 关于页点「检查」若失败，应出现 Toast 与副标题错误（而非静默回到「每 6 小时自动检查」）
 - 日志常见：`tauri_plugin_updater` / `error sending request` 指向 `…/releases/latest/download/latest.json` → 本机访问 GitHub 失败；可开系统代理后重试，或从 [Releases](https://github.com/MidiAug/deepseek-harness-desktop/releases/latest) 手动下载 NSIS
 - 确认安装前托管进程已停（壳会先 `prepare_shell_update`）
-- 发行构建须签名；见 [releases.md](./releases.md)；发布前跑 `pnpm check:release`  
+- 发行构建须签名；见 [releases.md](./releases.md)；发布前跑 `pnpm check:release`
+
+## 手动安装新版本：目录不属于本产品
+
+- 若提示需「卸载后安装」，卸完再装时出现 *install folder already exists and does not belong to DeepSeek Harness Desktop*：多为默认安装位 `%LOCALAPPDATA%\DeepSeek Harness Desktop\` **只剩** `uninstall.exe`（主程序已删），旧守卫误判为外人占用
+- **立刻可用**：关掉安装向导后删除该文件夹（或至少删掉其中的 `uninstall.exe`），再运行新的 `*-setup.exe`
+- **0.1.2+**：安装包会先清掉该残留再继续；外人非空目录仍会拒绝  
 
 ## 关于页版本 / digest
 

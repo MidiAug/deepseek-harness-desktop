@@ -13,12 +13,14 @@ CI 按 tag（如 `v0.1.2`）截取对应节写入 Release Draft。
 - **修复**：壳「检查更新」失败时不再伪装成 idle；Toast 提示已最新 / 发现更新 / 失败
 - **改进**：发现更新后静默下载；关于页「更新已就绪」+「重启」；顶栏横幅保留
 - **修复**：updater 错误文案不再因 URL 含 `desktop` 被误判为开发态不可用
+- **修复**：手装覆盖选「卸载后安装」后，仅剩 `uninstall.exe` 时不再误报安装目录不属于本产品
 
 ### English
 
 - **Fix:** Shell update check failures no longer look like “idle / auto-check only”; Toast for up-to-date / found / failed
 - **Improve:** Silent download when an update is found; About shows “ready” + **Restart**; title-bar banner kept
 - **Fix:** Updater error classification no longer treats `desktop` in the URL as “dev mode”
+- **Fix:** After “uninstall then install”, a leftover `uninstall.exe` no longer blocks setup as a foreign folder
 
 ## [0.1.1] - 2026-08-29
 

@@ -1,9 +1,15 @@
 ; B50: install conflict guard + Chinese Start Menu alias (search "桌面版").
+; B71: after "uninstall then install", only uninstall.exe often remains — drop it before empty check.
 ; English "DeepSeek Harness Desktop" comes from Tauri PRODUCTNAME shortcut.
 ; NOTE: never use IfFileExists "$INSTDIR\*.*" alone — empty dirs still match "." / "..".
 
 !macro NSIS_HOOK_PREINSTALL
   IfFileExists "$INSTDIR\${MAINBINARYNAME}.exe" preinstall_ok 0
+
+  ; 卸后常见残留：主程序已删，仅剩 uninstall.exe（「卸载后安装」竞态）
+  IfFileExists "$INSTDIR\uninstall.exe" 0 preinstall_after_residual
+  Delete "$INSTDIR\uninstall.exe"
+  preinstall_after_residual:
 
   IfFileExists "$INSTDIR\*.*" 0 preinstall_ok
   ClearErrors
