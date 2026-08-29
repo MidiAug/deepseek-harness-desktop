@@ -43,11 +43,18 @@ Get-FileHash src-tauri\target\release\bundle\nsis\*-setup.exe -Algorithm SHA256 
 ## B. CI 打 tag 发行
 
 1. 仓库 Settings → Secrets 写入上表两个 updater 密钥  
-2. 确认 `package.json` / `src-tauri/tauri.conf.json` / `Cargo.toml` 版本一致（如 `0.1.0`）  
-3. 推送 tag：`git tag v0.1.0 && git push origin v0.1.0`  
-4. 工作流 [`.github/workflows/release.yml`](../.github/workflows/release.yml) 构建 Windows，上传 Release，并生成 updater 用 `latest.json`（**优先 NSIS**）
+2. 确认 `package.json` / `src-tauri/tauri.conf.json` / `Cargo.toml` 版本一致（如 `0.1.2`）  
+3. **Release 正文**：编辑根目录 [`CHANGELOG.md`](../CHANGELOG.md)  
+   - 把 `[Unreleased]` 条目挪到 `## [0.1.2] - YYYY-MM-DD`  
+   - `pnpm check:release` 会校验当前版本节是否存在  
+   - 本地预览：`node scripts/extract-changelog.mjs 0.1.2`  
+4. 推送 tag：`git tag v0.1.2 && git push origin v0.1.2`  
+5. 工作流 [`.github/workflows/release.yml`](../.github/workflows/release.yml) 构建 Windows，按 tag **从 CHANGELOG 截取正文**写入 Draft，并生成 updater 用 `latest.json`（**优先 NSIS**）
 
 也可在 Actions 里对 `release.yml` 使用 **workflow_dispatch** 试跑（需已有权限）。
+
+**不要**再改 `release.yml` 里的 `releaseBody`，也不必提交 `RELEASE-NOTES-v*.md`（已 gitignore）。  
+本地 Agent 索引（`CLAUDE.md` / `.cursor/`）同样 **不进公开仓**。
 
 ## B2. 仓库「被发现」（About / Topics / Social）
 

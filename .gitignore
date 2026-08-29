@@ -28,6 +28,7 @@ pnpm-debug.log*
 # Local-only trees (do not upload)
 .cursor/
 .claude/
+CLAUDE.md
 reference/
 dev/
 
@@ -35,6 +36,9 @@ dev/
 *.tsbuildinfo
 .turbo/
 latest.json
+
+# Local updater fixture（本机测壳更新用，勿上传）
+updater-fixture/
 
 # Codegraph local index
 .codegraph/

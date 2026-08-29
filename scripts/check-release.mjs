@@ -152,6 +152,29 @@ if (pathsRs) {
   }
 }
 
+const pkgText = read("package.json");
+const changelogText = read("CHANGELOG.md");
+if (pkgText && changelogText) {
+  try {
+    const ver = JSON.parse(pkgText).version;
+    if (!ver || !/^\d+\.\d+\.\d+/.test(ver)) {
+      errors.push("package.json version 无效");
+    } else {
+      const hasSection = new RegExp(
+        `^## \\[${ver.replace(/\./g, "\\.")}\\](?:\\s+-\\s+\\S+)?\\s*$`,
+        "m",
+      ).test(changelogText);
+      if (!hasSection) {
+        errors.push(
+          `CHANGELOG.md 缺少 ## [${ver}] 节（发版前把 [Unreleased] 挪到该版本并与 package.json 对齐）`,
+        );
+      }
+    }
+  } catch {
+    errors.push("package.json 无法解析");
+  }
+}
+
 if (errors.length) {
   console.error("check:release FAILED\n");
   for (const e of errors) console.error(`  - ${e}`);

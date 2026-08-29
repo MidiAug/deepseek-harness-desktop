@@ -8,7 +8,8 @@
 | [configuration.md](configuration.md) | 代理、镜像、运行时来源、外观、数据目录 |
 | [troubleshooting.md](troubleshooting.md) | 常见失败与处理 |
 | [releases.md](releases.md) | 壳自更新与 Release 下载 |
-| [publishing.md](publishing.md) | 维护者：打 NSIS 包、CI tag、冷装验收、仓库发现项 |
+| [publishing.md](publishing.md) | 维护者：打 NSIS 包、CI tag、CHANGELOG→Draft、冷装验收 |
+| 仓库根 [CHANGELOG.md](../CHANGELOG.md) | 用户向版本说明（Release Draft 真源） |
 | [images/](images/README.md) | README / Social preview 截图放置说明 |
 
 ## 本应用是什么

@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "check:release": "node scripts/check-release.mjs",
+    "changelog:extract": "node scripts/extract-changelog.mjs",
     "build:inject": "node scripts/bundle-inject.mjs",
     "check:inject-bundle": "node scripts/check-inject-bundle.mjs",
     "check:inject-selectors": "node scripts/check-inject-selectors.mjs",

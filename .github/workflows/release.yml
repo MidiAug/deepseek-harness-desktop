@@ -54,6 +54,11 @@ jobs:
             echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Extract CHANGELOG for tag
+        id: notes
+        shell: bash
+        run: node scripts/extract-changelog.mjs "${{ steps.meta.outputs.tag }}" --github-output
+
       - name: Build and upload (NSIS + updater JSON)
         uses: tauri-apps/tauri-action@v0
         env:
@@ -63,12 +68,7 @@ jobs:
         with:
           tagName: ${{ steps.meta.outputs.tag }}
           releaseName: deepseek-harness-desktop ${{ steps.meta.outputs.tag }}
-          releaseBody: |
-            Windows x64 NSIS installer.
-
-            User docs: docs/releases.md · Maintainer: docs/publishing.md
-
-            Community desktop host — not an official DeepSeek product.
+          releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: true
           prerelease: false
           updaterJsonPreferNsis: true
