@@ -10,6 +10,7 @@ import { useHostLifecycle } from "../contexts/HostLifecycleProvider";
 import { useAppToast } from "../contexts/ShellToastProvider";
 import type { HarnessUpdateCheck, ReadyPayload } from "../types/ipc-types";
 import { useLocale } from "../locale";
+import { reportHarnessLifecycleFailure } from "../settingsFaultBoundary";
 
 type FaultReporter = (
   message: string | null,
@@ -20,6 +21,7 @@ export type HarnessSettingsOpsOptions = {
   refreshRuntime: () => void | Promise<void>;
   onHarnessReady?: (payload: ReadyPayload) => void;
   reportFault: FaultReporter;
+  onHarnessOpFailed?: (message: string) => void;
 };
 
 export type HarnessSettingsOps = {
@@ -39,6 +41,7 @@ function useHarnessSettingsOpsImpl({
   refreshRuntime,
   onHarnessReady,
   reportFault,
+  onHarnessOpFailed,
 }: HarnessSettingsOpsOptions): HarnessSettingsOps {
   const { t } = useLocale();
   const life = useHostLifecycle();
@@ -86,12 +89,16 @@ function useHarnessSettingsOpsImpl({
       });
     } catch (e) {
       const msg = typeof e === "string" ? e : String(e);
-      reportFault(msg, onApplyUpdate);
+      reportHarnessLifecycleFailure(
+        () => reportFault(null),
+        onHarnessOpFailed,
+        msg,
+      );
       refreshRuntime();
     } finally {
       life.endOps();
     }
-  }, [life, onHarnessReady, refreshRuntime, reportFault, showToast, t]);
+  }, [life, onHarnessOpFailed, onHarnessReady, refreshRuntime, reportFault, showToast, t]);
 
   const onApplyNetworkRestart = useCallback(async () => {
     reportFault(null);
@@ -103,11 +110,15 @@ function useHarnessSettingsOpsImpl({
       showToast(t("settings.about.networkRestarted"));
     } catch (e) {
       const msg = typeof e === "string" ? e : String(e);
-      reportFault(msg, onApplyNetworkRestart);
+      reportHarnessLifecycleFailure(
+        () => reportFault(null),
+        onHarnessOpFailed,
+        msg,
+      );
     } finally {
       life.endOps({ clearProgress: true });
     }
-  }, [life, onHarnessReady, refreshRuntime, reportFault, showToast, t]);
+  }, [life, onHarnessOpFailed, onHarnessReady, refreshRuntime, reportFault, showToast, t]);
 
   const onEnsureStart = useCallback(async () => {
     reportFault(null);
@@ -119,11 +130,15 @@ function useHarnessSettingsOpsImpl({
       showToast(t("settings.port.started"));
     } catch (e) {
       const msg = typeof e === "string" ? e : String(e);
-      reportFault(msg, onEnsureStart);
+      reportHarnessLifecycleFailure(
+        () => reportFault(null),
+        onHarnessOpFailed,
+        msg,
+      );
     } finally {
       life.endOps({ clearProgress: true });
     }
-  }, [life, onHarnessReady, refreshRuntime, reportFault, showToast, t]);
+  }, [life, onHarnessOpFailed, onHarnessReady, refreshRuntime, reportFault, showToast, t]);
 
   return {
     updateCheck,

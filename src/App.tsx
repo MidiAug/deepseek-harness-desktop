@@ -41,6 +41,7 @@ import {
 } from "./shell/harnessFrameBridge";
 import { isHarnessFrameMessage } from "./shell/bridge/harnessMessage";
 import { useHarnessIframeHealth } from "./shell/hooks/useHarnessIframeHealth";
+import { installShellAuditSurface } from "./shell/auditSurface";
 import "./App.css";
 
 export default function App() {
@@ -136,6 +137,16 @@ export default function App() {
     closeAskOpen,
   ]);
 
+  const lifeRef = useRef(life);
+  lifeRef.current = life;
+
+  useEffect(() => {
+    return installShellAuditSurface(() => ({
+      bootFault: lifeRef.current.bootFault.message,
+      harnessIframeSrc: harnessFrameRef.current?.src ?? null,
+    }));
+  }, []);
+
   useEffect(() => {
     let unAsk: (() => void) | undefined;
     let unFocus: (() => void) | undefined;
@@ -208,12 +219,15 @@ export default function App() {
     session.iframeKey,
   ]);
 
-  // 换页 / 重载 iframe 时先隐藏，等 harness 再上报
+  // 换页时重置 session log；iframe 仅在重载（iframeKey）时先隐藏
   useEffect(() => {
     setSessionLogAvailable(false);
     resetSessionLogPending();
-    setIframeRevealed(false);
   }, [session.iframeKey, bodyView, resetSessionLogPending]);
+
+  useEffect(() => {
+    setIframeRevealed(false);
+  }, [session.iframeKey]);
 
   const shellOverlay = chrome.titlebarCompact && bodyView === "harness";
   const shellBackdropOpen = settingsOpen || closeAskOpen;
@@ -238,6 +252,13 @@ export default function App() {
     session.showIframe && !!session.serviceUrl;
   const harnessVisible = bodyView === "harness";
   const embeddingActive = session.phase === "embedding";
+
+  // 从平台页返回：session 已 ready 时不会再走 embedding reveal
+  useEffect(() => {
+    if (harnessVisible && showHarness && session.phase === "ready") {
+      setIframeRevealed(true);
+    }
+  }, [harnessVisible, showHarness, session.phase]);
 
   const { onIframeLoad: onHarnessIframeLoad } = useHarnessIframeHealth({
     active: showHarness && harnessVisible && embeddingActive,

@@ -364,10 +364,15 @@ pub async fn spawn_and_wait_healthy<R: Runtime>(
         *state.active_runtime.lock().map_err(|e| e.to_string())? = Some(plan.kind);
         write_pid_file(app, pid, port)?;
 
-        let url = paths::service_url(port);
-        wait_healthy(app, &url, state, pid, port, Duration::from_secs(90)).await?;
-        progress::emit_progress(app, InstallStage::Start, &format!("官方 UI 已就绪：{url}"), Some(100));
-        Ok((port, url))
+        let ready_url =
+            wait_healthy(app, state, pid, port, Duration::from_secs(90)).await?;
+        progress::emit_progress(
+            app,
+            InstallStage::Start,
+            &format!("官方 UI 已就绪：{ready_url}"),
+            Some(100),
+        );
+        Ok((port, ready_url))
         }
 }
 
@@ -406,7 +411,7 @@ pub async fn try_reuse_healthy<R: Runtime>(
         if !process_still_ours(state, pid) {
             return None;
         }
-        let url = paths::service_url(port);
+        let url = resolve_probe_url(app, port);
         if !probe_service_healthy(&url).await {
             continue;
         }
@@ -437,12 +442,25 @@ pub async fn try_reuse_healthy<R: Runtime>(
     None
 }
 
-pub async fn probe_service_healthy(url: &str) -> bool {
-    let client = match reqwest::Client::builder()
-        .timeout(Duration::from_secs(2))
-        .no_proxy()
-        .build()
+/// 有日志 token 则探认证 URL，否则裸根 URL（兼容 0.1.1-rc.2）。
+fn resolve_probe_url<R: Runtime>(app: &AppHandle<R>, port: u16) -> String {
+    if let Some(auth) = harness_log_tail(app)
+        .and_then(|tail| crate::host_auth::parse_authenticated_url_from_log(&tail))
     {
+        return auth;
+    }
+    paths::service_url(port)
+}
+
+pub async fn probe_service_healthy(url: &str) -> bool {
+    let mut builder = reqwest::Client::builder()
+        .timeout(Duration::from_secs(2))
+        .no_proxy();
+    // 0.1.2：`/?token=` → 303 Set-Cookie → `/`；无 cookie store 则最终 401
+    if crate::host_auth::url_has_launch_token(url) {
+        builder = builder.cookie_store(true);
+    }
+    let client = match builder.build() {
         Ok(c) => c,
         Err(_) => return false,
     };
@@ -452,20 +470,15 @@ pub async fn probe_service_healthy(url: &str) -> bool {
     }
 }
 
-/// 仅认 HTTP 200：避免把他人占用端口上的 4xx 空响应当成「已连接」。
+/// 仅认最终 HTTP 200。有 token 时边等日志边探；避免把他人端口 4xx 当已连接。
 async fn wait_healthy<R: Runtime>(
     app: &AppHandle<R>,
-    url: &str,
     state: &HarnessState,
     expected_pid: u32,
     port: u16,
     timeout: Duration,
-) -> Result<(), String> {
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(2))
-        .no_proxy()
-        .build()
-        .map_err(|e| String::from(HostError::health_timeout(format!("client: {e}"))))?;
+) -> Result<String, String> {
+    let bare = paths::service_url(port);
     let deadline = tokio::time::Instant::now() + timeout;
     let mut tick: u32 = 0;
     loop {
@@ -474,15 +487,13 @@ async fn wait_healthy<R: Runtime>(
                 return Err(String::from(HostError::plugin_load_failed(
                     plugin_load_failed_message(
                         app,
-                        format!("{url} 在时限内未就绪，日志提示可能与插件加载有关"),
+                        format!("{bare} 在时限内未就绪，日志提示可能与插件加载有关"),
                     ),
                 )));
             }
-            return Err(String::from(
-                HostError::health_timeout(format!(
-                    "{url} 在时限内未返回 HTTP 200（请查看 AppData/logs/harness.log）"
-                )),
-            ));
+            return Err(String::from(HostError::health_timeout(format!(
+                "{bare} 在时限内未返回 HTTP 200（请查看 AppData/logs/harness.log）"
+            ))));
         }
 
         if !process_still_ours(state, expected_pid) {
@@ -496,46 +507,27 @@ async fn wait_healthy<R: Runtime>(
                     ),
                 )));
             }
-            return Err(String::from(
-                HostError::spawn(format!(
-                    "dsh 进程 {expected_pid} 已退出，未能监听 {port}"
-                )),
-            ));
+            return Err(String::from(HostError::spawn(format!(
+                "dsh 进程 {expected_pid} 已退出，未能监听 {port}"
+            ))));
         }
 
-        match client.get(url).send().await {
-            Ok(resp) if resp.status().as_u16() == 200 => {
-                log::info!(target: "shell::supervise", "healthy url={url}");
-                return Ok(());
-            }
-            Ok(resp) => {
-                tick += 1;
-                if tick % 3 == 0 {
-                    progress::emit_progress(
-                        app,
-                        InstallStage::Start,
-                        &format!(
-                            "等待官方 UI… HTTP {}（{url}）",
-                            resp.status().as_u16()
-                        ),
-                        Some(92),
-                    );
-                }
-                tokio::time::sleep(Duration::from_millis(400)).await;
-            }
-            Err(_) => {
-                tick += 1;
-                if tick % 2 == 0 {
-                    progress::emit_progress(
-                        app,
-                        InstallStage::Start,
-                        &format!("等待官方 UI 监听 {url}…"),
-                        Some(91),
-                    );
-                }
-                tokio::time::sleep(Duration::from_millis(400)).await;
-            }
+        let probe_url = resolve_probe_url(app, port);
+        if probe_service_healthy(&probe_url).await {
+            log::info!(target: "shell::supervise", "healthy url={probe_url}");
+            return Ok(probe_url);
         }
+
+        tick = tick.wrapping_add(1);
+        if tick % 3 == 0 {
+            progress::emit_progress(
+                app,
+                InstallStage::Start,
+                &format!("等待官方 UI 就绪（{bare}）…"),
+                Some(92),
+            );
+        }
+        tokio::time::sleep(Duration::from_millis(400)).await;
     }
 }
 
@@ -768,5 +760,114 @@ mod tests {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let port = listener.local_addr().unwrap().port();
         assert!(is_port_in_use(port));
+    }
+
+    fn serve_http_once(listener: TcpListener, status_line: &str) {
+        if let Ok((mut stream, _)) = listener.accept() {
+            use std::io::{Read, Write};
+            let mut buf = [0u8; 512];
+            let _ = stream.read(&mut buf);
+            let body = "OK";
+            let response = format!(
+                "{status_line}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            );
+            let _ = stream.write_all(response.as_bytes());
+        }
+    }
+
+    #[tokio::test]
+    async fn probe_service_healthy_accepts_http_200_only() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let url = format!("http://127.0.0.1:{port}/");
+
+        let ok_server = tokio::task::spawn_blocking({
+            let listener = listener.try_clone().unwrap();
+            move || serve_http_once(listener, "HTTP/1.1 200 OK")
+        });
+        assert!(probe_service_healthy(&url).await);
+        ok_server.await.unwrap();
+
+        let listener404 = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port404 = listener404.local_addr().unwrap().port();
+        let url404 = format!("http://127.0.0.1:{port404}/");
+        let not_found_server = tokio::task::spawn_blocking(move || {
+            serve_http_once(listener404, "HTTP/1.1 404 Not Found")
+        });
+        assert!(!probe_service_healthy(&url404).await);
+        not_found_server.await.unwrap();
+    }
+
+    /// 模拟 0.1.2：`/?token=` → 303 Set-Cookie → `/` 200；裸 `/` 401。
+    #[tokio::test]
+    async fn probe_service_healthy_follows_token_exchange() {
+        use std::io::{Read, Write};
+        use std::sync::{
+            atomic::{AtomicBool, Ordering},
+            Arc,
+        };
+
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let token = "testLaunchToken";
+        let auth_url = format!("http://127.0.0.1:{port}/?token={token}");
+        let bare = format!("http://127.0.0.1:{port}/");
+
+        let stop = Arc::new(AtomicBool::new(false));
+        let stop_flag = stop.clone();
+        let server = tokio::task::spawn_blocking(move || {
+            listener.set_nonblocking(true).ok();
+            let deadline = std::time::Instant::now() + Duration::from_secs(8);
+            while std::time::Instant::now() < deadline && !stop_flag.load(Ordering::SeqCst) {
+                match listener.accept() {
+                    Ok((mut stream, _)) => {
+                        let _ = stream.set_nonblocking(false);
+                        let mut buf = [0u8; 1024];
+                        let n = stream.read(&mut buf).unwrap_or(0);
+                        let req = String::from_utf8_lossy(&buf[..n]);
+                        let first = req.lines().next().unwrap_or("");
+                        if first.contains(&format!("token={token}")) {
+                            let response = "HTTP/1.1 303 See Other\r\nLocation: /\r\nSet-Cookie: dsh-auth-test=v1; Path=/\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+                            let _ = stream.write_all(response.as_bytes());
+                        } else if first.starts_with("GET / ") || first.starts_with("GET / HTTP") {
+                            if req.to_lowercase().contains("cookie:") {
+                                let body = "OK";
+                                let response = format!(
+                                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                                    body.len()
+                                );
+                                let _ = stream.write_all(response.as_bytes());
+                            } else {
+                                let body = "unauthorized";
+                                let response = format!(
+                                    "HTTP/1.1 401 Unauthorized\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                                    body.len()
+                                );
+                                let _ = stream.write_all(response.as_bytes());
+                            }
+                        } else {
+                            let response = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+                            let _ = stream.write_all(response.as_bytes());
+                        }
+                    }
+                    Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                        std::thread::sleep(Duration::from_millis(20));
+                    }
+                    Err(_) => break,
+                }
+            }
+        });
+
+        assert!(
+            !probe_service_healthy(&bare).await,
+            "bare root without cookie must not count as healthy"
+        );
+        assert!(
+            probe_service_healthy(&auth_url).await,
+            "token URL with cookie jar + redirect must become 200"
+        );
+        stop.store(true, Ordering::SeqCst);
+        let _ = server.await;
     }
 }

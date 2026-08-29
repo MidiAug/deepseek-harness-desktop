@@ -192,3 +192,10 @@ const stamp = results.timestamp.replace(/[:.]/g, "-");
 const outPath = join(outDir, `matrix-${stamp}.json`);
 writeFileSync(outPath, JSON.stringify(results, null, 2), "utf8");
 console.log(JSON.stringify({ outPath, results }, null, 2));
+
+const failed = results.scenarios.some((s) => s.ok === false);
+if (failed) {
+  const ids = results.scenarios.filter((s) => s.ok === false).map((s) => s.id);
+  console.error("audit:matrix failed scenarios:", ids.join(", "));
+  process.exit(1);
+}

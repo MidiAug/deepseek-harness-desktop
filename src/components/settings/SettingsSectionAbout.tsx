@@ -50,6 +50,8 @@ export function SettingsSectionAbout() {
   const locked = life.locked;
   const opsActive = life.busyReason === "ops";
   const hasLog = life.logLines.length > 0;
+  const harnessFaultMessage =
+    life.bootFault.message ?? fault?.message ?? null;
 
   const installMode = resolveInstallMode({
     runtimeSource: runtime?.runtimeSource,
@@ -101,7 +103,9 @@ export function SettingsSectionAbout() {
       ? t("settings.hint.checkingUpdate")
       : harnessVersionLine;
 
-  const faultActions = fault ? parseFaultDisplay(fault.message).actions : [];
+  const faultActions = harnessFaultMessage
+    ? parseFaultDisplay(harnessFaultMessage).actions
+    : [];
   const primaryFaultCta = faultActions[0];
   const secondaryFaultCtas = faultActions.slice(1);
 
@@ -112,21 +116,22 @@ export function SettingsSectionAbout() {
   const showShellInstall = shellUpd.phase === "downloaded";
 
   const showHarnessCheck =
-    !fault &&
+    !harnessFaultMessage &&
     !updateCheck?.updateAvailable &&
     !checkingUpdate &&
     !locked;
   const showHarnessInstall =
-    !!updateCheck?.updateAvailable && !locked && !fault;
-  const showHarnessRetry = !!fault && !!primaryFaultCta && !locked;
+    !!updateCheck?.updateAvailable && !locked && !harnessFaultMessage;
+  const showHarnessRetry =
+    !!harnessFaultMessage && !!primaryFaultCta && !locked;
 
   const harnessFooter =
-    opsActive || fault ? (
+    opsActive || harnessFaultMessage ? (
       <>
         {opsActive ? <SettingsUpdateProgress showMessage={false} /> : null}
-        {fault ? (
+        {harnessFaultMessage ? (
           <SettingsUpdateNotice
-            error={fault.message}
+            error={harnessFaultMessage}
             installMode={installMode}
             secondaryActions={secondaryFaultCtas}
             onCta={onFaultCta}

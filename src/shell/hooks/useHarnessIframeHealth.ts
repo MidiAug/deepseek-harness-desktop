@@ -2,15 +2,11 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { probeHarnessUrl } from "../api/shellApi";
+import { stripShellCacheParams } from "../harnessUrl";
 import { shellLog } from "../logger";
 
 const PROBE_INTERVAL_MS = 500;
 const PROBE_TIMEOUT_MS = 15_000;
-
-function stripCacheBust(url: string): string {
-  const q = url.indexOf("?");
-  return q >= 0 ? url.slice(0, q) : url;
-}
 
 export function useHarnessIframeHealth(opts: {
   active: boolean;
@@ -29,7 +25,7 @@ export function useHarnessIframeHealth(opts: {
   const runProbe = useCallback(async () => {
     if (!active || !serviceUrl) return;
     const gen = generationRef.current;
-    const baseUrl = stripCacheBust(serviceUrl);
+    const baseUrl = stripShellCacheParams(serviceUrl);
     const deadline = Date.now() + PROBE_TIMEOUT_MS;
 
     while (Date.now() < deadline) {

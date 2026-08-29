@@ -4,6 +4,7 @@ mod logging;
 mod contracts;
 mod diagnostics;
 mod error;
+mod host_auth;
 mod inject;
 mod install;
 mod net;

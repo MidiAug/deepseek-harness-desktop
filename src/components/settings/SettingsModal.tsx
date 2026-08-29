@@ -182,6 +182,9 @@ function SettingsModalPanel({
     {
       refreshRuntime,
       onHarnessReady,
+      onCloseSettings: onClose,
+      onBeginHarnessOp,
+      onHarnessOpFailed,
       reportFault,
     },
     {
@@ -194,9 +197,12 @@ function SettingsModalPanel({
     (cta: FaultCta) => {
       switch (cta) {
         case "retry": {
+          const bootMsg = life.bootFault.message;
           const current = faultRef.current;
           reportFault(null);
-          if (current?.retry) {
+          if (bootMsg) {
+            onRestartHarness?.();
+          } else if (current?.retry) {
             void current.retry();
           } else {
             refreshRuntime();
@@ -225,7 +231,7 @@ function SettingsModalPanel({
         }
       }
     },
-    [refreshRuntime, reportFault, recovery],
+    [life.bootFault.message, onRestartHarness, refreshRuntime, reportFault, recovery],
   );
 
   function persistRuntime(next: ShellSettings, softHint?: string) {
@@ -440,6 +446,7 @@ function SettingsModalOpen({
       refreshRuntime={refreshRuntime}
       onHarnessReady={onHarnessReady}
       reportFault={reportFault}
+      onHarnessOpFailed={onHarnessOpFailed}
     >
       <SettingsModalPanel
         onClose={onClose}

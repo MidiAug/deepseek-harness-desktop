@@ -131,21 +131,25 @@ export function useHarnessRecoveryActions(
 
     callbacks.reportFault?.(null);
     setCleanProfileBusy(true);
+    setCleanProfileOpen(false);
+    callbacks.onCloseSettings?.();
+    callbacks.onBeginHarnessOp?.();
+    life.beginOps(t("boot.msg.ensure"));
     try {
       const ready = await shellApi.startCleanProfile(opId);
       shellLog.opEnd(opId, action, "ok");
-      setCleanProfileOpen(false);
       showToast(t("settings.data.cleanProfile.done"));
       callbacks.refreshRuntime();
       callbacks.onHarnessReady?.(ready);
     } catch (e) {
       const msg = typeof e === "string" ? e : String(e);
       shellLog.opEnd(opId, action, "err");
-      callbacks.reportFault?.(msg, runCleanProfile);
+      callbacks.onHarnessOpFailed?.(msg);
     } finally {
+      life.endOps({ clearProgress: true });
       setCleanProfileBusy(false);
     }
-  }, [callbacks, seedBoot, showToast, surface, t]);
+  }, [callbacks, life, seedBoot, showToast, surface, t]);
 
   const runResetConfig = useCallback(async () => {
     const action = "recovery.resetConfig";

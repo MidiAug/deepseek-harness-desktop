@@ -26,7 +26,8 @@ tauri = { version = "2", features = ["tray-icon", "unstable"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # 下载 Node / 健康检查 HTTP
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "blocking", "stream", "socks"] }
+# cookies：0.1.2 Host 认证探活需跟随 Set-Cookie（B65）
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "blocking", "stream", "socks", "cookies"] }
 # 解压官方 Node zip
 zip = "2"
 # async command 与轮询
@@ -54,6 +55,7 @@ tauri-plugin-mcp-bridge = "0.12"
 
 # Windows：CreateProcessW 隐藏控制台 + 保留进程 HANDLE（R1）
 [target.'cfg(windows)'.dependencies]
+webview2-com = "0.38"
 windows-sys = { version = "0.61", features = [
   "Win32_Foundation",
   "Win32_Security",

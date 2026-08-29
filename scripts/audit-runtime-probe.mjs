@@ -139,3 +139,8 @@ const report = {
 };
 
 console.log(JSON.stringify(report, null, 2));
+
+if (process.env.AUDIT_ASSERT === "1" && !report.systemRuntimeAvailable) {
+  console.error("AUDIT_ASSERT: systemRuntimeAvailable is false");
+  process.exit(1);
+}

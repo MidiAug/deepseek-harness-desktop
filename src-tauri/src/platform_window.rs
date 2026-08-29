@@ -14,6 +14,15 @@ pub const WEBVIEW_LABEL: &str = "platform-content";
 pub const OPEN_EVENT: &str = "shell-open-platform";
 pub const PLATFORM_URL: &str = "https://platform.deepseek.com";
 
+/// 屏蔽平台页浏览器默认右键菜单（WebView2 / 站点内均无壳侧菜单）。
+const SUPPRESS_CONTEXT_MENU_INIT: &str = r#"
+(() => {
+  const block = (e) => { e.preventDefault(); };
+  document.addEventListener("contextmenu", block, true);
+  window.addEventListener("contextmenu", block, true);
+})();
+"#;
+
 static LAST_THEME: Mutex<Option<String>> = Mutex::new(None);
 
 #[derive(Debug, Clone, Deserialize)]
@@ -88,6 +97,21 @@ fn close_if_exists(app: &AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+fn suppress_native_context_menu<R: tauri::Runtime>(wv: &tauri::Webview<R>) {
+    #[cfg(windows)]
+    {
+        let _ = wv.with_webview(|pv| {
+            unsafe {
+                if let Ok(core) = pv.controller().CoreWebView2() {
+                    if let Ok(settings) = core.Settings() {
+                        let _ = settings.SetAreDefaultContextMenusEnabled(false);
+                    }
+                }
+            }
+        });
+    }
+}
+
 /// 在 shell-body 区域显示平台子 WebView（已存在则 set_bounds；主题变则重建）。
 pub fn show_webview(app: &AppHandle, bounds: PlatformWebviewBounds) -> Result<(), String> {
     let main = main_window(app)?;
@@ -104,6 +128,7 @@ pub fn show_webview(app: &AppHandle, bounds: PlatformWebviewBounds) -> Result<()
             .map_err(|e| format!("platform bounds: {e}"))?;
         wv.set_background_color(Some(canvas_color(&bounds.theme)))
             .map_err(|e| format!("platform bg: {e}"))?;
+        suppress_native_context_menu(&wv);
         wv.show().map_err(|e| format!("platform show: {e}"))?;
         let _ = wv.set_focus();
         return Ok(());
@@ -116,7 +141,8 @@ pub fn show_webview(app: &AppHandle, bounds: PlatformWebviewBounds) -> Result<()
     );
     let builder = WebviewBuilder::new(WEBVIEW_LABEL, url)
         .auto_resize()
-        .background_color(canvas_color(&bounds.theme));
+        .background_color(canvas_color(&bounds.theme))
+        .initialization_script(SUPPRESS_CONTEXT_MENU_INIT);
     let wv = main
         .as_ref()
         .window()
@@ -124,6 +150,7 @@ pub fn show_webview(app: &AppHandle, bounds: PlatformWebviewBounds) -> Result<()
         .map_err(|e| format!("platform add_child: {e}"))?;
     wv.set_bounds(rect)
         .map_err(|e| format!("platform bounds: {e}"))?;
+    suppress_native_context_menu(&wv);
     wv.show().map_err(|e| format!("platform show: {e}"))?;
     let _ = wv.set_focus();
     let _ = theme_changed(&bounds.theme);

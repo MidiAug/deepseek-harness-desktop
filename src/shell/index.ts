@@ -90,11 +90,13 @@ export {
   recordRecoveryAction,
   setAppStateSnapshot,
 } from "./diagnosticsContext";
+export { installShellAuditSurface } from "./auditSurface";
+export type { ShellAuditSnapshot } from "./auditSurface";
 export {
   setLinkedHarnessStart,
   takeLinkedHarnessStart,
 } from "./sessionOpLink";
-export { withInvokeAudit } from "./invokeAudit";
+export { reportHarnessLifecycleFailure } from "./settingsFaultBoundary";
 export {
   PLATFORM_URL,
   normalizeShellSettings,
