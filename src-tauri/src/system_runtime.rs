@@ -99,6 +99,10 @@ pub fn resolve_system_node() -> Option<PathBuf> {
 #[cfg(windows)]
 fn resolve_system_node_for_entry(entry: &Path) -> Option<PathBuf> {
     if let Some(node) = resolve_system_node_inner() {
+        // 全局 npm 包入口：跳过 node -e（启动冷路径上会闪控制台且拖慢 UI）
+        if global_dsh_entry().as_deref() == Some(entry) {
+            return Some(node);
+        }
         if resolve_via_node(&node).as_deref() == Some(entry) {
             return Some(node);
         }
@@ -161,7 +165,10 @@ fn is_ide_bundled_node(path: &Path) -> bool {
 
 #[cfg(windows)]
 fn where_all(cmd: &str) -> Vec<PathBuf> {
-    let Some(out) = Command::new("where.exe").arg(cmd).output().ok() else {
+    let mut c = Command::new("where.exe");
+    c.arg(cmd);
+    crate::platform::silence_console(&mut c);
+    let Some(out) = c.output().ok() else {
         return Vec::new();
     };
     if !out.status.success() {
@@ -192,10 +199,10 @@ fn global_dsh_entry() -> Option<PathBuf> {
 fn resolve_via_node(node: &Path) -> Option<PathBuf> {
     let script =
         "try{const p=require.resolve('@deepseek-ai/dsh/package.json');process.stdout.write(p)}catch(e){process.exit(1)}";
-    let out = Command::new(node)
-        .args(["-e", script])
-        .output()
-        .ok()?;
+    let mut c = Command::new(node);
+    c.args(["-e", script]);
+    crate::platform::silence_console(&mut c);
+    let out = c.output().ok()?;
     if !out.status.success() {
         return None;
     }

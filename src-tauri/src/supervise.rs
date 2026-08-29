@@ -715,7 +715,10 @@ fn kill_pid_tree(pid: u32) {
 fn port_owner_pid(port: u16) -> Option<u32> {
     #[cfg(windows)]
     {
-        let output = Command::new("netstat").arg("-ano").output().ok()?;
+        let mut c = Command::new("netstat");
+        c.arg("-ano");
+        crate::platform::silence_console(&mut c);
+        let output = c.output().ok()?;
         let text = String::from_utf8_lossy(&output.stdout);
         let suffix = format!(":{port}");
         for line in text.lines() {

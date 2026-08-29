@@ -88,7 +88,10 @@ pub fn probe_environment<R: Runtime>(app: &AppHandle<R>) -> Result<EnvironmentPr
 
 #[cfg(windows)]
 fn node_version(node: &Path) -> Option<String> {
-    let out = Command::new(node).arg("--version").output().ok()?;
+    let mut c = Command::new(node);
+    c.arg("--version");
+    crate::platform::silence_console(&mut c);
+    let out = c.output().ok()?;
     if !out.status.success() {
         return None;
     }

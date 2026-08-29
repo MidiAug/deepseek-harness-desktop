@@ -88,14 +88,14 @@ fn invalidate_user_path_cache() {
 fn read_user_path_env() -> Option<String> {
     let mut guard = USER_PATH_CACHE.lock().ok()?;
     if guard.is_none() {
-        let out = Command::new("powershell")
-            .args([
-                "-NoProfile",
-                "-Command",
-                "[Environment]::GetEnvironmentVariable('Path','User')",
-            ])
-            .output()
-            .ok()?;
+        let mut c = Command::new("powershell");
+        c.args([
+            "-NoProfile",
+            "-Command",
+            "[Environment]::GetEnvironmentVariable('Path','User')",
+        ]);
+        crate::platform::silence_console(&mut c);
+        let out = c.output().ok()?;
         if !out.status.success() {
             return None;
         }
@@ -131,8 +131,10 @@ fn register_user_path(dir: &PathBuf) -> Result<(), String> {
         let script = format!(
             "$d='{dir_s}'; $p=[Environment]::GetEnvironmentVariable('Path','User'); if ([string]::IsNullOrEmpty($p)) {{ $n=$d }} else {{ $n=$p+';'+$d }}; [Environment]::SetEnvironmentVariable('Path',$n,'User')"
         );
-        let status = Command::new("powershell")
-            .args(["-NoProfile", "-Command", &script])
+        let mut c = Command::new("powershell");
+        c.args(["-NoProfile", "-Command", &script]);
+        crate::platform::silence_console(&mut c);
+        let status = c
             .status()
             .map_err(|e| format!("PATH register: {e}"))?;
         if !status.success() {
@@ -158,8 +160,10 @@ fn unregister_user_path(dir: &PathBuf) -> Result<(), String> {
         let script = format!(
             "$d='{dir_s}'; $p=[Environment]::GetEnvironmentVariable('Path','User'); if ([string]::IsNullOrEmpty($p)) {{ return }}; $parts=@($p -split ';' | Where-Object {{ $_ -and $_.ToLower() -ne $d.ToLower() }}); [Environment]::SetEnvironmentVariable('Path',($parts -join ';'),'User')"
         );
-        let status = Command::new("powershell")
-            .args(["-NoProfile", "-Command", &script])
+        let mut c = Command::new("powershell");
+        c.args(["-NoProfile", "-Command", &script]);
+        crate::platform::silence_console(&mut c);
+        let status = c
             .status()
             .map_err(|e| format!("PATH unregister: {e}"))?;
         if !status.success() {

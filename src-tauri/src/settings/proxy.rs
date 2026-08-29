@@ -12,28 +12,28 @@ pub const LOOPBACK_NO_PROXY: &str = "127.0.0.1,localhost";
 pub(crate) fn read_windows_system_proxy() -> Option<String> {
     #[cfg(windows)]
     {
-        let output = Command::new("reg")
-            .args([
-                "query",
-                r"HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings",
-                "/v",
-                "ProxyEnable",
-            ])
-            .output()
-            .ok()?;
+        let mut enable = Command::new("reg");
+        enable.args([
+            "query",
+            r"HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings",
+            "/v",
+            "ProxyEnable",
+        ]);
+        crate::platform::silence_console(&mut enable);
+        let output = enable.output().ok()?;
         let text = String::from_utf8_lossy(&output.stdout);
         if !text.contains("0x1") {
             return None;
         }
-        let output = Command::new("reg")
-            .args([
-                "query",
-                r"HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings",
-                "/v",
-                "ProxyServer",
-            ])
-            .output()
-            .ok()?;
+        let mut server = Command::new("reg");
+        server.args([
+            "query",
+            r"HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings",
+            "/v",
+            "ProxyServer",
+        ]);
+        crate::platform::silence_console(&mut server);
+        let output = server.output().ok()?;
         let text = String::from_utf8_lossy(&output.stdout);
         for line in text.lines() {
             if !line.contains("ProxyServer") {
