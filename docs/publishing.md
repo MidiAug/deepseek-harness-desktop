@@ -12,7 +12,8 @@
 | GitHub Secrets（CI） | `TAURI_SIGNING_PRIVATE_KEY`（私钥全文）、`TAURI_SIGNING_PRIVATE_KEY_PASSWORD` |
 | 工具 | Node 22+（`>=22.12`）、pnpm 9、Rust stable、Windows（打 NSIS） |
 
-**首发主推 NSIS**（`*-setup.exe`）。MSI/WiX 可附带，但**不含**中文双快捷方式与本仓库 NSIS hooks；完整身份体验以 NSIS 为准。
+**首发主推 NSIS**（`*-setup.exe`）。MSI/WiX 可附带，但**不含**中文双快捷方式与本仓库 NSIS hooks；完整身份体验以 NSIS 为准。  
+`bundle.windows.nsis.installerIcon` 须指向 `icons/icon.ico`，否则资源管理器里 setup 会显示默认 NSIS 图标（与应用图标无关）。
 
 ## A. 本地打一包（不依赖 CI）
 
@@ -47,6 +48,19 @@ Get-FileHash src-tauri\target\release\bundle\nsis\*-setup.exe -Algorithm SHA256 
 4. 工作流 [`.github/workflows/release.yml`](../.github/workflows/release.yml) 构建 Windows，上传 Release，并生成 updater 用 `latest.json`（**优先 NSIS**）
 
 也可在 Actions 里对 `release.yml` 使用 **workflow_dispatch** 试跑（需已有权限）。
+
+## B2. 仓库「被发现」（About / Topics / Social）
+
+在 GitHub 网页操作（Agent 不代改 Settings）：
+
+| 项 | 建议 |
+|----|------|
+| **Description** | `DeepSeek Harness for Windows — official UI, reuse local dsh, proxy & mirror built-in` |
+| **Website** | `https://github.com/MidiAug/deepseek-harness-desktop/releases/latest` |
+| **Topics** | `deepseek` · `deepseek-harness` · `dsh` · `tauri` · `tauri2` · `desktop` · `windows` · `webview2` |
+| **Social preview** | 上传 `docs/images/main-ui.png`（或 1280×640 裁切） |
+
+根目录 **README.md** 为中文用户向文案；**README.en.md** 为英文。主叙事：**环境做对 + 官方界面原样**（代理/镜像、复用本机 dsh）；对比用「按你更在意什么选」购物指南，不写「我们更克制」。
 
 ## C. 冷装验收（结案必做）
 

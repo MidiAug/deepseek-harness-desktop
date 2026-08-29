@@ -1,57 +1,78 @@
 # deepseek-harness-desktop
 
-**DeepSeek Harness 的可信桌面宿主** — 基于 Tauri 2，管安装、进程、网络、窗口与更新；主界面仍是官方 Web UI。
+[![Release](https://img.shields.io/github/v/release/MidiAug/deepseek-harness-desktop?include_prereleases&sort=semver)](https://github.com/MidiAug/deepseek-harness-desktop/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows%20x64-0078D4)](https://github.com/MidiAug/deepseek-harness-desktop/releases/latest)
 
-English · [简体中文文档](docs/README.md)
+**中文** · [English](README.en.md)
 
-> DeepSeek Harness 已提供完整的 agent 运行时与 Web UI。  
-> **deepseek-harness-desktop 不重写 Harness**，只补齐「下载即用」的桌面宿主能力。
+# DeepSeek Harness 桌面版
+
+**在 Windows 上打开 DeepSeek Harness——装好就能用，界面还是官方那套。**
+
+不用先配 Node、不用先会敲命令行；公司代理和国内镜像在设置里就能配。  
+已经用过命令行版的人：优先直接用你本机那份 `dsh`，会话还在原来的 `~/.dsh`。
+
+> 社区项目，**不是** DeepSeek 官方出品。MIT 许可。
+
+<p align="center">
+  <img src="docs/images/main-ui.png" alt="安装后进入官方 Harness 界面" width="900" />
+</p>
 
 ## 下载
 
-Windows 安装包：[GitHub Releases](https://github.com/MidiAug/deepseek-harness-desktop/releases/latest)
+**→ [下载 Windows 安装包](https://github.com/MidiAug/deepseek-harness-desktop/releases/latest)**（`*-setup.exe`）
 
-> 当前首发 **Windows 10/11 x64**。macOS / Linux 尚未支持。
+Windows 10/11 x64。若弹出 SmartScreen：点「更多信息」→「仍要运行」。  
+用法见 [快速开始](docs/getting-started.md)。
 
-## 为什么做这个项目
+## 为什么值得下一份
 
-官方 Harness 能力完整，但普通用户往往卡在：装 Node、跑终端、占端口、关不干净进程、配代理。  
-本项目把这些收进一个 **轻量原生壳**里：
+社区里已经有很热闹的桌面版（插件市场、多系统、侧栏……）。  
+本仓库主打另一件事：**把卡人的环境问题做对，同时尽量不碰官方界面。**
 
-| 痛点 | 本项目的做法 |
-|------|-------------|
-| 已装 CLI 还要再下一份 | **默认复用本机 dsh**；没有再托管到 AppData |
-| 不会配环境 | 无本机栈时自动下载托管 Node + `@deepseek-ai/dsh` |
-| 数据和 CLI 不互通 | 默认 `$DSH_HOME=~/.dsh`，会话 / 插件与官方 CLI 共用 |
-| 桌面壳常改 UI | **不 patch** 上游包；主区 iframe 加载官方 Web UI |
-| 安全边界模糊 | Harness 页默认无通用 Tauri FS/Shell IPC |
-| 壳和内核绑死 | 壳自更新独立；托管模式下 harness 由壳更新，系统模式不碰全局包 |
+具体会帮到你的：
 
-## 功能亮点
+1. **国内网 / 公司网** — 设置里可选 npmmirror，也可配系统代理或自定义 HTTP / SOCKS；装不上时也能从失败页进网络设置  
+2. **你已经装过命令行** — 探测到本机 `dsh` 就直接进官方界面，不强迫再下一套；也可以改成「由应用准备一份」  
+3. **数据和 CLI 是同一套** — 默认 `~/.dsh`，语言 / 主题跟官方设置文件同步，会话和插件能对上  
+4. **关得干净、坏了能试** — 退出时尽量回收本次拉起的进程；可用「干净配置」试跑（不删正式数据），也可导出诊断包  
+5. **不塞插件、不换皮** — 打开就是官方 Web UI；顶栏可开简洁模式，少挡界面  
 
-- **零前置依赖（兜底）**：无本机 dsh 时自动下载托管 Node + `@deepseek-ai/dsh`
-- **本机优先**：已装官方 CLI 时可直接嵌入，不强制再下一份
-- **可信进程生命周期**：退出回收本会话 spawn 的 `node`/`dsh`；崩溃后启动清扫
-- **网络友好**：国内 npmmirror 镜像（默认）、系统/自定义 HTTP·SOCKS 代理；设置即时落盘
-- **与官方设置同步**：语言、主题读写 `~/.dsh/settings.yaml`，与 DeepSeek 设置一致
-- **简洁顶栏模式**：透明顶栏叠在官方 UI 上，窗控悬停显现；可代理 Session log 下载
-- **故障恢复**：首跑失败页、干净 profile 启动（不删你的 `~/.dsh`）、重置托管运行时、一键导出诊断
-- **壳自更新**：启动后与每 6 小时后台检查；下载完成后用户确认再重启安装
-- **Harness 独立更新**：托管模式下关于页可更新 AppData 包；系统模式请用本机 npm
-- **单实例 + 托盘**：二次启动聚焦已有窗口；可最小化到托盘
+<p align="center">
+  <img src="docs/images/settings-network.png" alt="网络：镜像与代理" width="720" />
+</p>
+<p align="center">
+  <img src="docs/images/settings.png" alt="界面与窗口选项" width="720" />
+</p>
 
-## 快速开始
+## 该下谁：按你更在意什么选
 
-### 安装包用户
+没有「唯一正确」的桌面版——看你要什么：
 
-1. 下载并安装 [最新 Release](https://github.com/MidiAug/deepseek-harness-desktop/releases/latest)  
-2. 打开应用：若本机已有 dsh 则直接进入；否则等待托管下载  
-3. 主区出现官方 DeepSeek Harness Web UI  
-4. 需要代理、镜像或强制托管/本机：**顶栏齿轮 → 壳设置**
+| 你更在意…… | 建议 |
+|------------|------|
+| 插件市场、侧栏增强、Win / Mac / Linux、社区热闹 | [DSH Desktop (anywhere)](https://github.com/anywhere-labs/dsh-desktop)、[dsh-tauri-desk](https://github.com/dsh-tauri-desk/deepseek-harness-desktop) |
+| **官方界面原样**、**本机 `dsh` 直接进**、**代理 / 镜像好配**、Windows 先稳用 | **本仓库** |
+| 自己会用终端就够了 | 官方 [`deepseek-harness`](https://github.com/deepseek-ai/deepseek-harness) CLI |
 
-### 从源码开发
+一句话对照：
 
-**前置**：Node.js 22+（`>=22.12`；`node --test` 跑 TS 单测）、pnpm 9+、[Rust](https://www.rust-lang.org/tools/install)、Windows [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/)
+- 想要「生态和功能尽量全」→ 去上面两个社区桌面版  
+- 想要「窗口里还是官方界面，网络和本机安装别折腾我」→ 用本仓库  
+
+<p align="center">
+  <img src="docs/images/settings-runtime.png" alt="本机已装或由应用准备" width="720" />
+  <img src="docs/images/settings-about.png" alt="关于与更新" width="720" />
+</p>
+
+## 怎么用
+
+1. 安装上面的 setup  
+2. 打开：有本机 Harness 就直接进；没有就等它准备完  
+3. 要代理或镜像：顶栏齿轮 → **应用设置 → 网络**
+
+开发者从源码跑（Node 22+、pnpm 9、Rust、WebView2）：
 
 ```bash
 git clone https://github.com/MidiAug/deepseek-harness-desktop.git
@@ -60,56 +81,11 @@ pnpm install
 pnpm tauri dev
 ```
 
-- debug 默认端口 **3081**（正式包 **3080**；占用时自动顺延）  
-- **Agent 结对调试**（Cursor + Tauri MCP）：见 [docs/agent-testing.md](docs/agent-testing.md)  
-- 发行构建：`pnpm check:release` → `pnpm tauri build`（自更新签名需设置 `TAURI_SIGNING_PRIVATE_KEY`，见 [docs/publishing.md](docs/publishing.md)）
+更多：[快速开始](docs/getting-started.md) · [配置](docs/configuration.md) · [排错](docs/troubleshooting.md) · [更新](docs/releases.md)
 
-更多细节：[docs/getting-started.md](docs/getting-started.md) · 安全报告：[SECURITY.md](SECURITY.md)
+## 说明
 
-## 运行时架构
+DeepSeek Harness 与相关依赖遵循各自许可与商标。  
+本仓库由 [@MidiAug](https://github.com/MidiAug) 维护。
 
-```text
-deepseek-harness-desktop（Tauri 2）
-├── 壳 chrome：顶栏 / 设置 / 关于 / 托盘 / 首跑向导
-├── 主区 iframe → http://127.0.0.1:<port>  官方 Web UI
-└── 平台子 WebView → platform.deepseek.com（API 控制台）
-
-AppData/com.deepseek.harness.desktop/
-├── runtime/          托管 Node
-├── harness/          托管 @deepseek-ai/dsh
-└── settings.json · ui.json · logs/
-
-~/.dsh/               用户数据（默认与官方 CLI 互通）
-├── settings.yaml     语言 / 主题真源
-├── sessions/ · plugins/ …
-```
-
-## 不是什么
-
-- 不是 Electron 换皮聊天客户端，也不是 IDE  
-- 不 patch `@deepseek-ai/*` 换 UI  
-- 不替你管理 nvm 多版本 Node；探测失败会回落托管或明示错误  
-
-## Harness 安装方式
-
-首跑时选择 **本机已安装**（`system`）或 **应用内安装**（`hosted`）。  
-可在 **设置 → 本地服务 → 使用哪份 Harness** 切换。  
-本机模式下壳 **不会** 用 npm 改写你的全局 dsh 包。
-
-## 文档
-
-| 文档 | 内容 |
-|------|------|
-| [docs/getting-started.md](docs/getting-started.md) | 安装、首跑、开发者构建 |
-| [docs/configuration.md](docs/configuration.md) | 代理、镜像、外观、数据目录 |
-| [docs/troubleshooting.md](docs/troubleshooting.md) | 常见失败与处理 |
-| [docs/releases.md](docs/releases.md) | 壳自更新与 Release |
-
-## 与上游的关系
-
-DeepSeek Harness 及其依赖遵循各自上游许可与商标政策。  
-**deepseek-harness-desktop** 是独立的**社区**桌面宿主（**非** DeepSeek 官方产品），由 [@MidiAug](https://github.com/MidiAug) 维护。
-
-## License
-
-[MIT](LICENSE) · 安全披露见 [SECURITY.md](SECURITY.md)
+[MIT](LICENSE) · [安全披露](SECURITY.md)

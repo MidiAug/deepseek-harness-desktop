@@ -101,11 +101,12 @@ function staticChecks() {
     Array.isArray(nsis.languages) &&
     nsis.languages.includes("English") &&
     nsis.languages.includes("SimpChinese") &&
-    String(nsis.installerHooks ?? "").includes("hooks.nsh");
+    String(nsis.installerHooks ?? "").includes("hooks.nsh") &&
+    String(nsis.installerIcon ?? "").replace(/\\/g, "/").endsWith("icons/icon.ico");
   phase(
     "static:nsis-config",
     okNsis,
-    `startMenuFolder=${nsis.startMenuFolder} languages=${JSON.stringify(nsis.languages)}`,
+    `startMenuFolder=${nsis.startMenuFolder} languages=${JSON.stringify(nsis.languages)} installerIcon=${nsis.installerIcon}`,
   );
 
   const hooks = read("src-tauri/installer/windows/hooks.nsh");

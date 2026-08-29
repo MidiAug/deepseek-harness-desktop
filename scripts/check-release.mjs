@@ -53,6 +53,9 @@ if (confText) {
   if (!String(nsis.installerHooks ?? "").includes("hooks.nsh")) {
     errors.push("NSIS installerHooks 须指向 hooks.nsh");
   }
+  if (!String(nsis.installerIcon ?? "").replace(/\\/g, "/").endsWith("icons/icon.ico")) {
+    errors.push("NSIS installerIcon 须指向 icons/icon.ico（否则 setup.exe 为默认 NSIS 图标）");
+  }
   const updater = conf?.plugins?.updater ?? {};
   const pubkey = String(updater.pubkey ?? "").trim();
   if (!pubkey || pubkey.length < 32) {

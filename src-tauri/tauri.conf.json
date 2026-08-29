@@ -33,6 +33,7 @@
       "nsis": {
         "languages": ["English", "SimpChinese"],
         "startMenuFolder": "DeepSeek Harness",
+        "installerIcon": "icons/icon.ico",
         "installerHooks": "installer/windows/hooks.nsh"
       },
       "wix": {

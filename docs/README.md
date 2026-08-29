@@ -8,7 +8,8 @@
 | [configuration.md](configuration.md) | 代理、镜像、运行时来源、外观、数据目录 |
 | [troubleshooting.md](troubleshooting.md) | 常见失败与处理 |
 | [releases.md](releases.md) | 壳自更新与 Release 下载 |
-| [publishing.md](publishing.md) | 维护者：打 NSIS 包、CI tag、冷装验收 |
+| [publishing.md](publishing.md) | 维护者：打 NSIS 包、CI tag、冷装验收、仓库发现项 |
+| [images/](images/README.md) | README / Social preview 截图放置说明 |
 
 ## 本应用是什么
 
@@ -19,4 +20,6 @@
 
 ## 下载
 
-[GitHub Releases](https://github.com/MidiAug/deepseek-harness-desktop/releases/latest)
+**[GitHub Releases · Windows NSIS](https://github.com/MidiAug/deepseek-harness-desktop/releases/latest)**（`*-setup.exe`）
+
+未签名时 SmartScreen 可能提示 → 更多信息 → 仍要运行。
