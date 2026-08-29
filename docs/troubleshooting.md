@@ -45,7 +45,9 @@
 
 ## 壳自更新失败
 
-- 确认安装前托管进程已停（壳会先 `prepare_shell_update`）  
+- 关于页点「检查」若失败，应出现 Toast 与副标题错误（而非静默回到「每 6 小时自动检查」）
+- 日志常见：`tauri_plugin_updater` / `error sending request` 指向 `…/releases/latest/download/latest.json` → 本机访问 GitHub 失败；可开系统代理后重试，或从 [Releases](https://github.com/MidiAug/deepseek-harness-desktop/releases/latest) 手动下载 NSIS
+- 确认安装前托管进程已停（壳会先 `prepare_shell_update`）
 - 发行构建须签名；见 [releases.md](./releases.md)；发布前跑 `pnpm check:release`  
 
 ## 关于页版本 / digest

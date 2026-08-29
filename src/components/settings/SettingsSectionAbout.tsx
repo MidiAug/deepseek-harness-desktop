@@ -76,7 +76,11 @@ export function SettingsSectionAbout() {
             ? t("settings.about.shellUpdate.descDev")
             : shellUpd.phase === "upToDate"
               ? t("settings.about.upToDate")
-              : t("settings.about.shellUpdate.descAuto");
+              : shellUpd.phase === "error"
+                ? t("settings.about.shellUpdate.checkFailed", {
+                    error: shellUpd.message ?? "",
+                  })
+                : t("settings.about.shellUpdate.descAuto");
 
   const localHarnessVersion =
     updateCheck?.local ??
@@ -114,6 +118,7 @@ export function SettingsSectionAbout() {
     shellUpd.phase !== "unsupported" &&
     !shellChecking;
   const showShellInstall = shellUpd.phase === "downloaded";
+  // error / upToDate 仍显示「检查」，便于重试
 
   const showHarnessCheck =
     !harnessFaultMessage &&

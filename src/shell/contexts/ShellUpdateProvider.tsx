@@ -14,6 +14,7 @@ import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { prepareShellUpdate } from "../api/shellApi";
 import { useLocale } from "../locale";
+import { useAppToast } from "./ShellToastProvider";
 
 export type ShellUpdatePhase =
   | "idle"
@@ -46,6 +47,19 @@ const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const STARTUP_DELAY_MS = 15_000;
 const STARTUP_JITTER_MS = 15_000;
 
+/** 仅匹配「真·未配置/开发态」类错误；勿用裸 `dev`（会误伤 URL 里的 desktop） */
+function isUpdaterUnsupportedMessage(msg: string): boolean {
+  return /not configured|unsupported|no update endpoint|missing pubkey|development build|\bdev mode\b/i.test(
+    msg,
+  );
+}
+
+function shortenUpdaterError(msg: string, max = 120): string {
+  const oneLine = msg.replace(/\s+/g, " ").trim();
+  if (oneLine.length <= max) return oneLine;
+  return `${oneLine.slice(0, max - 1)}…`;
+}
+
 const ShellUpdateContext = createContext<ShellUpdateApi | null>(null);
 
 const INITIAL: ShellUpdateState = {
@@ -58,45 +72,36 @@ const INITIAL: ShellUpdateState = {
   manual: false,
 };
 
-function isBusyPhase(phase: ShellUpdatePhase): boolean {
-  return (
-    phase === "checking" ||
-    phase === "available" ||
-    phase === "downloading" ||
-    phase === "downloaded" ||
-    phase === "installing"
-  );
-}
-
 export function ShellUpdateProvider({ children }: { children: ReactNode }) {
   const { t } = useLocale();
+  const { showToast } = useAppToast();
   const [state, setState] = useState<ShellUpdateState>(INITIAL);
   const updateRef = useRef<Update | null>(null);
   const checkingRef = useRef(false);
   const lastCheckedRef = useRef(0);
+  const phaseRef = useRef<ShellUpdatePhase>(INITIAL.phase);
+  const installRef = useRef<() => Promise<void>>(async () => {});
 
   const apply = useCallback((patch: Partial<ShellUpdateState>) => {
-    setState((prev) => ({ ...prev, ...patch }));
+    setState((prev) => {
+      const next = { ...prev, ...patch };
+      phaseRef.current = next.phase;
+      return next;
+    });
   }, []);
 
   const runCheck = useCallback(
     async (manual = false) => {
       if (checkingRef.current) return;
+      const phase = phaseRef.current;
       if (
         !manual &&
-        isBusyPhase(state.phase) &&
-        state.phase !== "idle" &&
-        state.phase !== "upToDate" &&
-        state.phase !== "error" &&
-        state.phase !== "unsupported"
+        (phase === "available" ||
+          phase === "downloading" ||
+          phase === "downloaded" ||
+          phase === "installing")
       ) {
-        if (
-          state.phase === "available" ||
-          state.phase === "downloading" ||
-          state.phase === "downloaded"
-        ) {
-          return;
-        }
+        return;
       }
 
       checkingRef.current = true;
@@ -112,23 +117,37 @@ export function ShellUpdateProvider({ children }: { children: ReactNode }) {
         const update = await check();
         if (!update) {
           updateRef.current = null;
-          apply({
-            phase: "upToDate",
-            version: null,
-            notes: null,
-            message: manual ? t("shell.update.upToDate") : null,
-            percent: null,
-          });
+          if (manual) {
+            showToast(t("shell.update.upToDate"));
+            apply({
+              phase: "upToDate",
+              version: null,
+              notes: null,
+              message: t("shell.update.upToDate"),
+              percent: null,
+            });
+          } else {
+            apply({
+              phase: "idle",
+              version: null,
+              notes: null,
+              message: null,
+              percent: null,
+              manual: false,
+            });
+          }
           return;
         }
 
         updateRef.current = update;
+        const foundMsg = t("shell.update.available", { version: update.version });
+        showToast(foundMsg);
         apply({
           phase: "available",
           currentVersion: update.currentVersion,
           version: update.version,
           notes: update.body ?? null,
-          message: t("shell.update.available", { version: update.version }),
+          message: foundMsg,
           percent: 0,
         });
 
@@ -159,28 +178,53 @@ export function ShellUpdateProvider({ children }: { children: ReactNode }) {
           }
         });
 
+        const readyMsg = t("shell.update.downloaded", { version: update.version });
         apply({
           phase: "downloaded",
           percent: 100,
-          message: t("shell.update.downloaded", { version: update.version }),
+          message: readyMsg,
         });
+        // 自动检查下完：Toast 带「重启」；手动检查时关于页已有同按钮，避免叠两层强提示
+        if (!manual) {
+          showToast(readyMsg, {
+            action: {
+              label: t("settings.about.shellUpdate.install"),
+              onClick: () => {
+                void installRef.current();
+              },
+            },
+          });
+        }
       } catch (e) {
         const msg = typeof e === "string" ? e : String(e);
         const unsupported =
-          /not configured|unsupported|endpoints|pubkey|development|dev/i.test(
-            msg,
-          ) || import.meta.env.DEV;
+          isUpdaterUnsupportedMessage(msg) || import.meta.env.DEV;
         updateRef.current = null;
-        apply({
-          phase: unsupported ? "unsupported" : "error",
-          message: unsupported ? t("shell.update.unsupported") : msg,
-          percent: null,
-        });
+        if (unsupported) {
+          apply({
+            phase: "unsupported",
+            message: t("shell.update.unsupported"),
+            percent: null,
+          });
+          if (manual) {
+            showToast(t("shell.update.unsupported"));
+          }
+        } else {
+          const short = shortenUpdaterError(msg);
+          apply({
+            phase: "error",
+            message: short,
+            percent: null,
+          });
+          if (manual) {
+            showToast(t("shell.update.checkFailed", { error: short }));
+          }
+        }
       } finally {
         checkingRef.current = false;
       }
     },
-    [apply, state.phase, t],
+    [apply, showToast, t],
   );
 
   const checkNow = useCallback(
@@ -192,7 +236,7 @@ export function ShellUpdateProvider({ children }: { children: ReactNode }) {
 
   const installAndRelaunch = useCallback(async () => {
     const update = updateRef.current;
-    if (!update || state.phase !== "downloaded") return;
+    if (!update || phaseRef.current !== "downloaded") return;
     apply({ phase: "installing", message: t("shell.update.installPrepare") });
     try {
       // 先杀树再装，避免 DSH 未关导致更新失败
@@ -201,18 +245,25 @@ export function ShellUpdateProvider({ children }: { children: ReactNode }) {
       await update.install();
       await relaunch();
     } catch (e) {
+      const msg = typeof e === "string" ? e : String(e);
       apply({
         phase: "error",
-        message: typeof e === "string" ? e : String(e),
+        message: msg,
       });
+      showToast(t("shell.update.checkFailed", { error: msg }));
     }
-  }, [apply, state.phase, t]);
+  }, [apply, showToast, t]);
+
+  installRef.current = installAndRelaunch;
 
   const dismiss = useCallback(() => {
-    if (state.phase === "upToDate" || state.phase === "error") {
+    if (
+      phaseRef.current === "upToDate" ||
+      phaseRef.current === "error"
+    ) {
       apply({ phase: "idle", message: null, manual: false });
     }
-  }, [apply, state.phase]);
+  }, [apply]);
 
   useEffect(() => {
     // 开发态不自动轮询（无签名端点）；仍可通过关于页手动检查
