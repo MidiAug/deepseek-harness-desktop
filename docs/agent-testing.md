@@ -57,7 +57,7 @@ pnpm tauri dev      ←──→   「打开设置并截图」
    - `read_logs` — WebView 控制台
 4. 可同时让 Agent 读 Cursor 终端输出（`terminals/*.txt`）对照 B51 结构化日志
 
-**Windows 注意**：`read_logs` 的 `system` 源依赖 macOS `log` CLI，在 Windows 上请直接读 `%LocalAppData%/com.deepseek.harness.desktop/logs/shell.log`，或让 Agent 调用 `export_diagnostics` 后查看 `ops-recent.jsonl`。若 `webview_interact` 的 ref 点击失败，可用 `webview_execute_js` 或 `strategy: text` 替代。
+**Windows 注意**：`read_logs` 的 `system` 源依赖 macOS `log` CLI，在 Windows 上请直接读 `%LocalAppData%/com.deepseek.harness.desktop/logs/current/shell.log`，或让 Agent 调用 `export_diagnostics` 后查看 `ops-recent.jsonl`。若 `webview_interact` 的 ref 点击失败，可用 `webview_execute_js` 或 `strategy: text` 替代。
 
 **导出诊断（MCP）**：`ipc_execute_command` 不支持全部 invoke；可用 `webview_execute_js` 调用 `window.__TAURI__.core.invoke('export_diagnostics')`（可先 `set_diagnostics_context`）。验收 ops 链时用 `grep op_id=…` 对照 `shell.log` 与 `ops-recent.jsonl`。
 

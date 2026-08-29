@@ -94,7 +94,7 @@ fn open_known_path(app: tauri::AppHandle, which: String) -> Result<(), String> {
     let path = match which.as_str() {
         "dshHome" => paths::dsh_home(&app, Some(cfg.dsh_home_override.as_str())),
         "appData" => paths::base_dir(&app)?,
-        "logs" => crate::logging::host_log_dir(),
+        "logs" => logging::host_log_dir(),
         _ => return Err(HostError::OpenPath(format!("未知目标 {which}")).into()),
     };
     if !path.exists() {
@@ -549,9 +549,9 @@ pub fn run() {
     {
         builder = builder.plugin(tauri_plugin_mcp_bridge::init());
     }
-    let log_dir = logging::host_log_dir();
-    let _ = std::fs::create_dir_all(&log_dir);
+    let log_dir = logging::prepare_log_session();
     let mut log_builder = tauri_plugin_log::Builder::new()
+        .clear_targets()
         .level(if cfg!(debug_assertions) {
             log::LevelFilter::Debug
         } else {

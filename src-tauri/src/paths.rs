@@ -213,14 +213,14 @@ pub fn service_url(port: u16) -> String {
 }
 
 pub fn harness_log_file<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
-    Ok(base_dir(app)?.join("logs").join("harness.log"))
+    let _ = app;
+    Ok(crate::logging::harness_log_path())
 }
 
-/// 壳侧运维日志（更新 / 安装进度），与 harness 子进程 stdout 分开。
-/// 真源：`tauri-plugin-log` → `%LocalAppData%/{bundle}/logs/shell.log`（非 Roaming）。
+/// 壳侧运维日志：`%LocalAppData%/{bundle}/logs/current/shell.log`。
 pub fn shell_log_file<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
     let _ = app;
-    Ok(crate::logging::host_log_dir().join("shell.log"))
+    Ok(crate::logging::shell_log_path())
 }
 
 /// 会话级干净 profile：仅本壳托管 spawn 使用，不删用户 `~/.dsh`。

@@ -1,10 +1,12 @@
 //! 宿主日志：目录解析 + 高频行限流。
 
 mod harness_detail;
+mod layout;
 mod ops;
 mod rate_limit;
 
 pub use harness_detail::{extract_plugin_root_cause, tail_since_last_spawn, tail_text};
+pub use layout::{harness_log_path, prepare_log_session, shell_log_path};
 pub use ops::{
     current_spawn_gen, log_runtime_settings_diff, log_ui_settings_diff, next_spawn_gen,
     ops_snapshot_jsonl, record_op, record_op_err, record_op_outcome, DiagnosticsContext,
@@ -31,12 +33,17 @@ static NPM_HEARTBEAT_GATE: LazyLock<RateGate> =
 static PROGRESS_LAST: LazyLock<Mutex<(String, Instant)>> =
     LazyLock::new(|| Mutex::new((String::new(), Instant::now())));
 
-/// `%LocalAppData%/{bundle}/logs`，与 Tauri `app_data_dir` + `logs` 一致。
-pub fn host_log_dir() -> PathBuf {
+/// `%LocalAppData%/{bundle}/logs`（含 `current/` + `archive/`）。
+pub(crate) fn host_log_root() -> PathBuf {
     dirs::data_local_dir()
         .unwrap_or_else(std::env::temp_dir)
         .join(BUNDLE_ID)
         .join("logs")
+}
+
+/// 打开日志文件夹：根目录（可见 current 与 archive）。
+pub fn host_log_dir() -> PathBuf {
+    host_log_root()
 }
 
 /// npm 流式行写入 shell.log 前限流（UI 事件不受此影响）。

@@ -85,7 +85,7 @@
 | 层 | 默认 | 内容 |
 |----|------|------|
 | **安装** | `%LOCALAPPDATA%\DeepSeek Harness Desktop\` | `deepseek-harness-desktop.exe` 与壳前端资源 |
-| **壳托管（AppData）** | `%APPDATA%\com.deepseek.harness.desktop`（可能被占用后改为 `-shell` 等后缀） | Node、harness npm、`settings.json`、`harness.log` |
+| **壳托管（AppData）** | `%APPDATA%\com.deepseek.harness.desktop`（可能被占用后改为 `-shell` 等后缀） | Node、harness npm、`settings.json`（**不含**排障日志） |
 | **用户 DSH 数据** | `~/.dsh` 或 hosted 下 `dsh-home` | 会话、插件、`settings.yaml` |
 
 若 AppData 主路径已被其他程序占用，壳会自动选用备用目录（`-shell` / `-desktop` / `-2`…）并在首跑/设置 → 数据与恢复中提示；**固定备用全满**时落 `-emerg-<pid>` 紧急目录（绝不写入 foreign 主路径）。设置页可打开**实际** AppData 文件夹。
@@ -104,14 +104,31 @@
 
 ## 日志与诊断
 
+排障日志统一在 **LocalAppData**（不进 Roaming，避免漫游同步大文件）：
+
+```text
+%LOCALAPPDATA%\com.deepseek.harness.desktop\
+  EBWebView\          ← WebView2 私有数据（勿动、勿塞业务日志）
+  logs\
+    current\          ← 本次进程生命周期（打开→退出）
+      .session
+      shell.log
+      harness.log
+    archive\          ← 历史会话（启动时从 current 轮转；默认保留 15 套）
+      YYYYMMDD-HHMMSS_<id8>\
+        shell.log
+        harness.log
+```
+
 | 项 | 说明 |
 |----|------|
-| shell.log | 宿主 + 壳 UI 日志（含 `[ui::ops]` / `[shell::ops]`）；**`%LOCALAPPDATA%\com.deepseek.harness.desktop\logs\`**（设置「打开日志」打开此目录） |
-| harness.log | dsh 子进程 stdout/stderr；`%APPDATA%\com.deepseek.harness.desktop\logs\`；spawn 行含 `gen=N` |
-| ops-recent.jsonl | 诊断导出内：Rust ring 快照，**含 UI 与 Rust 两侧 ops**（B53） |
-| session_id | 每次打开应用生成，便于 grep 一次会话 |
-| 导出诊断 | 设置 → 数据与恢复：打包 log tail（含 Local `shell.log` + Roaming `harness.log`）、ops 快照、app 状态、脱敏设置、runtime 快照 |
-| inject 错误 | 注入特性 init 失败默认写入 shell.log；全量 DOM 诊断仍须 `localStorage` 开关 |
+| shell.log | 宿主 + 壳 UI（含 `[ui::ops]` / `[shell::ops]`）；仅写入 **本次** `current/` |
+| harness.log | dsh 子进程 stdout/stderr；与 shell 同属本会话 `current/` |
+| 打开日志 | 设置打开 `%LOCALAPPDATA%\…\logs\`（可见 `current` + `archive`） |
+| 导出诊断 | 打包 **当前** `current/` 尾部 + ops / 脱敏设置等 |
+| session | 每次启动新建空 `current/`；**不**向旧会话文件追加 |
+
+同一次应用进程内多次「重启 harness」仍写入同一套 `current/`（仅多条 `--- spawn ---`）。
 
 ### 落盘审计（B50）
 
