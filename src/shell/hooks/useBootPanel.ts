@@ -185,8 +185,13 @@ export function useBootPanel({
     [onOpenSettings, recovery, start, startCommand],
   );
 
+  // 仅本挂载（bootKey）的启动命令；markReady 会把 startCommand 拨回 ensure_and_start，
+  // 若进 effect deps 会二次 markBootWorking（embedding→spawning）并假死在「正在确保…」。
+  const mountStartCommandRef = useRef(startCommand);
+
   useEffect(() => {
     aliveRef.current = true;
+    const cmd = mountStartCommandRef.current;
     void (async () => {
       let coldInstall = true;
       try {
@@ -206,12 +211,19 @@ export function useBootPanel({
           runtimeKnown: true,
         });
         coldInstall = !ready;
+        // 已启动后勿再改主文案 / 相位（locale 等 deps 重跑时）
+        if (startedRef.current) {
+          return;
+        }
         if (ready) {
           setStatus(t("boot.msg.ensure"), "start");
         } else if (partial) {
           setStatus(t("boot.lead.repair"), "install-dsh");
         }
       } catch {
+        if (startedRef.current) {
+          return;
+        }
         setBootMetaRef.current({
           fastPath: false,
           repairing: false,
@@ -220,11 +232,11 @@ export function useBootPanel({
         coldInstall = true;
       }
 
-      if (startCommand === "external_op" || !autoStart) {
-        if (!autoStart && startCommand !== "external_op") {
+      if (cmd === "external_op" || !autoStart) {
+        if (!autoStart && cmd !== "external_op") {
           setAwaitingManualStart(true);
           shellLog.info("boot", "awaiting manual start", {
-            startCommand,
+            startCommand: cmd,
             autoStart,
             note: "stop does not quit shell; BootPanel will remount status surface",
           });
@@ -234,16 +246,17 @@ export function useBootPanel({
         return;
       }
 
-      onBootWorkingRef.current?.(coldInstall);
-      if (!startedRef.current) {
-        startedRef.current = true;
-        void start(startCommand);
+      if (startedRef.current) {
+        return;
       }
+      startedRef.current = true;
+      onBootWorkingRef.current?.(coldInstall);
+      void start(cmd);
     })();
     return () => {
       aliveRef.current = false;
     };
-  }, [start, startCommand, autoStart, setStatus, t]);
+  }, [start, autoStart, setStatus, t]);
 
   useEffect(() => {
     if (!logOpen) return;
