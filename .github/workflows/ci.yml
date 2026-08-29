@@ -16,9 +16,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # version 由 package.json#packageManager 决定，勿再写 version:（会与 action-setup@v4 冲突）
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - uses: actions/setup-node@v4
         with:
