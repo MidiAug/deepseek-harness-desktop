@@ -8,7 +8,7 @@
 
 ## 安装包用户
 
-1. 从 [GitHub Releases](https://github.com/MidiAug/deepseek-harness-desktop/releases/latest) 下载 MSI / 安装包并安装  
+1. 从 [GitHub Releases](https://github.com/MidiAug/deepseek-harness-desktop/releases/latest) 下载 **NSIS**（`*-setup.exe`，推荐）并安装  
 2. 打开 deepseek-harness-desktop  
 3. **首次启动**：选择「沿用本机 Harness」或「由壳全新准备」，并确认 **DSH_HOME** 数据目录  
 4. 等待壳安装/启动运行时（已有本机 dsh 时通常很快）  

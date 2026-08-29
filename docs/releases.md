@@ -2,6 +2,8 @@
 
 发行构建使用 Tauri updater：启动后检查、每 6 小时轮询、后台下载、**用户确认后**重启安装。
 
+维护者如何打包装上架：[publishing.md](publishing.md)。
+
 ## 行为
 
 | 时机 | 行为 |
@@ -37,3 +39,11 @@ Harness 更新走 npm，与壳 MSI 自更新是两条独立通道。详见 [conf
 ## 下载新版本
 
 安装包与更新元数据发布在 [GitHub Releases](https://github.com/MidiAug/deepseek-harness-desktop/releases/latest)。
+
+**请优先下载 NSIS**（`*-setup.exe`）。MSI 可选；完整开始菜单中英双快捷方式仅 NSIS hooks 提供。
+
+更新元数据：`https://github.com/MidiAug/deepseek-harness-desktop/releases/latest/download/latest.json`（与 `tauri.conf.json` 的 updater endpoint 一致）。
+
+## 冷装 / 卸载抽检（维护者）
+
+干净机步骤见 [publishing.md §C](publishing.md#c-冷装验收结案必做)。通过后才勾 VISION「从安装包到官方 UI」。

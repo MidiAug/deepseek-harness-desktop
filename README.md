@@ -62,9 +62,9 @@ pnpm tauri dev
 
 - debug 默认端口 **3081**（正式包 **3080**；占用时自动顺延）  
 - **Agent 结对调试**（Cursor + Tauri MCP）：见 [docs/agent-testing.md](docs/agent-testing.md)  
-- 发行构建：`pnpm check:release` → `pnpm tauri build`（自更新签名需设置 `TAURI_SIGNING_PRIVATE_KEY`，见 Tauri 文档）
+- 发行构建：`pnpm check:release` → `pnpm tauri build`（自更新签名需设置 `TAURI_SIGNING_PRIVATE_KEY`，见 [docs/publishing.md](docs/publishing.md)）
 
-更多细节：[docs/getting-started.md](docs/getting-started.md)
+更多细节：[docs/getting-started.md](docs/getting-started.md) · 安全报告：[SECURITY.md](SECURITY.md)
 
 ## 运行时架构
 
@@ -108,8 +108,8 @@ AppData/com.deepseek.harness.desktop/
 ## 与上游的关系
 
 DeepSeek Harness 及其依赖遵循各自上游许可与商标政策。  
-**deepseek-harness-desktop** 是独立的社区桌面宿主，由 [@MidiAug](https://github.com/MidiAug) 维护。
+**deepseek-harness-desktop** 是独立的**社区**桌面宿主（**非** DeepSeek 官方产品），由 [@MidiAug](https://github.com/MidiAug) 维护。
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE) · 安全披露见 [SECURITY.md](SECURITY.md)

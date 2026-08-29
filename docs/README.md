@@ -8,6 +8,7 @@
 | [configuration.md](configuration.md) | 代理、镜像、运行时来源、外观、数据目录 |
 | [troubleshooting.md](troubleshooting.md) | 常见失败与处理 |
 | [releases.md](releases.md) | 壳自更新与 Release 下载 |
+| [publishing.md](publishing.md) | 维护者：打 NSIS 包、CI tag、冷装验收 |
 
 ## 本应用是什么
 
