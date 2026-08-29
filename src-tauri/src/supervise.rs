@@ -743,12 +743,13 @@ mod tests {
 
     #[test]
     fn find_available_port_skips_bound() {
+        // 不在返回后再 bind(next)：find_available_port 内部已 bind+drop 探测，
+        // 并行 cargo test 下其它用例的 :0 可能抢走 next（TOCTOU），CI 会偶发 probe.is_ok 失败。
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let occupied = listener.local_addr().unwrap().port();
+        assert!(crate::host_resilience::is_port_in_use(occupied));
         let next = find_available_port(occupied).unwrap();
         assert_ne!(next, occupied);
-        let probe = TcpListener::bind(("127.0.0.1", next));
-        assert!(probe.is_ok());
     }
 
     #[test]
