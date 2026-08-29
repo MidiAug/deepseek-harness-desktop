@@ -10,7 +10,7 @@
 | 仓库 | `https://github.com/MidiAug/deepseek-harness-desktop`（与 `tauri.conf.json` updater endpoint 一致） |
 | 本机密钥 | `.secrets/updater.key` + `.secrets/updater.password`（已 gitignore；**勿提交**） |
 | GitHub Secrets（CI） | `TAURI_SIGNING_PRIVATE_KEY`（私钥全文）、`TAURI_SIGNING_PRIVATE_KEY_PASSWORD` |
-| 工具 | Node 20+、pnpm 9、Rust stable、Windows（打 NSIS） |
+| 工具 | Node 22+（`>=22.12`）、pnpm 9、Rust stable、Windows（打 NSIS） |
 
 **首发主推 NSIS**（`*-setup.exe`）。MSI/WiX 可附带，但**不含**中文双快捷方式与本仓库 NSIS hooks；完整身份体验以 NSIS 为准。
 

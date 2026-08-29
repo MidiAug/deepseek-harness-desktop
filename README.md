@@ -51,7 +51,7 @@ Windows 安装包：[GitHub Releases](https://github.com/MidiAug/deepseek-harnes
 
 ### 从源码开发
 
-**前置**：Node.js 18+、pnpm 9+、[Rust](https://www.rust-lang.org/tools/install)、Windows [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/)
+**前置**：Node.js 22+（`>=22.12`；`node --test` 跑 TS 单测）、pnpm 9+、[Rust](https://www.rust-lang.org/tools/install)、Windows [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/)
 
 ```bash
 git clone https://github.com/MidiAug/deepseek-harness-desktop.git

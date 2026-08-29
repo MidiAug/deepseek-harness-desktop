@@ -12,7 +12,7 @@
 
 ## 前置
 
-- Node.js 20+
+- Node.js 22+（`>=22.12`）
 - 本仓库已集成 `tauri-plugin-mcp-bridge`（B52，`debug` 自动启用）
 - **首次集成 bridge 后**，须先完整编过一次 debug 二进制（`cargo build` 或跑一次 `pnpm tauri dev`），再连 MCP；否则插件未进二进制，易出现连接/权限类报错
 - Cursor 已启用本项目 MCP（见下）
